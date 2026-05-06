@@ -1,65 +1,66 @@
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { QuickSearch } from "@/components/features/QuickSearch";
+import Link from "next/link";
 import Image from "next/image";
+import { createClient } from '@/infrastructure/database/server';
 
-export default function Home() {
+export default async function Home() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  let avatarUrl = null;
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('avatar_url')
+      .eq('id', user.id)
+      .single();
+      
+    if (profile?.avatar_url) {
+      avatarUrl = profile.avatar_url;
+    }
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main className="flex-1 flex flex-col items-center justify-center p-8 gap-8 max-w-2xl mx-auto w-full">
+      <div className="flex items-center justify-between mb-8">
+        <div className="text-left">
+          <h1 className="text-4xl font-extrabold tracking-tight text-primary mb-2">HubVet</h1>
+          <p className="text-lg font-medium text-foreground/80">
+            Atendimentos domiciliares e rápidos.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        
+        <Link href="/perfil" className="w-14 h-14 bg-background rounded-full shadow-neu-sm flex items-center justify-center text-primary hover:shadow-neu-pressed transition-all active:scale-95 cursor-pointer border border-foreground/5 overflow-hidden">
+          {avatarUrl ? (
+            <Image src={avatarUrl} alt="Perfil" width={56} height={56} className="w-full h-full object-cover" />
+          ) : (
+            <span className="font-bold text-xl">MV</span>
+          )}
+        </Link>
+      </div>
+
+      <Card className="w-full flex flex-col gap-6">
+        <h2 className="text-2xl font-bold text-foreground">Acesso Rápido</h2>
+        
+        <QuickSearch />
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
+          <Link href="/prontuario" className="w-full">
+            <Button variant="secondary" className="w-full !px-2">Novo Prontuário</Button>
+          </Link>
+          <Link href="/calculadora" className="w-full">
+            <Button variant="primary" className="w-full !px-2">Calculadora</Button>
+          </Link>
+          <Link href="/pacientes" className="w-full">
+            <Button variant="secondary" className="w-full !px-2">Pacientes</Button>
+          </Link>
+          <Link href="/estoque" className="w-full">
+            <Button variant="secondary" className="w-full !px-2">Maleta (Estoque)</Button>
+          </Link>
         </div>
-      </main>
-    </div>
+      </Card>
+    </main>
   );
 }
