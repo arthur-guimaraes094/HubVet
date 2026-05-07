@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
 import { ViewTransition } from "react";
+import { LocalDate } from '@/components/ui/LocalDate';
 
 export const revalidate = 0;
 
@@ -92,7 +93,7 @@ export default async function PatientHistoryPage({
                     <div className="flex justify-between items-start border-b border-foreground/5 pb-3">
                       <div>
                         <span className="text-xs font-black text-primary uppercase tracking-widest">
-                          {new Date(consult.date.replace(' ', 'T')).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                          <LocalDate date={consult.date} />
                         </span>
                         <h3 className="text-lg font-bold text-foreground">Atendimento {consult.type}</h3>
                       </div>

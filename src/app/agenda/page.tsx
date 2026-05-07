@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { ScheduleConsultationForm } from '@/components/features/ScheduleConsultationForm';
 import Link from 'next/link';
 import { ViewTransition } from "react";
+import { LocalDate } from '@/components/ui/LocalDate';
 
 export const revalidate = 0;
 
@@ -56,16 +57,10 @@ export default async function AgendaPage() {
                     {/* Time block */}
                     <div className="flex flex-col items-center justify-center min-w-[80px] p-3 rounded-2xl bg-background shadow-neu-sm border border-foreground/5">
                       <span className="text-xs font-black text-primary uppercase">
-                        {(() => {
-                          const date = new Date(consult.date.replace(' ', 'T'));
-                          return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-                        })()}
+                        <LocalDate date={consult.date} format="date" />
                       </span>
                       <span className="text-xl font-black text-foreground">
-                        {(() => {
-                          const date = new Date(consult.date.replace(' ', 'T'));
-                          return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                        })()}
+                        <LocalDate date={consult.date} format="time" />
                       </span>
                     </div>
 
