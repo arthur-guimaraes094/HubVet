@@ -50,18 +50,21 @@ export default async function Home() {
           
           <QuickSearch />
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-2">
+            <Link href="/agenda" className="w-full">
+              <Button variant="primary" className="w-full !px-2">Agenda</Button>
+            </Link>
             <Link href="/prontuario" className="w-full">
-              <Button variant="secondary" className="w-full !px-2">Novo Prontuário</Button>
+              <Button variant="secondary" className="w-full !px-2">Prontuário</Button>
             </Link>
             <Link href="/calculadora" className="w-full">
-              <Button variant="primary" className="w-full !px-2">Calculadora</Button>
+              <Button variant="secondary" className="w-full !px-2">Calculadora</Button>
             </Link>
             <Link href="/pacientes" className="w-full">
               <Button variant="secondary" className="w-full !px-2">Pacientes</Button>
             </Link>
             <Link href="/estoque" className="w-full">
-              <Button variant="secondary" className="w-full !px-2">Maleta (Estoque)</Button>
+              <Button variant="secondary" className="w-full !px-2">Estoque</Button>
             </Link>
           </div>
         </Card>

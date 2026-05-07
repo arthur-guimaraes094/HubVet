@@ -9,7 +9,7 @@ export const revalidate = 0;
 export default async function ProntuarioPage({
   searchParams,
 }: {
-  searchParams: Promise<{ id?: string; type?: string; patient?: string }>
+  searchParams: Promise<{ id?: string; type?: string; patient?: string; consultationId?: string }>
 }) {
   const params = await searchParams;
   const supabase = await createClient();
@@ -19,6 +19,7 @@ export default async function ProntuarioPage({
   let patientData = null;
   const targetId = params?.id || params?.patient;
   const targetType = params?.type || (params?.patient ? 'Paciente' : null);
+  const consultationId = params?.consultationId;
 
   if (targetId && targetType === 'Paciente') {
     const { data } = await supabase.from('patients').select('*, tutors(name)').eq('id', targetId).single();
@@ -40,6 +41,7 @@ export default async function ProntuarioPage({
           patientId={patientData?.id} 
           patientName={patientData?.name}
           tutorName={patientData?.tutors?.name}
+          consultationId={consultationId}
         />
       </main>
     </ViewTransition>

@@ -8,6 +8,7 @@ export async function salvarProntuario(data: {
   notes: string;
   baseFee: number;
   items: { id: string; name: string; quantity: number; unitCost: number; price: number }[];
+  consultationId?: string;
 }) {
   const supabase = await createClient()
 
@@ -16,26 +17,42 @@ export async function salvarProntuario(data: {
   if (userError || !userData.user) throw new Error('Não autenticado')
 
   const profileId = userData.user.id
+  let consultationId = data.consultationId;
 
-  // 1. Inserir a consulta
-  const { data: consultation, error: consultError } = await supabase
-    .from('consultations')
-    .insert({
-      profile_id: profileId,
-      patient_id: data.patientId,
-      date: new Date().toISOString(),
-      type: 'Home',
-      clinical_notes: data.notes,
-      base_fee: data.baseFee
-    })
-    .select('id')
-    .single()
+  if (consultationId) {
+    // 1a. Atualizar consulta existente (vinda da agenda)
+    const { error: updateError } = await supabase
+      .from('consultations')
+      .update({
+        clinical_notes: data.notes,
+        base_fee: data.baseFee,
+        status: 'Completed',
+        date: new Date().toISOString() // Atualiza para a data real do atendimento
+      })
+      .eq('id', consultationId);
 
-  if (consultError || !consultation) {
-    throw new Error('Erro ao salvar consulta')
+    if (updateError) throw new Error('Erro ao atualizar consulta agendada');
+  } else {
+    // 1b. Inserir nova consulta
+    const { data: consultation, error: consultError } = await supabase
+      .from('consultations')
+      .insert({
+        profile_id: profileId,
+        patient_id: data.patientId,
+        date: new Date().toISOString(),
+        type: 'Home',
+        clinical_notes: data.notes,
+        base_fee: data.baseFee,
+        status: 'Completed'
+      })
+      .select('id')
+      .single();
+
+    if (consultError || !consultation) {
+      throw new Error('Erro ao salvar consulta');
+    }
+    consultationId = consultation.id;
   }
-
-  const consultationId = consultation.id
 
   // 2. Inserir os itens em batch (ao invés de um por um)
   const itemsToInsert = data.items

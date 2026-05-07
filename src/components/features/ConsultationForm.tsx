@@ -22,9 +22,10 @@ interface ConsultationFormProps {
   patientId?: string;
   patientName?: string;
   tutorName?: string;
+  consultationId?: string;
 }
 
-export function ConsultationForm({ inventory, patientId, patientName, tutorName }: ConsultationFormProps) {
+export function ConsultationForm({ inventory, patientId, patientName, tutorName, consultationId }: ConsultationFormProps) {
   const router = useRouter();
   const { success, error } = useToast();
   const [baseFee, setBaseFee] = useState<string>('');
@@ -86,7 +87,8 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName 
         patientId: patientId,
         notes,
         baseFee: parseFloat(baseFee) || 0,
-        items: fullItems
+        items: fullItems,
+        consultationId: consultationId
       });
       
       if (result) {
