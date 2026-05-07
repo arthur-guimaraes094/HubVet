@@ -94,31 +94,68 @@ export default async function PatientHistoryPage({
               </svg>
               Evolução de Peso
             </h3>
-            <div className="h-48 w-full relative mt-4 flex items-end gap-3 px-2 overflow-x-auto pb-4">
+            <div className="h-64 w-full relative mt-4 px-2">
               {(() => {
                 const sortedData = [...weightData].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-                const maxW = Math.max(...sortedData.map(w => w.weight), 1);
-                
-                return sortedData.map((d, i) => {
-                  // Deixa 20% de respiro no topo
-                  const height = (d.weight / (maxW * 1.2)) * 100;
-                  
-                  return (
-                    <div key={i} className="flex-1 h-full min-w-[60px] flex flex-col justify-end items-center group relative">
-                      <div 
-                        className="w-full bg-primary rounded-t-2xl transition-all group-hover:bg-primary/80 relative shadow-neu-flat" 
-                        style={{ height: `${height}%` }}
-                      >
-                        <div className="absolute -top-10 left-1/2 -translate-x-1/2 text-xs font-black text-white bg-primary shadow-lg px-3 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100 whitespace-nowrap z-20">
-                          {d.weight} kg
-                        </div>
-                      </div>
-                      <span className="text-[10px] mt-3 font-black text-foreground/40 whitespace-nowrap uppercase tracking-tighter">
-                        {new Date(d.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                      </span>
-                    </div>
-                  );
+                if (sortedData.length < 2) return null;
+
+                const padding = 40;
+                const width = 600; // Base width for coordinates
+                const height = 200; // Base height for coordinates
+                const maxW = Math.max(...sortedData.map(w => w.weight)) * 1.2;
+                const minW = Math.min(...sortedData.map(w => w.weight)) * 0.8;
+                const range = maxW - minW;
+
+                const points = sortedData.map((d, i) => {
+                  const x = (i / (sortedData.length - 1)) * (width - padding * 2) + padding;
+                  const y = height - ((d.weight - minW) / range) * (height - padding * 2) - padding;
+                  return { x, y, weight: d.weight, date: d.date };
                 });
+
+                const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+                const areaD = `${pathD} L ${points[points.length - 1].x} ${height} L ${points[0].x} ${height} Z`;
+
+                return (
+                  <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full drop-shadow-lg overflow-visible">
+                    <defs>
+                      <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="rgb(59, 130, 246)" stopOpacity="0.3" />
+                        <stop offset="100%" stopColor="rgb(59, 130, 246)" stopOpacity="0" />
+                      </linearGradient>
+                    </defs>
+                    
+                    {/* Eixos */}
+                    <line x1={padding} y1={height - 20} x2={width - padding/2} y2={height - 20} stroke="currentColor" strokeOpacity="0.1" strokeWidth="1" />
+                    <line x1={padding} y1={padding/2} x2={padding} y2={height - 20} stroke="currentColor" strokeOpacity="0.1" strokeWidth="1" />
+
+                    {/* Área preenchida */}
+                    <path d={areaD} fill="url(#areaGradient)" />
+                    
+                    {/* Linha do gráfico */}
+                    <path d={pathD} fill="none" stroke="rgb(59, 130, 246)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+
+                    {/* Pontos e Rótulos */}
+                    {points.map((p, i) => (
+                      <g key={i} className="group cursor-pointer">
+                        {/* Linha tracejada vertical */}
+                        <line x1={p.x} y1={p.y} x2={p.x} y2={height - 20} stroke="currentColor" strokeOpacity="0.2" strokeWidth="1" strokeDasharray="4" />
+                        
+                        {/* Ponto */}
+                        <circle cx={p.x} cy={p.y} r="6" fill="white" stroke="rgb(59, 130, 246)" strokeWidth="3" className="transition-all group-hover:r-8" />
+                        
+                        {/* Peso acima do ponto */}
+                        <text x={p.x} y={p.y - 12} textAnchor="middle" className="text-[14px] font-black fill-primary transition-all opacity-100">
+                          {p.weight}kg
+                        </text>
+
+                        {/* Data abaixo */}
+                        <text x={p.x} y={height - 5} textAnchor="middle" className="text-[12px] font-bold fill-foreground/40">
+                          {new Date(p.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                        </text>
+                      </g>
+                    ))}
+                  </svg>
+                );
               })()}
             </div>
           </Card>
