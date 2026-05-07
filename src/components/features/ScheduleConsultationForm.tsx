@@ -7,13 +7,15 @@ import { Modal } from '@/components/ui/Modal';
 import { agendarConsulta } from '@/app/agenda/actions';
 import { useToast } from '@/components/ui/Toast';
 
+interface Tutor {
+  address: string | null;
+}
+
 interface Patient {
   id: string;
   name: string;
   species: string;
-  tutors?: {
-    address: string | null;
-  } | null;
+  tutors?: Tutor | Tutor[] | null;
 }
 
 interface ScheduleConsultationFormProps {
@@ -35,10 +37,21 @@ export function ScheduleConsultationForm({ patients }: ScheduleConsultationFormP
 
   const handlePatientChange = (patientId: string) => {
     const patient = patients.find(p => p.id === patientId);
+    let address = '';
+    
+    if (patient?.tutors) {
+      const tutorsData = patient.tutors;
+      if (Array.isArray(tutorsData)) {
+        address = tutorsData[0]?.address || '';
+      } else {
+        address = tutorsData.address || '';
+      }
+    }
+
     setFormData(prev => ({
       ...prev,
       patientId,
-      address: patient?.tutors?.address || ''
+      address
     }));
   };
 
@@ -62,7 +75,7 @@ export function ScheduleConsultationForm({ patients }: ScheduleConsultationFormP
       success('Consulta agendada com sucesso!');
       setIsOpen(false);
       setFormData({ patientId: '', date: '', time: '', type: 'Home', address: '' });
-    } catch (e) {
+    } catch {
       error('Erro ao agendar consulta');
     } finally {
       setLoading(false);
@@ -113,7 +126,7 @@ export function ScheduleConsultationForm({ patients }: ScheduleConsultationFormP
                 <button
                   key={t}
                   type="button"
-                  onClick={() => setFormData({ ...formData, type: t as any })}
+                  onClick={() => setFormData({ ...formData, type: t as 'Home' | 'Hospital' })}
                   className={`flex-1 py-3 rounded-xl font-bold transition-all ${
                     formData.type === t 
                     ? 'bg-primary text-white shadow-neu-pressed' 
