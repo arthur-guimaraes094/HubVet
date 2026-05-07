@@ -54,9 +54,6 @@ export default async function Home() {
             <Link href="/agenda" className="w-full">
               <Button variant="primary" className="w-full !px-2">Agenda</Button>
             </Link>
-            <Link href="/prontuario" className="w-full">
-              <Button variant="secondary" className="w-full !px-2">Prontuário</Button>
-            </Link>
             <Link href="/calculadora" className="w-full">
               <Button variant="secondary" className="w-full !px-2">Calculadora</Button>
             </Link>

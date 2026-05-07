@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { agendarConsulta } from '@/app/agenda/actions';
 import { useToast } from '@/components/ui/Toast';
+import { translateSpecies } from '@/core/utils/translations';
 
 interface Tutor {
   address: string | null;
@@ -99,7 +100,7 @@ export function ScheduleConsultationForm({ patients }: ScheduleConsultationFormP
             >
               <option value="">Selecione um paciente...</option>
               {patients.map(p => (
-                <option key={p.id} value={p.id}>{p.name} ({p.species})</option>
+                <option key={p.id} value={p.id}>{p.name} ({translateSpecies(p.species)})</option>
               ))}
             </select>
           </div>

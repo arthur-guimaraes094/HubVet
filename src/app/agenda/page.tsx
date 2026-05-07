@@ -86,7 +86,8 @@ export default async function AgendaPage() {
                     </div>
                   </div>
 
-                  <div className="flex flex-row sm:flex-row gap-3 w-full sm:w-auto mt-2 sm:mt-0">
+                  <div className="flex flex-wrap sm:flex-row gap-3 w-full sm:w-auto mt-2 sm:mt-0">
+                    <CancelConsultationButton id={consult.id} />
                     {consult.address && (
                       <a 
                         href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(consult.address)}`}
@@ -97,7 +98,7 @@ export default async function AgendaPage() {
                         <Button variant="secondary" className="w-full !px-3 sm:!px-4 !py-2 text-xs sm:text-sm">🗺️ Mapa</Button>
                       </a>
                     )}
-                    <Link href={`/prontuario?id=${consult.patients?.id}&type=Paciente&consultationId=${consult.id}`} className="flex-1 sm:flex-none">
+                    <Link href={`/prontuario?id=${consult.patients?.id}&type=Paciente&consultationId=${consult.id}&returnTo=agenda`} className="flex-1 sm:flex-none">
                       <Button variant="primary" className="w-full !px-5 sm:!px-6 !py-2 text-xs sm:text-sm">Atender</Button>
                     </Link>
                   </div>

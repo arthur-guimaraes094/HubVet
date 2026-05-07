@@ -28,6 +28,7 @@ interface ConsultationFormProps {
 export function ConsultationForm({ inventory, patientId, patientName, tutorName, consultationId }: ConsultationFormProps) {
   const router = useRouter();
   const { success, error } = useToast();
+  const [weight, setWeight] = useState<string>('');
   const [baseFee, setBaseFee] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
   const [selectedItems, setSelectedItems] = useState<{ id: string, quantity: number }[]>([]);
@@ -87,6 +88,7 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
         patientId: patientId,
         notes,
         baseFee: parseFloat(baseFee) || 0,
+        weightKg: parseFloat(weight) || undefined,
         items: fullItems,
         consultationId: consultationId
       });
@@ -153,9 +155,15 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
         />
       </div>
 
-      <div className="flex flex-col gap-4">
-        <h4 className="font-bold text-foreground/80">Dados Financeiros</h4>
-        <Input label="Valor Cobrado da Consulta (R$)" type="number" value={baseFee} onChange={e => setBaseFee(e.target.value)} placeholder="Ex: 150.00" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="flex flex-col gap-4">
+          <h4 className="font-bold text-foreground/80">Peso do Animal</h4>
+          <Input label="Peso (kg)" type="number" step="0.1" value={weight} onChange={e => setWeight(e.target.value)} placeholder="Opcional" />
+        </div>
+        <div className="flex flex-col gap-4">
+          <h4 className="font-bold text-foreground/80">Dados Financeiros</h4>
+          <Input label="Valor Cobrado (R$)" type="number" value={baseFee} onChange={e => setBaseFee(e.target.value)} placeholder="Ex: 150.00" />
+        </div>
       </div>
 
       <div className="flex flex-col gap-4">

@@ -9,6 +9,7 @@ export async function salvarProntuario(data: {
   baseFee: number;
   items: { id: string; name: string; quantity: number; unitCost: number; price: number }[];
   consultationId?: string;
+  weightKg?: number;
 }) {
   const supabase = await createClient()
 
@@ -26,6 +27,7 @@ export async function salvarProntuario(data: {
       .update({
         clinical_notes: data.notes,
         base_fee: data.baseFee,
+        weight_kg: data.weightKg,
         status: 'Completed',
         date: new Date().toISOString() // Atualiza para a data real do atendimento
       })
@@ -40,9 +42,10 @@ export async function salvarProntuario(data: {
         profile_id: profileId,
         patient_id: data.patientId,
         date: new Date().toISOString(),
-        type: 'Home',
+        type: 'Hospital', // Default para ad-hoc
         clinical_notes: data.notes,
         base_fee: data.baseFee,
+        weight_kg: data.weightKg,
         status: 'Completed'
       })
       .select('id')
@@ -52,6 +55,11 @@ export async function salvarProntuario(data: {
       throw new Error('Erro ao salvar consulta');
     }
     consultationId = consultation.id;
+  }
+
+  // Também atualizar o peso no registro fixo do paciente (opcional, mas bom ter o peso atual lá)
+  if (data.weightKg) {
+    await supabase.from('patients').update({ weight_kg: data.weightKg }).eq('id', data.patientId);
   }
 
   // 2. Inserir os itens em batch (ao invés de um por um)

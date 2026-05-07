@@ -3,16 +3,22 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { NewPatientForm } from '@/components/features/NewPatientForm';
 import Link from 'next/link';
+import { translateSpecies } from '@/core/utils/translations';
 
 // Definindo o revalidate para 0 garante que a página busque dados atualizados 
 // a cada requisição (útil para o MVP sem cache complexo).
 export const revalidate = 0;
 
-export default async function PacientesPage() {
+export default async function PacientesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tutorId?: string }>
+}) {
+  const { tutorId } = await searchParams;
   const supabase = await createClient();
   
   // Busca pacientes e os dados do tutor relacionado
-  const { data: patients, error } = await supabase
+  let query = supabase
     .from('patients')
     .select(`
       *,
@@ -20,8 +26,13 @@ export default async function PacientesPage() {
         name,
         phone
       )
-    `)
-    .order('created_at', { ascending: false });
+    `);
+
+  if (tutorId) {
+    query = query.eq('tutor_id', tutorId);
+  }
+
+  const { data: patients, error } = await query.order('created_at', { ascending: false });
 
   return (
     <main className="flex-1 flex flex-col p-8 gap-8 w-full max-w-4xl mx-auto">
@@ -50,7 +61,7 @@ export default async function PacientesPage() {
               <div className="flex justify-between items-start border-b border-foreground/10 pb-3">
                 <div>
                   <h2 className="text-xl font-extrabold text-primary">{patient.name}</h2>
-                  <span className="text-sm font-bold text-foreground/60">{patient.species}</span>
+                  <span className="text-sm font-bold text-foreground/60">{translateSpecies(patient.species)}</span>
                 </div>
                 {patient.weight_kg && (
                   <div className="px-3 py-1 bg-background shadow-neu-pressed rounded-full">

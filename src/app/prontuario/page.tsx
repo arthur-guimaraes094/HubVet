@@ -9,7 +9,7 @@ export const revalidate = 0;
 export default async function ProntuarioPage({
   searchParams,
 }: {
-  searchParams: Promise<{ id?: string; type?: string; patient?: string; consultationId?: string }>
+  searchParams: Promise<{ id?: string; type?: string; patient?: string; consultationId?: string; returnTo?: string }>
 }) {
   const params = await searchParams;
   const supabase = await createClient();
@@ -20,6 +20,7 @@ export default async function ProntuarioPage({
   const targetId = params?.id || params?.patient;
   const targetType = params?.type || (params?.patient ? 'Paciente' : null);
   const consultationId = params?.consultationId;
+  const returnTo = params?.returnTo;
 
   if (targetId && targetType === 'Paciente') {
     const { data } = await supabase.from('patients').select('*, tutors(name)').eq('id', targetId).single();
@@ -31,7 +32,11 @@ export default async function ProntuarioPage({
       <main className="flex-1 flex flex-col p-8 gap-8 w-full max-w-4xl mx-auto">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-extrabold text-foreground">Prontuário Expresso</h1>
-          <Link href="/">
+          <Link href={
+            returnTo === 'agenda' ? '/agenda' : 
+            returnTo === 'history' ? `/pacientes/${targetId}` : 
+            '/'
+          }>
             <Button variant="secondary" className="!px-4 !py-2 text-sm">Voltar</Button>
           </Link>
         </div>

@@ -73,7 +73,10 @@ export function QuickSearch() {
       {results.length > 0 && (
         <Card className="absolute top-[105%] mt-2 w-full z-10 !p-2 !shadow-neu-flat max-h-60 overflow-y-auto">
           {results.map((res) => (
-            <Link href={`/prontuario?id=${res.id}&type=${res.type}`} key={`${res.type}-${res.id}`}>
+            <Link 
+              href={res.type === 'Tutor' ? `/pacientes?tutorId=${res.id}` : `/prontuario?id=${res.id}&type=${res.type}`} 
+              key={`${res.type}-${res.id}`}
+            >
               <div className="p-3 hover:bg-foreground/5 rounded-xl transition-colors cursor-pointer border-b border-foreground/5 last:border-0">
                 <div className="flex justify-between items-center">
                   <span className="font-bold text-foreground">{res.title}</span>
