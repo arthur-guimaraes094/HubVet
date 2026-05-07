@@ -94,28 +94,32 @@ export default async function PatientHistoryPage({
               </svg>
               Evolução de Peso
             </h3>
-            <div className="h-40 w-full relative mt-4 flex items-end gap-2 px-2 overflow-x-auto pb-2">
-              {weightData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map((d, i) => {
-                const maxWeight = Math.max(...weightData.map(w => w.weight));
-                // Deixa 20% de respiro no topo
-                const height = (d.weight / (maxWeight * 1.2)) * 100;
+            <div className="h-48 w-full relative mt-4 flex items-end gap-3 px-2 overflow-x-auto pb-4">
+              {(() => {
+                const sortedData = [...weightData].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                const maxW = Math.max(...sortedData.map(w => w.weight), 1);
                 
-                return (
-                  <div key={i} className="flex-1 min-w-[50px] flex flex-col items-center group relative">
-                    <div 
-                      className="w-full bg-primary/40 rounded-t-xl transition-all group-hover:bg-primary/60 relative shadow-neu-flat" 
-                      style={{ height: `${height}%` }}
-                    >
-                      <div className="absolute -top-7 left-1/2 -translate-x-1/2 text-[10px] font-black text-primary bg-background shadow-neu-sm px-2 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20">
-                        {d.weight} kg
+                return sortedData.map((d, i) => {
+                  // Deixa 20% de respiro no topo
+                  const height = (d.weight / (maxW * 1.2)) * 100;
+                  
+                  return (
+                    <div key={i} className="flex-1 h-full min-w-[60px] flex flex-col justify-end items-center group relative">
+                      <div 
+                        className="w-full bg-primary rounded-t-2xl transition-all group-hover:bg-primary/80 relative shadow-neu-flat" 
+                        style={{ height: `${height}%` }}
+                      >
+                        <div className="absolute -top-10 left-1/2 -translate-x-1/2 text-xs font-black text-white bg-primary shadow-lg px-3 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100 whitespace-nowrap z-20">
+                          {d.weight} kg
+                        </div>
                       </div>
+                      <span className="text-[10px] mt-3 font-black text-foreground/40 whitespace-nowrap uppercase tracking-tighter">
+                        {new Date(d.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                      </span>
                     </div>
-                    <span className="text-[10px] mt-2 font-bold text-foreground/40 whitespace-nowrap">
-                      {new Date(d.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                    </span>
-                  </div>
-                );
-              })}
+                  );
+                });
+              })()}
             </div>
           </Card>
         )}
