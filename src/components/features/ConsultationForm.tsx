@@ -31,6 +31,7 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName 
   const [notes, setNotes] = useState<string>('');
   const [selectedItems, setSelectedItems] = useState<{ id: string, quantity: number }[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
 
   const handleAddItem = (id: string) => {
     setSelectedItems(prev => {
@@ -59,6 +60,15 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName 
 
   const profit = (parseFloat(baseFee) || 0) - itemsCost;
 
+  const handleDownloadPDF = () => {
+    gerarPDFReceituario({
+      tutorName: tutorName || 'Não Informado',
+      patientName: patientName || 'Não Informado',
+      notes: notes,
+      date: new Date().toISOString()
+    });
+  };
+
   const handleFinalize = async () => {
     if (!patientId) {
       error('Selecione um paciente pela Busca Rápida antes de iniciar o prontuário.');
@@ -80,15 +90,10 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName 
       });
       
       if (result) {
-        gerarPDFReceituario({
-          tutorName: tutorName || 'Não Informado',
-          patientName: patientName || 'Não Informado',
-          notes: notes,
-          date: new Date().toISOString()
-        });
-
-        success('Prontuário salvo e PDF gerado com sucesso!');
-        router.push('/');
+        // Tenta baixar automaticamente uma vez
+        handleDownloadPDF();
+        success('Prontuário salvo com sucesso!');
+        setIsSuccess(true);
       }
     } catch (e) {
       console.error(e);
@@ -96,6 +101,32 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName 
     } finally {
       setLoading(false);
     }
+  }
+
+  if (isSuccess) {
+    return (
+      <Card className="flex flex-col items-center justify-center py-12 gap-8 w-full max-w-2xl mx-auto text-center animate-slide-in">
+        <div className="w-20 h-20 bg-success/20 rounded-full flex items-center justify-center shadow-neu-flat">
+          <svg className="w-10 h-10 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        
+        <div className="space-y-2">
+          <h3 className="text-2xl font-black text-foreground">Atendimento Finalizado!</h3>
+          <p className="text-foreground/60">O prontuário foi salvo e o financeiro foi atualizado.</p>
+        </div>
+
+        <div className="flex flex-col w-full gap-4 px-4">
+          <Button variant="primary" onClick={handleDownloadPDF} className="w-full py-4 shadow-neu-flat">
+            Baixar PDF Novamente
+          </Button>
+          <Button variant="secondary" onClick={() => router.push('/')} className="w-full py-4">
+            Voltar ao Início
+          </Button>
+        </div>
+      </Card>
+    );
   }
 
   return (
