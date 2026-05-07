@@ -5,6 +5,7 @@ import { ScheduleConsultationForm } from '@/components/features/ScheduleConsulta
 import Link from 'next/link';
 import { ViewTransition } from "react";
 import { LocalDate } from '@/components/ui/LocalDate';
+import { CancelConsultationButton } from '@/components/features/CancelConsultationButton';
 
 export const revalidate = 0;
 
