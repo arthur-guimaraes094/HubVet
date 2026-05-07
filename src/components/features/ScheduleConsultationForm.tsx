@@ -81,12 +81,14 @@ export function ScheduleConsultationForm({ patients }: ScheduleConsultationFormP
             <Input 
               label="Data" 
               type="date" 
+              className="min-h-[60px]"
               value={formData.date} 
               onChange={e => setFormData({ ...formData, date: e.target.value })} 
             />
             <Input 
               label="Hora" 
               type="time" 
+              className="min-h-[60px]"
               value={formData.time} 
               onChange={e => setFormData({ ...formData, time: e.target.value })} 
             />
