@@ -194,8 +194,8 @@ export default async function PatientHistoryPage({
                           <span className="text-xs font-black text-primary uppercase tracking-widest">
                             <LocalDate date={consult.date} />
                           </span>
-                          <h3 className="text-lg font-bold text-foreground truncate">
-                            {isScheduled ? 'Agendamento Pendente' : `Atendimento ${consult.type === 'Home' ? 'Domiciliar' : 'em Hospital'}`}
+                          <h3 className="text-base sm:text-lg font-bold text-foreground leading-tight mt-1">
+                            {isScheduled ? 'Agendamento Pendente' : `Atendimento ${consult.type === 'Home' ? 'Domiciliar' : 'em Clínica'}`}
                           </h3>
                         </div>
                         {isScheduled ? (
