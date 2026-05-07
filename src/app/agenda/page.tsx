@@ -56,10 +56,16 @@ export default async function AgendaPage() {
                     {/* Time block */}
                     <div className="flex flex-col items-center justify-center min-w-[80px] p-3 rounded-2xl bg-background shadow-neu-sm border border-foreground/5">
                       <span className="text-xs font-black text-primary uppercase">
-                        {new Date(consult.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                        {(() => {
+                          const date = new Date(consult.date.replace(' ', 'T'));
+                          return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+                        })()}
                       </span>
                       <span className="text-xl font-black text-foreground">
-                        {new Date(consult.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        {(() => {
+                          const date = new Date(consult.date.replace(' ', 'T'));
+                          return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                        })()}
                       </span>
                     </div>
 

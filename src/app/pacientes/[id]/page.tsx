@@ -92,7 +92,7 @@ export default async function PatientHistoryPage({
                     <div className="flex justify-between items-start border-b border-foreground/5 pb-3">
                       <div>
                         <span className="text-xs font-black text-primary uppercase tracking-widest">
-                          {new Date(consult.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                          {new Date(consult.date.replace(' ', 'T')).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
                         </span>
                         <h3 className="text-lg font-bold text-foreground">Atendimento {consult.type}</h3>
                       </div>
