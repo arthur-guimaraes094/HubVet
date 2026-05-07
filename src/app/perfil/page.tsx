@@ -2,6 +2,7 @@ import { createClient } from '@/infrastructure/database/server'
 import { redirect } from 'next/navigation'
 import { ProfileForm } from '@/components/features/ProfileForm'
 import Link from 'next/link'
+import { ViewTransition } from "react";
 
 export default async function PerfilPage() {
   const supabase = await createClient()
@@ -31,17 +32,19 @@ export default async function PerfilPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col p-4 sm:p-8 pt-6 relative max-w-4xl mx-auto w-full gap-8">
-      <main className="flex-1 flex flex-col gap-6">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="text-primary hover:underline font-bold text-sm">
-            &larr; Voltar
-          </Link>
-          <h2 className="text-2xl font-black text-foreground">Configurações</h2>
-        </div>
+    <ViewTransition enter="fade-in" default="none">
+      <div className="min-h-screen flex flex-col p-4 sm:p-8 pt-6 relative max-w-4xl mx-auto w-full gap-8">
+        <main className="flex-1 flex flex-col gap-6">
+          <div className="flex items-center gap-4">
+            <Link href="/" className="text-primary hover:underline font-bold text-sm">
+              &larr; Voltar
+            </Link>
+            <h2 className="text-2xl font-black text-foreground">Configurações</h2>
+          </div>
 
-        <ProfileForm initialData={initialData} />
-      </main>
-    </div>
+          <ProfileForm initialData={initialData} />
+        </main>
+      </div>
+    </ViewTransition>
   )
 }

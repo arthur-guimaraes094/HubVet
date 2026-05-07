@@ -9,7 +9,7 @@ const nunito = Nunito({
 });
 
 export const viewport: Viewport = {
-  themeColor: "#3B82F6",
+  themeColor: "#E0E5EC",
 };
 
 export const metadata: Metadata = {

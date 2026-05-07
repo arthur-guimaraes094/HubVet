@@ -39,3 +39,41 @@ body {
 .animate-slide-in {
   animation: slideIn 0.3s ease-out forwards;
 }
+
+/* View Transitions Recipes */
+@layer base {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.3s;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Fade transition (default) */
+  .view-transition-fade::view-transition-old(root) {
+    animation: fade-out 0.2s ease-in forwards;
+  }
+  .view-transition-fade::view-transition-new(root) {
+    animation: fade-in 0.3s ease-out backwards;
+  }
+
+  /* Shared element morph */
+  .view-transition-morph::view-transition-group(*) {
+    animation-duration: 0.4s;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+}
+@keyframes fade-out {
+  to { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(root),
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
+}
