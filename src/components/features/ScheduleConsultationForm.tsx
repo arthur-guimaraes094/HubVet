@@ -77,18 +77,16 @@ export function ScheduleConsultationForm({ patients }: ScheduleConsultationFormP
             </select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             <Input 
               label="Data" 
               type="date" 
-              className="min-h-[60px]"
               value={formData.date} 
               onChange={e => setFormData({ ...formData, date: e.target.value })} 
             />
             <Input 
               label="Hora" 
               type="time" 
-              className="min-h-[60px]"
               value={formData.time} 
               onChange={e => setFormData({ ...formData, time: e.target.value })} 
             />
