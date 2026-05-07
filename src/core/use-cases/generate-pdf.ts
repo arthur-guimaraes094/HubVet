@@ -5,6 +5,7 @@ export function gerarPDFReceituario(data: {
   patientName: string;
   notes: string;
   date: string;
+  items?: { name: string; quantity: number }[];
 }) {
   const doc = new jsPDF();
   
@@ -36,6 +37,22 @@ export function gerarPDFReceituario(data: {
   // O notes pode ser grande, dividimos em linhas
   const splitText = doc.splitTextToSize(data.notes || 'Sem observações clínicas.', 170);
   doc.text(splitText, 20, 85);
+
+  // Insumos Utilizados
+  let currentY = 85 + (splitText.length * 7);
+  
+  if (data.items && data.items.length > 0) {
+    currentY += 10;
+    doc.setFont('helvetica', 'bold');
+    doc.text('INSUMOS E MEDICAMENTOS APLICADOS:', 20, currentY);
+    doc.setFont('helvetica', 'normal');
+    currentY += 7;
+    
+    data.items.forEach(item => {
+      doc.text(`- ${item.quantity}x ${item.name}`, 25, currentY);
+      currentY += 6;
+    });
+  }
 
   // Assinatura (Simulada para o MVP)
   doc.line(105, 250, 190, 250);

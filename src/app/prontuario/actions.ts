@@ -112,3 +112,31 @@ export async function salvarProntuario(data: {
   revalidatePath('/prontuario')
   return { success: true, consultationId }
 }
+
+export async function addInventoryItem(data: {
+  name: string;
+  unitCost: number;
+  salePrice: number;
+}) {
+  const supabase = await createClient()
+
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) throw new Error('Não autenticado')
+
+  const { data: newItem, error } = await supabase
+    .from('inventory')
+    .insert({
+      profile_id: userData.user.id,
+      name: data.name,
+      unit_cost: data.unitCost,
+      sale_price: data.salePrice,
+      quantity: 100 // Estoque inicial fictício para o item novo
+    })
+    .select()
+    .single()
+
+  if (error) throw new Error('Erro ao cadastrar novo item no estoque')
+
+  return newItem
+}
+

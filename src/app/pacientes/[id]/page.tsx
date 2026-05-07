@@ -94,21 +94,23 @@ export default async function PatientHistoryPage({
               </svg>
               Evolução de Peso
             </h3>
-            <div className="h-32 w-full relative mt-2 flex items-end gap-1">
-              {weightData.map((d, i) => {
+            <div className="h-40 w-full relative mt-4 flex items-end gap-2 px-2 overflow-x-auto pb-2">
+              {weightData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map((d, i) => {
                 const maxWeight = Math.max(...weightData.map(w => w.weight));
-                const height = (d.weight / maxWeight) * 100;
+                // Deixa 20% de respiro no topo
+                const height = (d.weight / (maxWeight * 1.2)) * 100;
+                
                 return (
-                  <div key={i} className="flex-1 flex flex-col items-center group relative">
+                  <div key={i} className="flex-1 min-w-[50px] flex flex-col items-center group relative">
                     <div 
-                      className="w-full bg-primary/20 rounded-t-lg transition-all group-hover:bg-primary/40 relative" 
+                      className="w-full bg-primary/40 rounded-t-xl transition-all group-hover:bg-primary/60 relative shadow-neu-flat" 
                       style={{ height: `${height}%` }}
                     >
-                      <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                      <div className="absolute -top-7 left-1/2 -translate-x-1/2 text-[10px] font-black text-primary bg-background shadow-neu-sm px-2 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20">
                         {d.weight} kg
                       </div>
                     </div>
-                    <span className="text-[8px] mt-1 font-bold text-foreground/40 whitespace-nowrap overflow-hidden max-w-full">
+                    <span className="text-[10px] mt-2 font-bold text-foreground/40 whitespace-nowrap">
                       {new Date(d.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
                     </span>
                   </div>
