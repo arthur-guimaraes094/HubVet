@@ -15,6 +15,7 @@ export type InventoryItem = {
   name: string;
   unit_cost: number;
   sale_price: number;
+  quantity_in_stock: number;
 };
 
 interface ConsultationFormProps {
@@ -33,12 +34,12 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
   const [notes, setNotes] = useState<string>('');
   const [selectedItems, setSelectedItems] = useState<{ id: string, quantity: number }[]>([]);
   const [loading, setLoading] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
 
   // Estados para novo item ad-hoc
   const [showNewItemForm, setShowNewItemForm] = useState(false);
   const [newItemName, setNewItemName] = useState('');
   const [newItemCost, setNewItemCost] = useState('');
+  const [newItemQuantity, setNewItemQuantity] = useState('10');
 
   const handleAddItem = (id: string) => {
     setSelectedItems(prev => {
@@ -61,7 +62,8 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
       const newItem = await addInventoryItem({
         name: newItemName,
         unitCost: parseFloat(newItemCost),
-        salePrice: parseFloat(newItemCost) * 1.5 // Margem padrão de 50%
+        salePrice: parseFloat(newItemCost) * 1.5, // Margem padrão de 50%
+        initialQuantity: parseFloat(newItemQuantity) || 0
       });
 
       if (newItem) {
@@ -70,6 +72,7 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
         success(`${newItemName} cadastrado e adicionado!`);
         setNewItemName('');
         setNewItemCost('');
+        setNewItemQuantity('10');
         setShowNewItemForm(false);
         // O ideal seria dar um refresh no inventory via router.refresh() mas como é client component o array original não muda.
         // Vamos apenas informar que foi adicionado.
@@ -137,10 +140,9 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
       });
       
       if (result) {
-        // Tenta baixar automaticamente uma vez
         handleDownloadPDF();
-        success('Prontuário salvo com sucesso!');
-        setIsSuccess(true);
+        success('Prontuário salvo e estoque atualizado!');
+        router.push('/');
       }
     } catch {
       error('Erro ao salvar o prontuário.');
@@ -149,31 +151,6 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
     }
   }
 
-  if (isSuccess) {
-    return (
-      <Card className="flex flex-col items-center justify-center py-12 gap-8 w-full max-w-2xl mx-auto text-center animate-slide-in">
-        <div className="w-20 h-20 bg-success/20 rounded-full flex items-center justify-center shadow-neu-flat">
-          <svg className="w-10 h-10 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
-        
-        <div className="space-y-2">
-          <h3 className="text-2xl font-black text-foreground">Atendimento Finalizado!</h3>
-          <p className="text-foreground/60">O prontuário foi salvo e o financeiro foi atualizado.</p>
-        </div>
-
-        <div className="flex flex-col w-full gap-4 px-4">
-          <Button variant="primary" onClick={handleDownloadPDF} className="w-full py-4 shadow-neu-flat">
-            Baixar PDF Novamente
-          </Button>
-          <Button variant="secondary" onClick={() => router.push('/')} className="w-full py-4">
-            Voltar ao Início
-          </Button>
-        </div>
-      </Card>
-    );
-  }
 
   return (
     <Card className="flex flex-col gap-6 w-full max-w-2xl mx-auto">
@@ -221,9 +198,10 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
 
         {showNewItemForm && (
           <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 flex flex-col gap-4 animate-in fade-in slide-in-from-top-2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Input label="Nome do Item" value={newItemName} onChange={e => setNewItemName(e.target.value)} placeholder="Ex: Dexmeton" />
               <Input label="Custo Unitário (R$)" type="number" value={newItemCost} onChange={e => setNewItemCost(e.target.value)} placeholder="Ex: 25.00" />
+              <Input label="Qtd em Estoque" type="number" value={newItemQuantity} onChange={e => setNewItemQuantity(e.target.value)} placeholder="Ex: 10" />
             </div>
             <Button variant="primary" onClick={handleAddNewInventoryItem} className="w-full py-2">Confirmar Cadastro</Button>
           </div>
@@ -232,8 +210,13 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {inventory?.map((item) => (
             <Button key={item.id} variant="secondary" onClick={() => handleAddItem(item.id)} className="!justify-start text-left flex justify-between items-center !px-3 !py-2">
-              <span className="truncate max-w-[70%]">{item.name}</span>
-              <span className="text-xs opacity-60 ml-2 text-primary font-black">R$ {item.unit_cost.toFixed(2)}</span>
+              <div className="flex flex-col min-w-0">
+                <span className="truncate font-bold text-xs sm:text-sm">{item.name}</span>
+                <span className={`text-[10px] font-black ${item.quantity_in_stock > 5 ? 'text-success' : 'text-error'}`}>
+                  Estoque: {item.quantity_in_stock}
+                </span>
+              </div>
+              <span className="text-[10px] sm:text-xs opacity-60 ml-2 text-primary font-black whitespace-nowrap">R$ {item.unit_cost.toFixed(2)}</span>
             </Button>
           ))}
         </div>

@@ -75,6 +75,18 @@ export async function salvarProntuario(data: {
 
   if (itemsToInsert.length > 0) {
     await supabase.from('consultation_items').insert(itemsToInsert)
+    
+    // 2.1 Subtrair do estoque real
+    for (const item of data.items) {
+      if (item.quantity > 0) {
+        // Usando RPC ou incremento negativo para evitar race conditions seria ideal,
+        // mas aqui faremos um update simples baseado no ID
+        await supabase.rpc('decrement_inventory', { 
+          item_id: item.id, 
+          amount: item.quantity 
+        });
+      }
+    }
   }
 
   const totalCost = data.items.reduce(
@@ -117,6 +129,7 @@ export async function addInventoryItem(data: {
   name: string;
   unitCost: number;
   salePrice: number;
+  initialQuantity: number;
 }) {
   const supabase = await createClient()
 
@@ -130,7 +143,7 @@ export async function addInventoryItem(data: {
       name: data.name,
       unit_cost: data.unitCost,
       sale_price: data.salePrice,
-      quantity: 100 // Estoque inicial fictício para o item novo
+      quantity_in_stock: data.initialQuantity
     })
     .select()
     .single()
