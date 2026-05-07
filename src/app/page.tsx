@@ -7,14 +7,16 @@ import { createClient } from '@/infrastructure/database/server';
 
 export default async function Home() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  // O proxy já garante autenticação — usamos getSession() (local, sem HTTP)
+  // apenas para obter o user.id para buscar o avatar.
+  const { data: { session } } = await supabase.auth.getSession();
   
   let avatarUrl = null;
-  if (user) {
+  if (session?.user) {
     const { data: profile } = await supabase
       .from('profiles')
       .select('avatar_url')
-      .eq('id', user.id)
+      .eq('id', session.user.id)
       .single();
       
     if (profile?.avatar_url) {

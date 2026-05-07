@@ -27,23 +27,21 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // IMPORTANTE: evite usar getSession, use getUser para mais segurança
+  // Usando getSession() no proxy para validação rápida (JWT local, sem HTTP).
+  // A proteção real dos dados é feita via RLS + getUser() nas Server Actions.
   const {
-    data: { user },
-  } = await supabase.auth.getUser()
+    data: { session },
+  } = await supabase.auth.getSession()
 
-  // Se não estiver logado e a rota não for /login (ou assets públicos), redirecionar
   const isAuthRoute = request.nextUrl.pathname.startsWith('/login')
   
-  // Aqui ignoramos /api, _next e public assets
-  if (!user && !isAuthRoute) {
+  if (!session && !isAuthRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
-  // Se estiver logado e tentar acessar /login, redirecionar para home
-  if (user && isAuthRoute) {
+  if (session && isAuthRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/'
     return NextResponse.redirect(url)

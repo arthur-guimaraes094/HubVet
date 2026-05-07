@@ -37,42 +37,52 @@ export async function salvarProntuario(data: {
 
   const consultationId = consultation.id
 
-  // 2. Inserir os itens
-  let totalCost = 0
-  for (const item of data.items) {
-    if (item.quantity > 0) {
-      await supabase.from('consultation_items').insert({
-        consultation_id: consultationId,
-        inventory_id: item.id,
-        quantity: item.quantity,
-        applied_cost: item.unitCost,
-        is_prescribed: false
-      })
+  // 2. Inserir os itens em batch (ao invés de um por um)
+  const itemsToInsert = data.items
+    .filter(item => item.quantity > 0)
+    .map(item => ({
+      consultation_id: consultationId,
+      inventory_id: item.id,
+      quantity: item.quantity,
+      applied_cost: item.unitCost,
+      is_prescribed: false
+    }))
 
-      totalCost += (item.quantity * item.unitCost)
-    }
+  if (itemsToInsert.length > 0) {
+    await supabase.from('consultation_items').insert(itemsToInsert)
   }
 
-  // 3. Salvar transações financeiras (Entrada do serviço e Saída do custo)
-  await supabase.from('transactions').insert({
-    profile_id: profileId,
-    consultation_id: consultationId,
-    type: 'Income',
-    category: 'Service',
-    amount: data.baseFee,
-    date: new Date().toISOString()
-  })
+  const totalCost = data.items.reduce(
+    (acc, item) => acc + (item.quantity > 0 ? item.quantity * item.unitCost : 0),
+    0
+  )
 
-  if (totalCost > 0) {
-    await supabase.from('transactions').insert({
+  // 3. Salvar transações financeiras em paralelo
+  const transactionPromises = [
+    supabase.from('transactions').insert({
       profile_id: profileId,
       consultation_id: consultationId,
-      type: 'Expense',
-      category: 'Supplies',
-      amount: totalCost,
+      type: 'Income',
+      category: 'Service',
+      amount: data.baseFee,
       date: new Date().toISOString()
     })
+  ]
+
+  if (totalCost > 0) {
+    transactionPromises.push(
+      supabase.from('transactions').insert({
+        profile_id: profileId,
+        consultation_id: consultationId,
+        type: 'Expense',
+        category: 'Supplies',
+        amount: totalCost,
+        date: new Date().toISOString()
+      })
+    )
   }
+
+  await Promise.all(transactionPromises)
 
   revalidatePath('/prontuario')
   return { success: true, consultationId }

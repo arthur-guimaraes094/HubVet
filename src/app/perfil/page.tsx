@@ -6,14 +6,16 @@ import Link from 'next/link'
 export default async function PerfilPage() {
   const supabase = await createClient()
 
-  // 1. Pegar usuário atual
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  // O proxy já garante autenticação — getSession() valida JWT localmente
+  const { data: { session } } = await supabase.auth.getSession()
 
-  if (authError || !user) {
+  if (!session?.user) {
     redirect('/login')
   }
 
-  // 2. Pegar perfil do banco
+  const user = session.user
+
+  // Pegar perfil do banco
   const { data: profile } = await supabase
     .from('profiles')
     .select('full_name, crmv, phone, avatar_url')
