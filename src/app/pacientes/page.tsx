@@ -76,7 +76,7 @@ export default async function PacientesPage() {
                 })()}
               </div>
               
-              <Link href={`/prontuario?patient=${patient.id}`} className="mt-4">
+              <Link href={`/prontuario?id=${patient.id}&type=Paciente`} className="mt-4">
                 <Button variant="secondary" className="w-full text-sm !py-2">Iniciar Atendimento</Button>
               </Link>
             </Card>
