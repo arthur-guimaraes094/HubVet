@@ -28,8 +28,10 @@ export default async function AgendaPage() {
     .eq('status', 'Scheduled')
     .order('date', { ascending: true });
 
-  // 2. Buscar pacientes para o form
-  const { data: patients } = await supabase.from('patients').select('id, name, species');
+  // 2. Buscar pacientes para o form (incluindo endereço do tutor)
+  const { data: patients } = await supabase
+    .from('patients')
+    .select('id, name, species, tutors (address)');
 
   return (
     <ViewTransition enter="fade-in" default="none">
@@ -69,17 +71,32 @@ export default async function AgendaPage() {
                       <span className="text-sm font-bold text-foreground/60">
                         {consult.patients?.species} • Tutor: {consult.patients?.tutors?.name}
                       </span>
-                      <div className="mt-1 flex items-center gap-2">
-                        <span className={`text-[10px] font-black uppercase tracking-tighter px-2 py-0.5 rounded-full ${
+                      <div className="mt-1 flex flex-col gap-1">
+                        <span className={`w-fit text-[10px] font-black uppercase tracking-tighter px-2 py-0.5 rounded-full ${
                           consult.type === 'Home' ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'
                         }`}>
                           {consult.type === 'Home' ? 'Domicílio' : 'Hospital'}
                         </span>
+                        {consult.address && (
+                          <span className="text-xs text-foreground/50 font-medium italic truncate max-w-[200px]">
+                            📍 {consult.address}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex gap-3 w-full sm:w-auto">
+                  <div className="flex flex-wrap gap-3 w-full sm:w-auto">
+                    {consult.address && (
+                      <a 
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(consult.address)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 sm:flex-none"
+                      >
+                        <Button variant="secondary" className="w-full !px-4">🗺️ Mapa</Button>
+                      </a>
+                    )}
                     <Link href={`/prontuario?id=${consult.patients?.id}&type=Paciente&consultationId=${consult.id}`} className="flex-1 sm:flex-none">
                       <Button variant="primary" className="w-full !px-6">Atender</Button>
                     </Link>

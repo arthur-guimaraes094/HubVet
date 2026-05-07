@@ -7,6 +7,7 @@ export async function agendarConsulta(data: {
   patientId: string;
   date: string; // ISO string com data e hora
   type: 'Home' | 'Hospital';
+  address?: string;
 }) {
   const supabase = await createClient()
 
@@ -20,6 +21,7 @@ export async function agendarConsulta(data: {
       patient_id: data.patientId,
       date: data.date,
       type: data.type,
+      address: data.address,
       status: 'Scheduled'
     })
 

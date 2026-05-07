@@ -11,6 +11,9 @@ interface Patient {
   id: string;
   name: string;
   species: string;
+  tutors?: {
+    address: string | null;
+  } | null;
 }
 
 interface ScheduleConsultationFormProps {
@@ -26,8 +29,18 @@ export function ScheduleConsultationForm({ patients }: ScheduleConsultationFormP
     patientId: '',
     date: '',
     time: '',
-    type: 'Home' as 'Home' | 'Hospital'
+    type: 'Home' as 'Home' | 'Hospital',
+    address: ''
   });
+
+  const handlePatientChange = (patientId: string) => {
+    const patient = patients.find(p => p.id === patientId);
+    setFormData(prev => ({
+      ...prev,
+      patientId,
+      address: patient?.tutors?.address || ''
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,12 +55,13 @@ export function ScheduleConsultationForm({ patients }: ScheduleConsultationFormP
       await agendarConsulta({
         patientId: formData.patientId,
         date: fullDate,
-        type: formData.type
+        type: formData.type,
+        address: formData.address
       });
       
       success('Consulta agendada com sucesso!');
       setIsOpen(false);
-      setFormData({ patientId: '', date: '', time: '', type: 'Home' });
+      setFormData({ patientId: '', date: '', time: '', type: 'Home', address: '' });
     } catch (e) {
       error('Erro ao agendar consulta');
     } finally {
@@ -67,7 +81,7 @@ export function ScheduleConsultationForm({ patients }: ScheduleConsultationFormP
             <label className="text-sm font-bold text-foreground/60 ml-1">Paciente</label>
             <select 
               value={formData.patientId}
-              onChange={(e) => setFormData({ ...formData, patientId: e.target.value })}
+              onChange={(e) => handlePatientChange(e.target.value)}
               className="w-full bg-background rounded-2xl shadow-neu-pressed p-4 focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground appearance-none border border-foreground/5"
             >
               <option value="">Selecione um paciente...</option>
@@ -111,6 +125,13 @@ export function ScheduleConsultationForm({ patients }: ScheduleConsultationFormP
               ))}
             </div>
           </div>
+
+          <Input 
+            label="Localização / Endereço" 
+            placeholder="Rua, número, bairro..."
+            value={formData.address} 
+            onChange={e => setFormData({ ...formData, address: e.target.value })} 
+          />
 
           <Button variant="primary" type="submit" disabled={loading} className="py-4 mt-2">
             {loading ? 'Agendando...' : 'Confirmar Agendamento'}
