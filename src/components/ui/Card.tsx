@@ -8,7 +8,7 @@ export function Card({ pressed = false, className = '', children, ...props }: Ca
   const shadowStyle = pressed ? 'shadow-neu-pressed' : 'shadow-neu-flat';
   
   return (
-    <div className={`bg-background rounded-3xl p-6 ${shadowStyle} ${className}`} {...props}>
+    <div className={`bg-background rounded-[32px] p-6 ${shadowStyle} border border-foreground/[0.03] ${className}`} {...props}>
       {children}
     </div>
   );

@@ -28,40 +28,40 @@ export default async function Home() {
   return (
     <ViewTransition enter="fade-in" default="none">
       <main className="flex-1 flex flex-col items-center justify-center p-8 gap-8 max-w-2xl mx-auto w-full">
-        <div className="flex items-center justify-between mb-8 w-full">
+        <div className="flex items-center justify-between mb-8 w-full px-2">
           <div className="text-left">
-            <h1 className="text-4xl font-extrabold tracking-tight text-primary mb-2">HubVet</h1>
-            <p className="text-lg font-medium text-foreground/80">
-              Atendimentos domiciliares e rápidos.
+            <h1 className="text-5xl font-black tracking-tighter text-foreground mb-1">HubVet</h1>
+            <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] opacity-80">
+              Atendimentos Domiciliares
             </p>
           </div>
           
-          <Link href="/perfil" className="w-14 h-14 bg-background rounded-full shadow-neu-sm flex items-center justify-center text-primary hover:shadow-neu-pressed transition-all active:scale-95 cursor-pointer border border-foreground/5 overflow-hidden">
-            {avatarUrl ? (
-              <Image src={avatarUrl} alt="Perfil" width={56} height={56} className="w-full h-full object-cover" />
-            ) : (
-              <span className="font-bold text-xl">MV</span>
-            )}
+          <Link href="/perfil" className="w-16 h-16 bg-background rounded-full shadow-neu-sm flex items-center justify-center text-primary hover:shadow-neu-pressed transition-all active:scale-95 cursor-pointer border border-foreground/[0.03] overflow-hidden p-1">
+            <div className="w-full h-full rounded-full overflow-hidden bg-foreground/5 flex items-center justify-center">
+              {avatarUrl ? (
+                <Image src={avatarUrl} alt="Perfil" width={64} height={64} className="w-full h-full object-cover" />
+              ) : (
+                <span className="font-black text-xl tracking-tighter">MV</span>
+              )}
+            </div>
           </Link>
         </div>
 
-        <Card className="w-full flex flex-col gap-6">
-          <h2 className="text-2xl font-bold text-foreground">Acesso Rápido</h2>
-          
+        <Card className="w-full flex flex-col gap-8 p-10 bg-background/40">
           <QuickSearch />
           
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-2">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
             <Link href="/agenda" className="w-full">
-              <Button variant="primary" className="w-full !px-2">Agenda</Button>
+              <Button variant="primary" className="w-full !py-4 shadow-neu-sm hover:shadow-neu-flat">Agenda</Button>
             </Link>
             <Link href="/calculadora" className="w-full">
-              <Button variant="secondary" className="w-full !px-2">Calculadora</Button>
+              <Button variant="secondary" className="w-full !py-4">Cálculo</Button>
             </Link>
             <Link href="/pacientes" className="w-full">
-              <Button variant="secondary" className="w-full !px-2">Pacientes</Button>
+              <Button variant="secondary" className="w-full !py-4">Pacientes</Button>
             </Link>
             <Link href="/estoque" className="w-full">
-              <Button variant="secondary" className="w-full !px-2">Estoque</Button>
+              <Button variant="secondary" className="w-full !py-4">Itens</Button>
             </Link>
           </div>
         </Card>

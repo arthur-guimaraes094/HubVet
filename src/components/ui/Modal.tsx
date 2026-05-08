@@ -25,7 +25,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/20 backdrop-blur-sm animate-fade-in">
       <div className="absolute inset-0" onClick={onClose}></div>
-      <Card className="relative w-full max-w-lg shadow-neu-flat border border-white/20 animate-slide-in">
+      <Card className="relative w-full max-w-lg shadow-neu-flat border border-white/20 animate-slide-in overflow-hidden">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-xl font-extrabold text-primary">{title}</h3>
           <button 

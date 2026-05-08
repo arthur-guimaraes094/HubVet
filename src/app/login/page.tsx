@@ -32,7 +32,7 @@ export default async function LoginPage({
             <Input 
               name="email"
               type="email" 
-              label="E-mail profissional" 
+              label="E-mail" 
               placeholder="seu@email.com" 
               required
             />

@@ -73,16 +73,44 @@ export default async function PatientHistoryPage({
   return (
     <ViewTransition enter="fade-in" default="none">
       <main className="flex-1 flex flex-col p-8 gap-8 w-full max-w-4xl mx-auto">
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col">
-            <h1 className="text-3xl font-extrabold text-foreground">{patient.name}</h1>
-            <span className="text-foreground/60 font-bold">
-              {translateSpecies(patient.species)} • Tutor: {patient.tutors?.name}
-            </span>
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+          <div className="flex flex-col items-center sm:items-start text-center sm:text-left">
+            <h1 className="text-4xl font-black text-foreground tracking-tighter">{patient.name}</h1>
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-2">
+              <span className="text-[10px] font-black bg-primary/10 text-primary px-3 py-1 rounded-full uppercase tracking-widest">
+                {translateSpecies(patient.species)}
+              </span>
+              {patient.breed && (
+                <span className="text-[10px] font-black bg-foreground/5 text-foreground/60 px-3 py-1 rounded-full uppercase tracking-widest">
+                  {patient.breed}
+                </span>
+              )}
+              {patient.color && (
+                <span className="text-[10px] font-black bg-foreground/5 text-foreground/60 px-3 py-1 rounded-full uppercase tracking-widest">
+                  {patient.color}
+                </span>
+              )}
+              {patient.weight_kg && (
+                <span className="text-[10px] font-black bg-success/10 text-success px-3 py-1 rounded-full uppercase tracking-widest">
+                  {patient.weight_kg} kg
+                </span>
+              )}
+            </div>
+            <p className="text-foreground/30 font-bold uppercase text-[9px] tracking-[0.3em] mt-3">
+              Tutor Responsável: {patient.tutors?.name}
+            </p>
           </div>
-          <Link href="/pacientes">
-            <Button variant="secondary" className="!px-4 !py-2 text-sm">Voltar</Button>
-          </Link>
+          
+          <div className="flex gap-4">
+            <Link href={`/prontuario?id=${patient.id}&type=Paciente`}>
+              <Button variant="primary" className="!px-8 !py-3 shadow-neu-sm hover:shadow-neu-flat">
+                Novo Atendimento
+              </Button>
+            </Link>
+            <Link href="/pacientes">
+              <Button variant="secondary" className="!px-6 !py-3">Voltar</Button>
+            </Link>
+          </div>
         </div>
 
         {/* Gráfico de Peso */}

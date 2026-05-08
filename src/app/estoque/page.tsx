@@ -1,7 +1,8 @@
 import { createClient } from '@/infrastructure/database/server';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { NewInventoryItemForm } from '@/components/features/NewInventoryItemForm';
+import { InventoryItemForm } from '@/components/features/InventoryItemForm';
+import { CatalogList } from '@/components/features/CatalogList';
 import Link from 'next/link';
 
 export const revalidate = 0;
@@ -9,55 +10,47 @@ export const revalidate = 0;
 export default async function EstoquePage() {
   const supabase = await createClient();
   
-  const { data: inventory, error } = await supabase
+  const { data: rawInventory, error } = await supabase
     .from('inventory')
     .select('*')
     .order('name', { ascending: true });
 
+  const inventory = rawInventory?.map(item => ({
+    id: item.id,
+    name: item.name,
+    type: item.type,
+    concentration: item.concentration,
+    unitCost: item.unit_cost,
+    salePrice: item.sale_price
+  })) || [];
+
   return (
-    <main className="flex-1 flex flex-col p-8 gap-8 w-full max-w-4xl mx-auto">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-extrabold text-foreground">Minha Maleta (Estoque)</h1>
-        <div className="flex gap-4">
-          <NewInventoryItemForm />
-          <Link href="/">
-            <Button variant="secondary" className="!px-4 !py-2 text-sm">Voltar</Button>
+    <main className="flex-1 flex flex-col p-8 gap-8 w-full max-w-5xl mx-auto">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 px-2">
+        <div>
+          <h1 className="text-5xl font-black text-foreground tracking-tighter">Estoque</h1>
+          <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] opacity-70 mt-1">Catálogo de Itens e Materiais</p>
+        </div>
+        <div className="flex gap-4 w-full md:w-auto">
+          <InventoryItemForm />
+          <Link href="/" className="flex-1 md:flex-none">
+            <Button variant="secondary" className="w-full !px-8 !py-4">Voltar</Button>
           </Link>
         </div>
       </div>
 
       {error ? (
         <Card className="bg-error/10 border-error/20">
-          <p className="text-red-500 font-bold">Erro ao buscar estoque: {error.message}</p>
+          <p className="text-red-500 font-bold">Erro ao buscar catálogo: {error.message}</p>
         </Card>
-      ) : inventory?.length === 0 ? (
-        <Card className="text-center py-12">
-          <p className="text-foreground/60 font-bold text-lg">Seu estoque está vazio.</p>
+      ) : !inventory || inventory.length === 0 ? (
+        <Card className="text-center py-16 flex flex-col items-center gap-4">
+          <div className="w-16 h-16 bg-foreground/5 rounded-full flex items-center justify-center text-3xl opacity-40">💊</div>
+          <p className="text-foreground/60 font-bold text-lg">Seu catálogo está vazio.</p>
+          <InventoryItemForm />
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {inventory?.map((item) => (
-            <Card key={item.id} className="flex flex-col gap-3">
-              <div className="flex justify-between items-start border-b border-foreground/10 pb-3">
-                <div>
-                  <h2 className="text-xl font-extrabold text-primary">{item.name}</h2>
-                  <span className="text-xs font-bold text-foreground/60 uppercase tracking-wider">{item.type}</span>
-                </div>
-              </div>
-              
-              <div className="flex flex-col gap-2 pt-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-foreground/50 uppercase tracking-wider">Custo Un.</span>
-                  <span className="text-sm font-bold text-foreground">R$ {item.unit_cost.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-foreground/50 uppercase tracking-wider">Preço Venda</span>
-                  <span className="text-sm font-bold text-success">R$ {item.sale_price.toFixed(2)}</span>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
+        <CatalogList initialItems={inventory} />
       )}
     </main>
   );

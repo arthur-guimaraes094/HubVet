@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
 import { updateProfile, signOut } from '@/app/perfil/actions';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 interface ProfileFormProps {
   initialData: {
@@ -72,8 +73,8 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
 
       await updateProfile(formData);
       success('Perfil atualizado com sucesso!');
-    } catch (err: any) {
-      error(err.message || 'Erro ao atualizar perfil.');
+    } catch (err) {
+      error(err instanceof Error ? err.message : 'Erro ao atualizar perfil.');
     } finally {
       setLoading(false);
     }
@@ -86,21 +87,33 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
   };
 
   return (
-    <Card className="flex flex-col gap-6 w-full max-w-2xl mx-auto">
-      <h3 className="text-xl font-extrabold text-primary">Meu Perfil</h3>
+    <Card className="flex flex-col gap-8 w-full max-w-2xl mx-auto p-10">
+      <div className="flex flex-col gap-1">
+        <h3 className="text-3xl font-black text-foreground tracking-tighter">Meu Perfil</h3>
+        <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] opacity-60">Configurações da Conta</p>
+      </div>
 
-      <form onSubmit={handleSave} className="flex flex-col gap-5">
+      <form onSubmit={handleSave} className="flex flex-col gap-8">
         
         {/* Avatar Upload */}
         <div className="flex items-center justify-center mb-4">
-          <label className="relative flex items-center justify-center w-28 h-28 bg-background border-2 border-dashed border-foreground/20 rounded-full cursor-pointer hover:border-primary transition-colors overflow-hidden group shadow-neu-sm hover:shadow-neu-pressed">
-            {avatarPreview ? (
-              <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-3xl font-bold text-foreground/40 group-hover:text-primary transition-colors">MV</span>
-            )}
-            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              <span className="text-white text-xs font-semibold">Alterar</span>
+          <label className="relative flex items-center justify-center w-32 h-32 bg-background rounded-full cursor-pointer overflow-hidden group shadow-neu-sm hover:shadow-neu-pressed transition-all border border-foreground/[0.03] p-1.5">
+            <div className="w-full h-full rounded-full overflow-hidden bg-foreground/5 flex items-center justify-center">
+              {avatarPreview ? (
+                <Image 
+                  src={avatarPreview} 
+                  alt="Avatar" 
+                  width={128} 
+                  height={128} 
+                  className="w-full h-full object-cover"
+                  priority
+                />
+              ) : (
+                <span className="text-4xl font-black text-foreground/20 group-hover:text-primary transition-colors tracking-tighter">MV</span>
+              )}
+            </div>
+            <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <span className="text-white text-[10px] font-black uppercase tracking-widest">Alterar</span>
             </div>
             <input 
               type="file" 
@@ -111,45 +124,47 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
           </label>
         </div>
 
-        <Input 
-          label="E-mail (Credencial de Login)" 
-          type="email" 
-          value={initialData.email} 
-          disabled 
-          readOnly 
-        />
-        
-        <Input 
-          label="Nome Completo" 
-          type="text" 
-          value={fullName} 
-          onChange={(e) => setFullName(e.target.value)} 
-          placeholder="Ex: Dra. Ana Silva" 
-        />
-        
-        <Input 
-          label="Número do CRMV" 
-          type="text" 
-          value={crmv} 
-          onChange={(e) => setCrmv(e.target.value)} 
-          placeholder="Ex: CRMV-SP 12345" 
-        />
-        
-        <Input 
-          label="Telefone Profissional" 
-          type="tel" 
-          value={phone} 
-          onChange={handlePhoneChange} 
-          placeholder="(11) 99999-9999" 
-        />
+        <div className="flex flex-col gap-6">
+          <Input 
+            label="E-mail de Acesso" 
+            type="email" 
+            value={initialData.email} 
+            disabled 
+            readOnly 
+          />
+          
+          <Input 
+            label="Nome Completo" 
+            type="text" 
+            value={fullName} 
+            onChange={(e) => setFullName(e.target.value)} 
+            placeholder="Ex: Dra. Ana Silva" 
+          />
+          
+          <Input 
+            label="Registro CRMV" 
+            type="text" 
+            value={crmv} 
+            onChange={(e) => setCrmv(e.target.value)} 
+            placeholder="Ex: CRMV-SP 12345" 
+          />
+          
+          <Input 
+            label="WhatsApp Profissional" 
+            type="tel" 
+            value={phone} 
+            onChange={handlePhoneChange} 
+            placeholder="(11) 99999-9999" 
+          />
+        </div>
 
-        <div className="pt-4 flex flex-col gap-3">
-          <Button variant="primary" type="submit" disabled={loading} className="w-full py-4 text-lg">
-            {loading ? 'Salvando...' : 'Salvar Alterações'}
+        <div className="pt-4 flex flex-col gap-4">
+          <Button variant="primary" type="submit" disabled={loading} className="w-full !py-6 shadow-neu-sm hover:shadow-neu-flat">
+            {loading ? 'Salvando...' : 'Salvar Perfil'}
           </Button>
 
-          <Button variant="secondary" type="button" onClick={handleSignOut} className="w-full py-3 text-error border-error/20 hover:bg-error/10">
-            Sair (Logout)
+          <Button variant="secondary" type="button" onClick={handleSignOut} className="w-full !py-4 text-error border-error/10 hover:bg-error/10">
+            Encerrar Sessão
           </Button>
         </div>
       </form>

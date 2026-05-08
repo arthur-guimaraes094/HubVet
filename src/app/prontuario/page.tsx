@@ -14,7 +14,16 @@ export default async function ProntuarioPage({
   const params = await searchParams;
   const supabase = await createClient();
 
-  const { data: inventory } = await supabase.from('inventory').select('*').order('name');
+  const { data: rawInventory } = await supabase.from('inventory').select('*').order('name');
+  
+  const inventory = rawInventory?.map(item => ({
+    id: item.id,
+    name: item.name,
+    type: item.type,
+    concentration: item.concentration,
+    unitCost: item.unit_cost,
+    salePrice: item.sale_price
+  })) || [];
   
   let patientData = null;
   const targetId = params?.id || params?.patient;
@@ -31,7 +40,7 @@ export default async function ProntuarioPage({
     <ViewTransition enter="fade-in" default="none">
       <main className="flex-1 flex flex-col p-8 gap-8 w-full max-w-4xl mx-auto">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-extrabold text-foreground">Prontuário Expresso</h1>
+          <h1 className="text-3xl font-extrabold text-foreground">Prontuário</h1>
           <Link href={
             returnTo === 'agenda' ? '/agenda' : 
             returnTo === 'history' ? `/pacientes/${targetId}` : 
@@ -46,7 +55,11 @@ export default async function ProntuarioPage({
           patientId={patientData?.id} 
           patientName={patientData?.name}
           tutorName={patientData?.tutors?.name}
+          species={patientData?.species}
+          breed={patientData?.breed}
+          color={patientData?.color}
           consultationId={consultationId}
+          lastWeight={patientData?.weight_kg}
         />
       </main>
     </ViewTransition>

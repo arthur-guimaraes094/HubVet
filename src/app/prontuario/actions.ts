@@ -10,6 +10,9 @@ export async function salvarProntuario(data: {
   items: { id: string; name: string; quantity: number; unitCost: number; price: number }[];
   consultationId?: string;
   weightKg?: number;
+  completionDate?: string;
+  images?: string[];
+  type: 'Home' | 'Hospital';
 }) {
   const supabase = await createClient()
 
@@ -29,7 +32,8 @@ export async function salvarProntuario(data: {
         base_fee: data.baseFee,
         weight_kg: data.weightKg,
         status: 'Completed',
-        date: new Date().toISOString() // Atualiza para a data real do atendimento
+        date: data.completionDate || new Date().toISOString(),
+        images: data.images || []
       })
       .eq('id', consultationId);
 
@@ -41,12 +45,13 @@ export async function salvarProntuario(data: {
       .insert({
         profile_id: profileId,
         patient_id: data.patientId,
-        date: new Date().toISOString(),
-        type: 'Hospital', // Default para ad-hoc
+        status: 'Completed',
+        date: data.completionDate || new Date().toISOString(),
         clinical_notes: data.notes,
         base_fee: data.baseFee,
         weight_kg: data.weightKg,
-        status: 'Completed'
+        images: data.images || [],
+        type: data.type
       })
       .select('id')
       .single();
@@ -76,23 +81,13 @@ export async function salvarProntuario(data: {
   if (itemsToInsert.length > 0) {
     await supabase.from('consultation_items').insert(itemsToInsert)
     
-    // 2.1 Subtrair do estoque real
-    for (const item of data.items) {
-      if (item.quantity > 0) {
-        // Usando RPC ou incremento negativo para evitar race conditions seria ideal,
-        // mas aqui faremos um update simples baseado no ID
-        await supabase.rpc('decrement_inventory', { 
-          item_id: item.id, 
-          amount: item.quantity 
-        });
-      }
-    }
+    // 2.1 Removido decremento de estoque (sistema alterado para catálogo)
   }
 
   const totalCost = data.items.reduce(
     (acc, item) => acc + (item.quantity > 0 ? item.quantity * item.unitCost : 0),
     0
-  )
+  );
 
   // 3. Salvar transações financeiras em paralelo
   const transactionPromises = [
@@ -122,34 +117,8 @@ export async function salvarProntuario(data: {
   await Promise.all(transactionPromises)
 
   revalidatePath('/prontuario')
+  revalidatePath('/agenda')
+  if (data.patientId) revalidatePath(`/pacientes/${data.patientId}`)
   return { success: true, consultationId }
-}
-
-export async function addInventoryItem(data: {
-  name: string;
-  unitCost: number;
-  salePrice: number;
-  initialQuantity: number;
-}) {
-  const supabase = await createClient()
-
-  const { data: userData, error: userError } = await supabase.auth.getUser()
-  if (userError || !userData.user) throw new Error('Não autenticado')
-
-  const { data: newItem, error } = await supabase
-    .from('inventory')
-    .insert({
-      profile_id: userData.user.id,
-      name: data.name,
-      unit_cost: data.unitCost,
-      sale_price: data.salePrice,
-      quantity_in_stock: data.initialQuantity
-    })
-    .select()
-    .single()
-
-  if (error) throw new Error('Erro ao cadastrar novo item no estoque')
-
-  return newItem
 }
 

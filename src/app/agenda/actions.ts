@@ -47,3 +47,60 @@ export async function cancelarConsulta(id: string) {
   revalidatePath('/agenda')
   return { success: true }
 }
+
+export async function atualizarConsulta(id: string, data: {
+  patientId: string;
+  date: string;
+  type: 'Home' | 'Hospital';
+  address?: string;
+}) {
+  const supabase = await createClient()
+  
+  const { error } = await supabase
+    .from('consultations')
+    .update({
+      patient_id: data.patientId,
+      date: data.date,
+      type: data.type,
+      address: data.address
+    })
+    .eq('id', id)
+
+  if (error) throw new Error('Erro ao atualizar')
+  
+  revalidatePath('/agenda')
+  return { success: true }
+}
+
+export async function getConsultationDetails(id: string) {
+  const supabase = await createClient()
+  
+  const { data: consultation, error } = await supabase
+    .from('consultations')
+    .select(`
+      *,
+      patients (
+        id,
+        name,
+        species,
+        breed,
+        color,
+        tutors (
+          name
+        )
+      ),
+      consultation_items (
+        quantity,
+        inventory:inventory_id (
+          name,
+          type
+        )
+      )
+    `)
+    .eq('id', id)
+    .single();
+
+  if (error) throw new Error('Erro ao buscar detalhes da consulta');
+  
+  return consultation;
+}

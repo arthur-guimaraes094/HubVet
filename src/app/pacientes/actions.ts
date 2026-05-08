@@ -9,6 +9,8 @@ export async function addPatientAndTutor(data: {
   patientName: string;
   patientSpecies: string;
   patientWeight: number;
+  patientBreed?: string;
+  patientColor?: string;
 }) {
   const supabase = await createClient()
 
@@ -40,7 +42,9 @@ export async function addPatientAndTutor(data: {
       tutor_id: newTutor.id,
       name: data.patientName,
       species: data.patientSpecies,
-      weight_kg: data.patientWeight
+      weight_kg: data.patientWeight,
+      breed: data.patientBreed,
+      color: data.patientColor
     })
 
   if (patientError) {
