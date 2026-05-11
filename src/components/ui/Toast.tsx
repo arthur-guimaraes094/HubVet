@@ -42,19 +42,19 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       
       {/* Toast Container */}
-      <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-3 pointer-events-none">
+      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-3 pointer-events-none w-full max-w-[90vw] sm:max-w-md items-center">
         {toasts.map((t) => (
           <div
             key={t.id}
             className={`
-              pointer-events-auto flex items-center px-6 py-4 rounded-2xl shadow-lg
-              animate-slide-in
-              ${t.type === 'success' ? 'bg-success/10 border border-success/20 text-success font-bold' : ''}
-              ${t.type === 'error' ? 'bg-error/10 border border-error/20 text-error font-bold' : ''}
-              ${t.type === 'info' ? 'bg-primary/10 border border-primary/20 text-primary font-bold' : ''}
+              pointer-events-auto flex items-center px-6 py-4 rounded-2xl shadow-2xl backdrop-blur-md
+              animate-slide-up border-2
+              ${t.type === 'success' ? 'bg-success/90 border-success/30 text-white' : ''}
+              ${t.type === 'error' ? 'bg-error/90 border-error/30 text-white' : ''}
+              ${t.type === 'info' ? 'bg-primary/90 border-primary/30 text-white' : ''}
             `}
           >
-            {t.message}
+            <span className="text-sm font-black tracking-tight text-center w-full">{t.message}</span>
           </div>
         ))}
       </div>

@@ -2,18 +2,28 @@
 
 import { createClient } from '@/infrastructure/database/server'
 import { revalidatePath } from 'next/cache'
+import { z } from 'zod'
+import type { ActionResponse } from '@/core/types/actions'
 
-export async function addInventoryItem(data: {
-  name: string;
-  type: string;
-  concentration?: string;
-  unitCost: number;
-  salePrice: number;
-}) {
+const inventoryItemSchema = z.object({
+  name: z.string().min(1, 'Nome do item é obrigatório'),
+  type: z.string().min(1, 'Tipo do item é obrigatório'),
+  concentration: z.string().optional(),
+  unitCost: z.number().min(0, 'Custo unitário não pode ser negativo'),
+  salePrice: z.number().min(0, 'Preço de venda não pode ser negativo')
+})
+
+export async function addInventoryItem(rawData: unknown): Promise<ActionResponse> {
+  const result = inventoryItemSchema.safeParse(rawData)
+  if (!result.success) {
+    return { success: false, error: 'Dados inválidos', fieldErrors: result.error.flatten().fieldErrors }
+  }
+  const data = result.data
+
   const supabase = await createClient()
 
   const { data: userData, error: userError } = await supabase.auth.getUser()
-  if (userError || !userData.user) throw new Error('Não autenticado')
+  if (userError || !userData.user) return { success: false, error: 'Não autenticado' }
 
   const profileId = userData.user.id
 
@@ -28,7 +38,7 @@ export async function addInventoryItem(data: {
   })
 
   if (error) {
-    throw new Error('Erro ao salvar item no banco.')
+    return { success: false, error: 'Erro ao salvar item no banco.' }
   }
 
   revalidatePath('/estoque')
@@ -36,14 +46,17 @@ export async function addInventoryItem(data: {
   return { success: true }
 }
 
-export async function updateInventoryItem(id: string, data: {
-  name: string;
-  type: string;
-  concentration?: string;
-  unitCost: number;
-  salePrice: number;
-}) {
+export async function updateInventoryItem(id: string, rawData: unknown): Promise<ActionResponse> {
+  const result = inventoryItemSchema.safeParse(rawData)
+  if (!result.success) {
+    return { success: false, error: 'Dados inválidos', fieldErrors: result.error.flatten().fieldErrors }
+  }
+  const data = result.data
+
   const supabase = await createClient()
+
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) return { success: false, error: 'Não autenticado' }
 
   const { error } = await supabase.from('inventory').update({
     name: data.name,
@@ -54,7 +67,7 @@ export async function updateInventoryItem(id: string, data: {
   }).eq('id', id)
 
   if (error) {
-    throw new Error('Erro ao atualizar item.')
+    return { success: false, error: 'Erro ao atualizar item.' }
   }
 
   revalidatePath('/estoque')
@@ -62,13 +75,16 @@ export async function updateInventoryItem(id: string, data: {
   return { success: true }
 }
 
-export async function deleteInventoryItem(id: string) {
+export async function deleteInventoryItem(id: string): Promise<ActionResponse> {
   const supabase = await createClient()
+
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) return { success: false, error: 'Não autenticado' }
 
   const { error } = await supabase.from('inventory').delete().eq('id', id)
 
   if (error) {
-    throw new Error('Erro ao excluir item.')
+    return { success: false, error: 'Erro ao excluir item.' }
   }
 
   revalidatePath('/estoque')

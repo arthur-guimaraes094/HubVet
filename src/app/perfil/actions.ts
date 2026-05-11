@@ -3,18 +3,33 @@
 import { createClient } from '@/infrastructure/database/server'
 import { revalidatePath } from 'next/cache'
 
-export async function updateProfile(formData: FormData) {
+import { z } from 'zod'
+import type { ActionResponse } from '@/core/types/actions'
+
+const profileSchema = z.object({
+  fullName: z.string().min(1, 'Nome é obrigatório'),
+  crmv: z.string().optional(),
+  phone: z.string().optional()
+})
+
+export async function updateProfile(formData: FormData): Promise<ActionResponse<{ avatarUrl?: string }>> {
   const supabase = await createClient()
 
   // 1. Pegar o usuário autenticado
   const { data: userData, error: userError } = await supabase.auth.getUser()
   if (userError || !userData.user) {
-    throw new Error('Usuário não autenticado')
+    return { success: false, error: 'Usuário não autenticado' }
   }
 
   const fullName = formData.get('fullName') as string || ''
   const crmv = formData.get('crmv') as string || ''
   const phone = formData.get('phone') as string || ''
+  
+  const result = profileSchema.safeParse({ fullName, crmv, phone })
+  if (!result.success) {
+    return { success: false, error: 'Dados inválidos', fieldErrors: result.error.flatten().fieldErrors }
+  }
+
   const avatarFile = formData.get('avatar') as File | null
 
   let avatarUrl = undefined
@@ -23,12 +38,12 @@ export async function updateProfile(formData: FormData) {
     // Validar tipo MIME do arquivo (apenas imagens reais)
     const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
     if (!allowedMimeTypes.includes(avatarFile.type)) {
-      throw new Error('Formato de imagem não suportado. Use JPG, PNG, WebP ou GIF.')
+      return { success: false, error: 'Formato de imagem não suportado. Use JPG, PNG, WebP ou GIF.' }
     }
 
     // Validar tamanho máximo (4MB)
     if (avatarFile.size > 4 * 1024 * 1024) {
-      throw new Error('A imagem deve ter no máximo 4MB.')
+      return { success: false, error: 'A imagem deve ter no máximo 4MB.' }
     }
 
     const fileExt = avatarFile.name.split('.').pop()
@@ -40,7 +55,7 @@ export async function updateProfile(formData: FormData) {
       .upload(fileName, avatarFile)
       
     if (uploadError) {
-      throw new Error('Erro ao fazer upload da imagem')
+      return { success: false, error: 'Erro ao fazer upload da imagem' }
     }
 
     // Pegar URL pública
@@ -52,9 +67,9 @@ export async function updateProfile(formData: FormData) {
   }
 
   const updatePayload: { full_name: string; crmv: string; phone: string; avatar_url?: string } = {
-    full_name: fullName,
-    crmv: crmv,
-    phone: phone,
+    full_name: result.data.fullName,
+    crmv: result.data.crmv || '',
+    phone: result.data.phone || '',
   }
 
   if (avatarUrl) {
@@ -68,12 +83,12 @@ export async function updateProfile(formData: FormData) {
     .eq('id', userData.user.id) // Segurança extra além do RLS
 
   if (error) {
-    throw new Error('Erro ao atualizar o perfil. Tente novamente.')
+    return { success: false, error: 'Erro ao atualizar o perfil. Tente novamente.' }
   }
 
   revalidatePath('/perfil')
   revalidatePath('/')
-  return { success: true, avatarUrl }
+  return { success: true, data: { avatarUrl } }
 }
 
 export async function signOut() {

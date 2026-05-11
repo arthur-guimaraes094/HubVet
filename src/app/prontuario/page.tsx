@@ -19,8 +19,8 @@ export default async function ProntuarioPage({
   const inventory = rawInventory?.map(item => ({
     id: item.id,
     name: item.name,
-    type: item.type,
-    concentration: item.concentration,
+    type: item.type as 'Medication' | 'Vaccine' | 'Material' | 'Consultation',
+    concentration: item.concentration || undefined,
     unitCost: item.unit_cost,
     salePrice: item.sale_price
   })) || [];
@@ -56,10 +56,10 @@ export default async function ProntuarioPage({
           patientName={patientData?.name}
           tutorName={patientData?.tutors?.name}
           species={patientData?.species}
-          breed={patientData?.breed}
-          color={patientData?.color}
+          breed={patientData?.breed || undefined}
+          color={patientData?.color || undefined}
           consultationId={consultationId}
-          lastWeight={patientData?.weight_kg}
+          lastWeight={patientData?.weight_kg || undefined}
         />
       </main>
     </ViewTransition>

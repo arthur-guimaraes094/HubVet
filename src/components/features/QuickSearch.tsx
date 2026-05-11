@@ -45,7 +45,7 @@ export function QuickSearch() {
         .limit(3);
 
       const combined = [
-        ...(tutors || []).map(t => ({ type: 'Tutor', id: t.id, title: t.name, subtitle: t.phone })),
+        ...(tutors || []).map(t => ({ type: 'Tutor', id: t.id, title: t.name, subtitle: t.phone || '' })),
         ...(patients || []).map(p => {
           const tutor = p.tutors as { name: string } | null | { name: string }[];
           const tutorName = Array.isArray(tutor) ? tutor[0]?.name : tutor?.name;
@@ -63,15 +63,29 @@ export function QuickSearch() {
 
   return (
     <div className="relative w-full">
-      <Input 
-        label="Busca Rápida (Tutor ou Paciente)" 
-        placeholder="Ex: Rex ou João" 
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-      />
+      <div className="relative">
+        <Input 
+          label="Busca Rápida (Tutor ou Paciente)" 
+          placeholder="Ex: Rex ou João" 
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        {query && !loading && (
+          <button 
+            type="button"
+            onClick={() => setQuery('')}
+            className="absolute right-2 top-[24px] w-11 h-11 flex items-center justify-center text-foreground/40 hover:text-foreground active:text-foreground/60 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+        {loading && <div className="absolute right-5 top-[38px] w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>}
+      </div>
       
       {results.length > 0 && (
-        <Card className="absolute top-[105%] mt-2 w-full z-10 !p-2 !shadow-neu-flat max-h-60 overflow-y-auto">
+        <Card className="absolute top-[105%] mt-2 w-full z-10 !p-2 !shadow-sm border border-border max-h-60 overflow-y-auto">
           {results.map((res) => (
             <Link 
               href={res.type === 'Tutor' ? `/pacientes?tutorId=${res.id}` : `/pacientes/${res.id}`} 
@@ -88,8 +102,6 @@ export function QuickSearch() {
           ))}
         </Card>
       )}
-      
-      {loading && <div className="absolute right-4 top-[40px] w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>}
     </div>
   );
 }

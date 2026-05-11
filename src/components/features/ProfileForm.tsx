@@ -24,6 +24,7 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
   const { success, error } = useToast();
   
   const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [fullName, setFullName] = useState(initialData.full_name || '');
   const [crmv, setCrmv] = useState(initialData.crmv || '');
   const [phone, setPhone] = useState(initialData.phone || '');
@@ -62,6 +63,7 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setSubmitError(null);
     try {
       const formData = new FormData();
       formData.append('fullName', fullName);
@@ -71,10 +73,16 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
         formData.append('avatar', avatarFile);
       }
 
-      await updateProfile(formData);
+      const result = await updateProfile(formData);
+      if (!result.success) {
+        error(result.error);
+        setSubmitError(result.error);
+        return;
+      }
       success('Perfil atualizado com sucesso!');
-    } catch (err) {
-      error(err instanceof Error ? err.message : 'Erro ao atualizar perfil.');
+    } catch {
+      error('Erro ao atualizar perfil.');
+      setSubmitError('Erro ao atualizar perfil.');
     } finally {
       setLoading(false);
     }
@@ -97,7 +105,7 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
         
         {/* Avatar Upload */}
         <div className="flex items-center justify-center mb-4">
-          <label className="relative flex items-center justify-center w-32 h-32 bg-background rounded-full cursor-pointer overflow-hidden group shadow-neu-sm hover:shadow-neu-pressed transition-all border border-foreground/[0.03] p-1.5">
+          <label className="relative flex items-center justify-center w-32 h-32 bg-background rounded-full cursor-pointer overflow-hidden group shadow-sm border border-border hover:shadow-inner border border-border bg-gray-50/50 transition-all border border-foreground/[0.03] p-1.5">
             <div className="w-full h-full rounded-full overflow-hidden bg-foreground/5 flex items-center justify-center">
               {avatarPreview ? (
                 <Image 
@@ -159,7 +167,12 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
         </div>
 
         <div className="pt-4 flex flex-col gap-4">
-          <Button variant="primary" type="submit" disabled={loading} className="w-full !py-6 shadow-neu-sm hover:shadow-neu-flat">
+          {submitError && (
+            <div className="p-4 rounded-xl bg-error/10 border border-error/20 text-error text-sm font-bold text-center animate-in fade-in slide-in-from-bottom-2">
+              {submitError}
+            </div>
+          )}
+          <Button variant="primary" type="submit" disabled={loading} className="w-full !py-6 shadow-sm border border-border hover:shadow-sm border border-border">
             {loading ? 'Salvando...' : 'Salvar Perfil'}
           </Button>
 

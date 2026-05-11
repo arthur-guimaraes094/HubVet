@@ -158,7 +158,7 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
         return (
           <Card 
             key={consult.id} 
-            className={`cursor-pointer flex flex-col sm:flex-row justify-between items-center gap-6 border-l-8 overflow-hidden hover:shadow-neu-sm transition-all duration-300 active:scale-[0.98] ${
+            className={`cursor-pointer flex flex-col sm:flex-row justify-between items-center gap-6 border-l-8 overflow-hidden hover:shadow-sm border border-border transition-all duration-300 active:scale-[0.98] ${
               isCompleted 
                 ? 'border-emerald-500/50 opacity-60 grayscale-[0.5]' 
                 : 'border-primary'
@@ -166,7 +166,7 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
             onClick={() => setEditingConsultation(consult)}
           >
             <div className="flex items-center gap-4 sm:gap-6 w-full min-w-0 pointer-events-none">
-              <div className={`flex flex-col items-center justify-center min-w-[80px] p-3 rounded-2xl bg-background shadow-neu-sm border border-foreground/5 shrink-0 ${
+              <div className={`flex flex-col items-center justify-center min-w-[80px] p-3 rounded-2xl bg-background shadow-sm border border-border border border-foreground/5 shrink-0 ${
                 isCompleted ? 'bg-emerald-50/10' : ''
               }`}>
                 <span className={`text-[10px] font-black uppercase ${isCompleted ? 'text-emerald-600' : 'text-primary'}`}>
@@ -217,7 +217,7 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
                   variant="secondary" 
                   onClick={() => handleDownloadPDF(consult.id)}
                   disabled={downloadingPdf === consult.id}
-                  className="w-full !px-8 !py-2 text-sm shadow-neu-sm border-emerald-200 text-emerald-700 flex items-center justify-center gap-2"
+                  className="w-full !px-8 !py-2 text-sm shadow-sm border border-border border-emerald-200 text-emerald-700 flex items-center justify-center gap-2"
                 >
                   {downloadingPdf === consult.id ? (
                     <>
@@ -235,7 +235,7 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
                 </Button>
               ) : (
                 <Link href={`/prontuario?id=${consult.patients?.id}&type=Paciente&consultationId=${consult.id}&returnTo=agenda`} className="flex-1 sm:flex-none">
-                  <Button variant="primary" className="w-full !px-8 !py-2 text-sm shadow-neu-sm">
+                  <Button variant="primary" className="w-full !px-8 !py-2 text-sm shadow-sm border border-border">
                     Atender
                   </Button>
                 </Link>
@@ -269,7 +269,7 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
           <Card 
             key={i} 
             onClick={() => { setCurrentDate(d.date); setView('day'); }}
-            className={`p-4 flex flex-col items-center gap-3 transition-all cursor-pointer hover:shadow-neu-sm ${
+            className={`p-4 flex flex-col items-center gap-3 transition-all cursor-pointer hover:shadow-sm border border-border ${
               d.date.toDateString() === new Date().toDateString() ? 'border-2 border-primary/30' : ''
             }`}
           >
@@ -356,8 +356,8 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
                 key={i}
                 onClick={() => { setCurrentDate(d.date); setView('day'); }}
                 className={`aspect-square p-1 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group ${
-                  d.currentMonth ? 'hover:shadow-neu-sm' : 'opacity-20'
-                } ${isToday ? 'bg-primary/5 border border-primary/20' : 'bg-background shadow-neu-pressed'}`}
+                  d.currentMonth ? 'hover:shadow-sm border border-border' : 'opacity-20'
+                } ${isToday ? 'bg-primary/5 border border-primary/20' : 'bg-background shadow-inner border border-border bg-gray-50/50'}`}
               >
                 <span className={`text-xs font-black ${isToday ? 'text-primary' : d.currentMonth ? 'text-foreground' : 'text-foreground/40'}`}>
                   {d.date.getDate()}
@@ -396,10 +396,10 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
             <Card 
               key={i} 
               onClick={() => { setCurrentDate(m); setView('month'); }}
-              className="p-6 flex flex-col items-center gap-4 cursor-pointer hover:shadow-neu-sm group transition-all"
+              className="p-6 flex flex-col items-center gap-4 cursor-pointer hover:shadow-sm border border-border group transition-all"
             >
               <div className="text-sm font-black text-primary uppercase tracking-[0.2em]">{m.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}</div>
-              <div className="flex flex-col items-center bg-background shadow-neu-pressed p-4 rounded-3xl w-full">
+              <div className="flex flex-col items-center bg-background shadow-inner border border-border bg-gray-50/50 p-4 rounded-3xl w-full">
                 <span className="text-3xl font-black text-foreground group-hover:scale-110 transition-transform">{count}</span>
                 <span className="text-[9px] font-bold text-foreground/40 uppercase tracking-widest mt-1">Consultas</span>
               </div>
@@ -438,14 +438,14 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
         </div>
 
         {/* View Switcher & Navigation */}
-        <div className="flex flex-col md:flex-row items-center gap-4 bg-background/40 p-2 rounded-[32px] shadow-neu-pressed">
-          <div className="flex p-1 bg-background rounded-full shadow-neu-sm border border-foreground/5 w-full md:w-auto">
+        <div className="flex flex-col md:flex-row items-center gap-4 bg-background/40 p-2 rounded-3xl shadow-inner border border-border bg-gray-50/50">
+          <div className="flex p-1 bg-background rounded-full shadow-sm border border-border border border-foreground/5 w-full md:w-auto">
             {(['day', 'week', 'month', 'year'] as ViewType[]).map((v) => (
               <button
                 key={v}
                 onClick={() => setView(v)}
                 className={`flex-1 md:flex-none px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${
-                  view === v ? 'bg-primary text-white shadow-neu-sm' : 'text-foreground/40 hover:text-foreground'
+                  view === v ? 'bg-primary text-white shadow-sm border border-border' : 'text-foreground/40 hover:text-foreground'
                 }`}
               >
                 {v === 'day' ? 'Dia' : v === 'week' ? 'Semana' : v === 'month' ? 'Mês' : 'Ano'}
@@ -454,7 +454,7 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
           </div>
 
           <div className="flex items-center gap-2 ml-auto w-full md:w-auto">
-            <Button type="button" variant="secondary" onClick={handlePrevious} className="w-10 h-10 !p-0 !rounded-full shadow-neu-sm shrink-0 flex items-center justify-center">
+            <Button type="button" variant="secondary" onClick={handlePrevious} className="w-10 h-10 !p-0 !rounded-full shadow-sm border border-border shrink-0 flex items-center justify-center">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7" />
               </svg>
@@ -475,7 +475,7 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
                 return isToday ? 'Hoje' : getViewTitle();
               })()}
             </Button>
-            <Button type="button" variant="secondary" onClick={handleNext} className="w-10 h-10 !p-0 !rounded-full shadow-neu-sm shrink-0 flex items-center justify-center">
+            <Button type="button" variant="secondary" onClick={handleNext} className="w-10 h-10 !p-0 !rounded-full shadow-sm border border-border shrink-0 flex items-center justify-center">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7" />
               </svg>

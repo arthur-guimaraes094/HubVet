@@ -2,17 +2,27 @@
 
 import { createClient } from '@/infrastructure/database/server'
 import { revalidatePath } from 'next/cache'
+import { z } from 'zod'
+import type { ActionResponse } from '@/core/types/actions'
 
-export async function agendarConsulta(data: {
-  patientId: string;
-  date: string; // ISO string com data e hora
-  type: 'Home' | 'Hospital';
-  address?: string;
-}) {
+const agendaSchema = z.object({
+  patientId: z.string().min(1, 'Paciente é obrigatório'),
+  date: z.string().min(1, 'Data é obrigatória'),
+  type: z.enum(['Home', 'Hospital']),
+  address: z.string().optional()
+})
+
+export async function agendarConsulta(rawData: unknown): Promise<ActionResponse> {
+  const result = agendaSchema.safeParse(rawData)
+  if (!result.success) {
+    return { success: false, error: 'Dados inválidos', fieldErrors: result.error.flatten().fieldErrors }
+  }
+  const data = result.data
+
   const supabase = await createClient()
 
   const { data: userData, error: userError } = await supabase.auth.getUser()
-  if (userError || !userData.user) throw new Error('Não autenticado')
+  if (userError || !userData.user) return { success: false, error: 'Não autenticado' }
 
   const { error } = await supabase
     .from('consultations')
@@ -27,35 +37,42 @@ export async function agendarConsulta(data: {
 
   if (error) {
     console.error('Erro ao agendar:', error)
-    throw new Error('Erro ao agendar consulta')
+    return { success: false, error: 'Erro ao agendar consulta' }
   }
 
   revalidatePath('/agenda')
   return { success: true }
 }
 
-export async function cancelarConsulta(id: string) {
+export async function cancelarConsulta(id: string): Promise<ActionResponse> {
   const supabase = await createClient()
   
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) return { success: false, error: 'Não autenticado' }
+
   const { error } = await supabase
     .from('consultations')
     .update({ status: 'Canceled' })
     .eq('id', id)
 
-  if (error) throw new Error('Erro ao cancelar')
+  if (error) return { success: false, error: 'Erro ao cancelar' }
   
   revalidatePath('/agenda')
   return { success: true }
 }
 
-export async function atualizarConsulta(id: string, data: {
-  patientId: string;
-  date: string;
-  type: 'Home' | 'Hospital';
-  address?: string;
-}) {
+export async function atualizarConsulta(id: string, rawData: unknown): Promise<ActionResponse> {
+  const result = agendaSchema.safeParse(rawData)
+  if (!result.success) {
+    return { success: false, error: 'Dados inválidos', fieldErrors: result.error.flatten().fieldErrors }
+  }
+  const data = result.data
+
   const supabase = await createClient()
   
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) return { success: false, error: 'Não autenticado' }
+
   const { error } = await supabase
     .from('consultations')
     .update({
@@ -66,15 +83,20 @@ export async function atualizarConsulta(id: string, data: {
     })
     .eq('id', id)
 
-  if (error) throw new Error('Erro ao atualizar')
+  if (error) return { success: false, error: 'Erro ao atualizar' }
   
   revalidatePath('/agenda')
   return { success: true }
 }
 
+// Para manter compatibilidade com o retorno do BD sem ActionResponse, pois é usado para renderizar e baixar PDF.
+// Pode-se refatorar o uso depois.
 export async function getConsultationDetails(id: string) {
   const supabase = await createClient()
   
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) throw new Error('Não autenticado')
+
   const { data: consultation, error } = await supabase
     .from('consultations')
     .select(`

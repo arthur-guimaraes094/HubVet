@@ -9,13 +9,13 @@ export default function Loading() {
             <div className="h-10 w-32 bg-foreground/10 rounded-lg"></div>
             <div className="h-6 w-48 bg-foreground/10 rounded-lg"></div>
           </div>
-          <div className="w-14 h-14 bg-foreground/10 rounded-full shadow-neu-sm"></div>
+          <div className="w-14 h-14 bg-foreground/10 rounded-full shadow-sm border border-border"></div>
         </div>
 
-        <div className="w-full p-8 rounded-3xl bg-background shadow-neu-flat flex flex-col gap-6">
+        <div className="w-full p-8 rounded-3xl bg-background shadow-sm border border-border flex flex-col gap-6">
           <div className="h-8 w-40 bg-foreground/10 rounded-lg"></div>
           
-          <div className="h-14 w-full bg-background rounded-2xl shadow-neu-pressed"></div>
+          <div className="h-14 w-full bg-background rounded-2xl shadow-inner border border-border bg-gray-50/50"></div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
             {[1, 2, 3, 4].map((i) => (

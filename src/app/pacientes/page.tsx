@@ -10,9 +10,9 @@ export const revalidate = 0;
 export default async function PacientesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tutorId?: string }>
+  searchParams: Promise<{ tutorId?: string; tutorName?: string }>
 }) {
-  const { tutorId } = await searchParams;
+  const { tutorId, tutorName } = await searchParams;
   const supabase = await createClient();
   
   let query = supabase
@@ -35,10 +35,16 @@ export default async function PacientesPage({
     <main className="flex-1 flex flex-col p-8 gap-12 w-full max-w-5xl mx-auto">
       <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
         <div className="flex flex-col items-center sm:items-start">
-          <h1 className="text-4xl font-black text-foreground tracking-tighter">Meus Pacientes</h1>
+          <h1 className="text-4xl font-black text-foreground tracking-tighter">
+            {tutorName ? `Pets de ${tutorName}` : 'Meus Pacientes'}
+          </h1>
         </div>
         <div className="flex gap-4">
-          <NewPatientForm />
+          <NewPatientForm 
+            key={tutorId || 'all'} 
+            initialTutorId={tutorId} 
+            initialTutorName={tutorName} 
+          />
           <Link href="/">
             <Button variant="secondary" className="!px-6 !py-2 text-sm">Voltar</Button>
           </Link>

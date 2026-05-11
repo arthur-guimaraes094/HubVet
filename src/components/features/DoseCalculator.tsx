@@ -60,7 +60,7 @@ export function DoseCalculator() {
       </Button>
 
       {result !== null && (
-        <div className="mt-4 p-4 rounded-xl bg-success/10 border border-success/20 shadow-neu-pressed flex flex-col items-center justify-center">
+        <div className="mt-4 p-4 rounded-xl bg-success/10 border border-success/20 shadow-inner border border-border bg-gray-50/50 flex flex-col items-center justify-center">
           <span className="text-sm font-bold text-success">Volume a Administrar</span>
           <span className="text-4xl font-extrabold text-success mt-1">{result} ml</span>
         </div>

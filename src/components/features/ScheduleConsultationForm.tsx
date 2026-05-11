@@ -38,6 +38,7 @@ interface ScheduleConsultationFormProps {
 export function ScheduleConsultationForm({ patients, itemToEdit, onClose, isOpenControlled }: ScheduleConsultationFormProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const { success, error } = useToast();
 
   const isEdit = !!itemToEdit;
@@ -96,6 +97,7 @@ export function ScheduleConsultationForm({ patients, itemToEdit, onClose, isOpen
     }
 
     setLoading(true);
+    setSubmitError(null);
     try {
       // Use UTC adjustment or just template string carefully
       const fullDate = `${formData.date}T${formData.time}:00`;
@@ -108,10 +110,20 @@ export function ScheduleConsultationForm({ patients, itemToEdit, onClose, isOpen
       };
 
       if (isEdit && itemToEdit) {
-        await atualizarConsulta(itemToEdit.id, data);
+        const result = await atualizarConsulta(itemToEdit.id, data);
+        if (!result.success) {
+          error(result.error);
+          setSubmitError(result.error);
+          return;
+        }
         success('Agendamento atualizado com sucesso!');
       } else {
-        await agendarConsulta(data);
+        const result = await agendarConsulta(data);
+        if (!result.success) {
+          error(result.error);
+          setSubmitError(result.error);
+          return;
+        }
         success('Consulta agendada com sucesso!');
       }
       
@@ -119,8 +131,9 @@ export function ScheduleConsultationForm({ patients, itemToEdit, onClose, isOpen
       if (!isEdit) {
         setFormData({ patientId: '', date: '', time: '', type: 'Home', address: '' });
       }
-    } catch (err) {
-      error(err instanceof Error ? err.message : 'Erro ao processar agendamento');
+    } catch {
+      error('Erro ao processar agendamento');
+      setSubmitError('Erro ao processar agendamento');
     } finally {
       setLoading(false);
     }
@@ -129,7 +142,7 @@ export function ScheduleConsultationForm({ patients, itemToEdit, onClose, isOpen
   return (
     <>
       {!isEdit && (
-        <Button variant="primary" onClick={() => setIsOpen(true)} className="!px-6 shadow-neu-flat">
+        <Button variant="primary" onClick={() => setIsOpen(true)} className="!px-6 shadow-sm border border-border">
           Agendar Consulta
         </Button>
       )}
@@ -145,7 +158,7 @@ export function ScheduleConsultationForm({ patients, itemToEdit, onClose, isOpen
             <select 
               value={formData.patientId}
               onChange={(e) => handlePatientChange(e.target.value)}
-              className="w-full bg-background rounded-2xl shadow-neu-pressed p-4 focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground appearance-none border border-foreground/5"
+              className="w-full bg-background rounded-2xl shadow-inner border border-border bg-gray-50/50 p-4 focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground appearance-none border border-foreground/5"
               disabled={isEdit} // Optional: usually we don't change the patient of a scheduled consultation
             >
               <option value="">Selecione um paciente...</option>
@@ -182,8 +195,8 @@ export function ScheduleConsultationForm({ patients, itemToEdit, onClose, isOpen
                   onClick={() => setFormData({ ...formData, type: t as 'Home' | 'Hospital' })}
                   className={`flex-1 py-3 rounded-xl font-bold transition-all ${
                     formData.type === t 
-                    ? 'bg-primary text-white shadow-neu-pressed' 
-                    : 'bg-background text-foreground shadow-neu-sm hover:shadow-neu-pressed'
+                    ? 'bg-primary text-white shadow-inner border border-border bg-gray-50/50' 
+                    : 'bg-background text-foreground shadow-sm border border-border hover:shadow-inner border border-border bg-gray-50/50'
                   }`}
                 >
                   {t === 'Home' ? '🏠 Domicílio' : '🏥 Hospital'}
@@ -199,6 +212,11 @@ export function ScheduleConsultationForm({ patients, itemToEdit, onClose, isOpen
             onChange={e => setFormData({ ...formData, address: e.target.value })} 
           />
 
+          {submitError && (
+            <div className="p-3 rounded-xl bg-error/10 border border-error/20 text-error text-sm font-bold text-center animate-in fade-in slide-in-from-bottom-2">
+              {submitError}
+            </div>
+          )}
           <div className="flex gap-4 mt-2">
             {isEdit && itemToEdit && (
               <div className="flex-1">

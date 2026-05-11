@@ -42,6 +42,7 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
   const [notes, setNotes] = useState<string>('');
   const [selectedItems, setSelectedItems] = useState<{ id: string, quantity: number }[]>([]);
   const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [images, setImages] = useState<string[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [consultationType, setConsultationType] = useState<'Home' | 'Hospital'>('Home');
@@ -86,6 +87,8 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
         setNewItemConcentration('');
         setShowNewItemForm(false);
         router.refresh();
+      } else {
+        error(result.error);
       }
     } catch {
       error('Erro ao cadastrar novo item.');
@@ -179,6 +182,7 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
     }
     
     setLoading(true);
+    setSubmitError(null);
     try {
       const fullItems = selectedItems.map(si => {
         const inv = inventory.find((i) => i.id === si.id);
@@ -189,7 +193,7 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
         patientId: patientId,
         notes,
         baseFee: totalValue, // Agora o valor base é a soma dos itens
-        weightKg: weight ? parseFloat(weight) : lastWeight,
+        weightKg: (weight && !isNaN(parseFloat(weight.replace(',', '.')))) ? parseFloat(weight.replace(',', '.')) : lastWeight,
         items: fullItems,
         consultationId: consultationId,
         completionDate: new Date().toISOString(),
@@ -197,10 +201,12 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
         type: consultationType
       });
       
-      if (result) {
-        success('Prontuário salvo e estoque atualizado!');
+      if (result.success) {
         setShowSuccess(true);
         // Não redirecionamos mais automaticamente para não quebrar o download no iOS
+      } else {
+        error(result.error);
+        setSubmitError(result.error);
       }
     } finally {
       setLoading(false);
@@ -224,7 +230,7 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
           <Button 
             variant="primary" 
             onClick={handleDownloadPDF} 
-            className="w-full py-4 text-lg shadow-neu-sm hover:shadow-neu-flat flex items-center justify-center gap-3"
+            className="w-full py-4 text-lg shadow-sm border border-border hover:shadow-sm border border-border flex items-center justify-center gap-3"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -271,7 +277,7 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
         <textarea 
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          className="w-full bg-background/50 border border-foreground/10 rounded-xl p-4 shadow-neu-pressed min-h-[120px] focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground resize-y"
+          className="w-full bg-background/50 border border-foreground/10 rounded-xl p-4 shadow-inner border border-border bg-gray-50/50 min-h-[120px] focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground resize-y"
           placeholder="Anote aqui a evolução clínica, sinais vitais e os medicamentos prescritos para a receita..."
         />
       </div>
@@ -283,8 +289,8 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
         </h4>
         <div className="flex flex-wrap gap-4">
           {images.map((url, i) => (
-            <div key={i} className="relative group w-24 h-24 rounded-2xl overflow-hidden shadow-neu-pressed bg-foreground/5 border border-foreground/5">
-              <Image src={url} alt="Anexo" fill className="object-cover" />
+            <div key={i} className="relative group w-24 h-24 rounded-2xl overflow-hidden shadow-inner border border-border bg-gray-50/50 bg-foreground/5 border border-foreground/5">
+              <Image src={url} alt="Anexo" fill sizes="96px" className="object-cover" />
               <button 
                 onClick={() => removeImage(i)}
                 className="absolute inset-0 bg-error/80 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
@@ -316,8 +322,8 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
                 onClick={() => setConsultationType(t)}
                 className={`flex-1 py-3 rounded-xl font-bold transition-all ${
                   consultationType === t 
-                  ? 'bg-primary text-white shadow-neu-pressed' 
-                  : 'bg-background text-foreground shadow-neu-sm hover:shadow-neu-pressed'
+                  ? 'bg-primary text-white shadow-inner border border-border bg-gray-50/50' 
+                  : 'bg-background text-foreground shadow-sm border border-border hover:shadow-inner border border-border bg-gray-50/50'
                 }`}
               >
                 {t === 'Home' ? '🏠 Domicílio' : '🏥 Hospital'}
@@ -355,7 +361,7 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
                 <select 
                   value={newItemCategory}
                   onChange={(e) => setNewItemCategory(e.target.value)}
-                  className="w-full bg-background border-none rounded-xl px-4 py-3 shadow-neu-pressed focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm font-bold text-foreground"
+                  className="w-full bg-background border-none rounded-xl px-4 py-3 shadow-inner border border-border bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm font-bold text-foreground"
                 >
                   <option value="Consultation">Consulta</option>
                   <option value="Medication">Medicamento</option>
@@ -376,7 +382,7 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
               placeholder="Buscar..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-background border-none rounded-[28px] px-6 py-4 shadow-neu-pressed focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground font-medium placeholder:text-foreground/30 transition-all"
+              className="w-full bg-background border-none rounded-2xl px-6 py-4 shadow-inner border border-border bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground font-medium placeholder:text-foreground/30 transition-all"
             />
             {searchTerm && (
               <button 
@@ -390,13 +396,13 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
             )}
           </div>
 
-          <div className="flex flex-wrap gap-3 max-h-[320px] overflow-y-auto p-2 scrollbar-none rounded-[32px]">
+          <div className="flex flex-wrap gap-3 max-h-[320px] overflow-y-auto p-2 scrollbar-none rounded-3xl">
             {filteredInventory.length > 0 ? (
               filteredInventory.map((item) => (
                 <button 
                   key={item.id} 
                   onClick={() => handleAddItem(item.id)} 
-                  className="flex items-center gap-3 px-5 py-3 bg-background shadow-neu-flat hover:shadow-neu-pressed rounded-full border border-foreground/[0.03] hover:border-primary/20 transition-all duration-300 group"
+                  className="flex items-center gap-3 px-5 py-3 bg-background shadow-sm border border-border hover:shadow-inner border border-border bg-gray-50/50 rounded-full border border-foreground/[0.03] hover:border-primary/20 transition-all duration-300 group"
                 >
                   <div className="flex flex-col items-start leading-tight">
                     <span className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">{item.name}</span>
@@ -424,7 +430,7 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
         </div>
         
         {selectedItems.length > 0 && (
-          <div className="mt-4 p-5 rounded-[28px] bg-background shadow-neu-pressed flex flex-col gap-3 border border-primary/5 animate-in zoom-in-95 duration-300">
+          <div className="mt-4 p-5 rounded-2xl bg-background shadow-inner border border-border bg-gray-50/50 flex flex-col gap-3 border border-primary/5 animate-in zoom-in-95 duration-300">
             <span className="text-xs font-black text-foreground/40 uppercase tracking-widest pl-1">Itens Selecionados</span>
             <div className="flex flex-col gap-2">
               {selectedItems.map(item => {
@@ -432,7 +438,7 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
                 return (
                   <div key={item.id} className="flex justify-between items-center p-3 bg-foreground/5 rounded-2xl border border-transparent hover:border-primary/10 transition-all">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-black text-primary shadow-neu-sm">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-black text-primary shadow-sm border border-border">
                         {item.quantity}x
                       </div>
                       <div className="flex flex-col">
@@ -445,10 +451,11 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
                     <div className="flex items-center gap-4">
                       <span className="font-bold text-xs text-foreground/60">R$ {invItem ? (invItem.salePrice * item.quantity).toFixed(2) : '0.00'}</span>
                       <button 
+                        type="button"
                         onClick={() => handleRemoveItem(item.id)} 
-                        className="w-6 h-6 flex items-center justify-center rounded-full bg-error/10 text-error hover:bg-error hover:text-white transition-all duration-200"
+                        className="w-11 h-11 shrink-0 flex items-center justify-center rounded-full bg-error/10 text-error hover:bg-error hover:text-white transition-all duration-200"
                       >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M20 12H4" />
                         </svg>
                       </button>
@@ -461,18 +468,25 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
         )}
       </div>
 
-      <div className="mt-6 p-8 rounded-[32px] bg-gradient-to-br from-success/5 to-success/15 border border-success/20 shadow-neu-flat flex flex-col items-center justify-center gap-2 relative overflow-hidden group">
+      <div className="mt-6 p-8 rounded-3xl bg-gradient-to-br from-success/5 to-success/15 border border-success/20 shadow-sm border border-border flex flex-col items-center justify-center gap-2 relative overflow-hidden group">
         <div className="absolute top-0 right-0 w-32 h-32 bg-success/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-success/10 transition-colors"></div>
         <span className="text-xs font-black text-success/60 uppercase tracking-[0.2em] relative z-10">Valor da Consulta</span>
         <div className="flex items-baseline gap-1 relative z-10">
           <span className="text-lg font-black text-success/60">R$</span>
-          <span className="text-5xl font-extrabold text-success tracking-tighter">
-            {totalValue > 0 ? totalValue.toFixed(2) : '0.00'}
+          <span className="text-5xl font-extrabold text-success tracking-tighter flex items-baseline">
+            {totalValue > 0 ? Math.floor(totalValue) : '0'}
+            <span className="text-3xl opacity-60">,{totalValue > 0 ? (totalValue % 1).toFixed(2).substring(2) : '00'}</span>
           </span>
         </div>
       </div>
 
-      <Button variant="primary" onClick={handleFinalize} disabled={loading || !patientId} className="mt-4 py-4 text-lg">
+      {submitError && (
+        <div className="mt-2 p-4 rounded-xl bg-error/10 border border-error/20 text-error text-sm font-bold text-center animate-in fade-in slide-in-from-bottom-2">
+          {submitError}
+        </div>
+      )}
+
+      <Button variant="primary" onClick={handleFinalize} disabled={loading || !patientId} className="mt-2 py-4 text-lg">
         {loading ? 'Salvando...' : 'Finalizar Atendimento & Gerar PDF'}
       </Button>
     </Card>

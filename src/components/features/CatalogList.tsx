@@ -39,7 +39,7 @@ export function CatalogList({ initialItems }: CatalogListProps) {
             placeholder="Pesquisar por nome do item..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-14 pr-6 py-5 bg-background rounded-[28px] shadow-neu-pressed border border-foreground/[0.03] text-foreground font-medium placeholder:text-foreground/20 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-lg"
+            className="w-full pl-14 pr-6 py-5 bg-background rounded-2xl shadow-inner border border-border bg-gray-50/50 border border-foreground/[0.03] text-foreground font-medium placeholder:text-foreground/20 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-lg"
           />
           <div className="absolute left-6 top-1/2 -translate-y-1/2 text-foreground/20 group-focus-within:text-primary transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -53,7 +53,7 @@ export function CatalogList({ initialItems }: CatalogListProps) {
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-              className="w-full appearance-none px-6 py-4 bg-background rounded-full shadow-neu-flat border border-foreground/[0.03] text-foreground font-black uppercase tracking-widest text-[10px] focus:outline-none focus:shadow-neu-pressed transition-all cursor-pointer"
+              className="w-full appearance-none px-6 py-4 bg-background rounded-full shadow-sm border border-border border border-foreground/[0.03] text-foreground font-black uppercase tracking-widest text-[10px] focus:outline-none focus:shadow-inner border border-border bg-gray-50/50 transition-all cursor-pointer"
             >
               <option value="all">TODOS OS ITENS</option>
               <option value="Medication">MEDICAMENTOS</option>
@@ -68,10 +68,10 @@ export function CatalogList({ initialItems }: CatalogListProps) {
             </div>
           </div>
 
-          <div className="flex bg-background shadow-neu-pressed p-1 rounded-full border border-foreground/5 shrink-0 justify-center mx-auto sm:mx-0">
+          <div className="flex bg-background shadow-inner border border-border bg-gray-50/50 p-1 rounded-full border border-foreground/5 shrink-0 justify-center mx-auto sm:mx-0">
             <button 
               onClick={() => setViewMode('list')}
-              className={`p-2 px-5 rounded-full transition-all duration-300 flex items-center gap-2 ${viewMode === 'list' ? 'bg-primary text-white shadow-neu-sm' : 'text-foreground/40 hover:text-foreground'}`}
+              className={`p-2 px-5 rounded-full transition-all duration-300 flex items-center gap-2 ${viewMode === 'list' ? 'bg-primary text-white shadow-sm border border-border' : 'text-foreground/40 hover:text-foreground'}`}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h16" />
@@ -80,7 +80,7 @@ export function CatalogList({ initialItems }: CatalogListProps) {
             </button>
             <button 
               onClick={() => setViewMode('grid')}
-              className={`p-2 px-5 rounded-full transition-all duration-300 flex items-center gap-2 ${viewMode === 'grid' ? 'bg-primary text-white shadow-neu-sm' : 'text-foreground/40 hover:text-foreground'}`}
+              className={`p-2 px-5 rounded-full transition-all duration-300 flex items-center gap-2 ${viewMode === 'grid' ? 'bg-primary text-white shadow-sm border border-border' : 'text-foreground/40 hover:text-foreground'}`}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -102,7 +102,7 @@ export function CatalogList({ initialItems }: CatalogListProps) {
             <Card 
               key={item.id} 
               onClick={() => setEditingItem(item)}
-              className={`flex flex-col h-full group transition-all duration-500 rounded-[32px] overflow-hidden border border-transparent hover:border-primary/10 cursor-pointer hover:shadow-neu-sm hover:scale-[1.01] active:scale-[0.98] ${
+              className={`flex flex-col h-full group transition-all duration-500 rounded-3xl overflow-hidden border border-transparent hover:border-primary/10 cursor-pointer hover:shadow-sm border border-border hover:scale-[1.01] active:scale-[0.98] ${
                 viewMode === 'list' ? 'p-8 gap-4' : 'p-4 gap-2 text-center'
               }`}
             >
@@ -133,7 +133,7 @@ export function CatalogList({ initialItems }: CatalogListProps) {
               </div>
               
               {/* Price Section */}
-              <div className={`mt-auto flex flex-col bg-foreground/[0.02] rounded-2xl shadow-neu-pressed border border-foreground/[0.03] ${viewMode === 'list' ? 'p-4' : 'p-2'}`}>
+              <div className={`mt-auto flex flex-col bg-foreground/[0.02] rounded-2xl shadow-inner border border-border bg-gray-50/50 border border-foreground/[0.03] ${viewMode === 'list' ? 'p-4' : 'p-2'}`}>
                 <div className={`flex flex-col ${viewMode === 'list' ? 'pl-2' : 'items-center'}`}>
                   <span className="text-[8px] font-black text-foreground/30 uppercase tracking-[0.2em] mb-0.5">Valor Aplicação</span>
                   <span className={`${viewMode === 'list' ? 'text-2xl' : 'text-lg'} font-black text-primary tracking-tighter`}>

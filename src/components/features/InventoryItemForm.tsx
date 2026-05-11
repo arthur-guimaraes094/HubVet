@@ -53,10 +53,18 @@ export function InventoryItemForm({ itemToEdit, onClose }: InventoryItemFormProp
       };
 
       if (isEdit && itemToEdit) {
-        await updateInventoryItem(itemToEdit.id, data);
+        const result = await updateInventoryItem(itemToEdit.id, data);
+        if (!result.success) {
+          error(result.error);
+          return;
+        }
         success('Item atualizado com sucesso!');
       } else {
-        await addInventoryItem(data);
+        const result = await addInventoryItem(data);
+        if (!result.success) {
+          error(result.error);
+          return;
+        }
         success('Item cadastrado com sucesso!');
       }
       
@@ -65,8 +73,8 @@ export function InventoryItemForm({ itemToEdit, onClose }: InventoryItemFormProp
       setName('');
       setConcentration('');
       setSalePrice('');
-    } catch (err) {
-      error(err instanceof Error ? err.message : 'Erro ao salvar');
+    } catch {
+      error('Erro ao salvar');
     } finally {
       setLoading(false);
     }
@@ -77,11 +85,16 @@ export function InventoryItemForm({ itemToEdit, onClose }: InventoryItemFormProp
     
     setDeleting(true);
     try {
-      await deleteInventoryItem(itemToEdit.id);
+      const result = await deleteInventoryItem(itemToEdit.id);
+      if (!result.success) {
+        error(result.error);
+        setIsConfirmingDelete(false);
+        return;
+      }
       success('Item removido com sucesso!');
       if (onClose) onClose();
-    } catch (err) {
-      error(err instanceof Error ? err.message : 'Erro ao excluir');
+    } catch {
+      error('Erro ao excluir');
       setIsConfirmingDelete(false);
     } finally {
       setDeleting(false);
@@ -119,7 +132,7 @@ export function InventoryItemForm({ itemToEdit, onClose }: InventoryItemFormProp
                 variant="primary" 
                 onClick={confirmDelete} 
                 disabled={deleting}
-                className="w-full !bg-error hover:!bg-error/80 !border-none !py-4 shadow-neu-sm"
+                className="w-full !bg-error hover:!bg-error/80 !border-none !py-4 shadow-sm border border-border"
               >
                 {deleting ? 'Removendo...' : 'Sim, Excluir Item'}
               </Button>
@@ -160,7 +173,7 @@ export function InventoryItemForm({ itemToEdit, onClose }: InventoryItemFormProp
             <select 
               value={type} 
               onChange={e => setType(e.target.value)}
-              className="w-full bg-background border-none rounded-2xl px-4 py-3 shadow-neu-pressed focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground appearance-none font-medium"
+              className="w-full bg-background border-none rounded-2xl px-4 py-3 shadow-inner border border-border bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground appearance-none font-medium"
             >
               <option value="Medication">Medicamento</option>
               <option value="Vaccine">Vacina</option>

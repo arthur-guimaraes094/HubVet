@@ -20,11 +20,15 @@ export function CancelConsultationButton({ id }: CancelConsultationButtonProps) 
     
     setLoading(true);
     try {
-      await cancelarConsulta(id);
+      const result = await cancelarConsulta(id);
+      if (!result.success) {
+        error(result.error);
+        setIsConfirming(false);
+        return;
+      }
       success('Consulta cancelada com sucesso.');
       setIsConfirming(false);
-    } catch (e) {
-      console.error(e);
+    } catch {
       error('Erro ao cancelar consulta.');
     } finally {
       setLoading(false);
@@ -55,7 +59,7 @@ export function CancelConsultationButton({ id }: CancelConsultationButtonProps) 
               variant="primary" 
               onClick={handleCancel} 
               disabled={loading}
-              className="w-full !bg-error hover:!bg-error/80 !border-none !py-4 shadow-neu-sm text-[10px] font-black uppercase tracking-widest"
+              className="w-full !bg-error hover:!bg-error/80 !border-none !py-4 shadow-sm border border-border text-[10px] font-black uppercase tracking-widest"
             >
               {loading ? 'Cancelando...' : 'Sim, Cancelar Agendamento'}
             </Button>
@@ -77,7 +81,7 @@ export function CancelConsultationButton({ id }: CancelConsultationButtonProps) 
         variant="secondary" 
         onClick={toggleConfirm} 
         disabled={loading}
-        className="!text-error hover:!bg-error/10 w-full py-4 text-sm font-bold shadow-neu-sm"
+        className="!text-error hover:!bg-error/10 w-full py-4 text-sm font-bold shadow-sm border border-border"
       >
         Cancelar Agendamento
       </Button>

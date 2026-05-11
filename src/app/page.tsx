@@ -36,7 +36,7 @@ export default async function Home() {
             </p>
           </div>
           
-          <Link href="/perfil" className="w-16 h-16 bg-background rounded-full shadow-neu-sm flex items-center justify-center text-primary hover:shadow-neu-pressed transition-all active:scale-95 cursor-pointer border border-foreground/[0.03] overflow-hidden p-1">
+          <Link href="/perfil" className="w-16 h-16 bg-background rounded-full shadow-sm border border-border flex items-center justify-center text-primary hover:shadow-inner border border-border bg-gray-50/50 transition-all active:scale-95 cursor-pointer border border-foreground/[0.03] overflow-hidden p-1">
             <div className="w-full h-full rounded-full overflow-hidden bg-foreground/5 flex items-center justify-center">
               {avatarUrl ? (
                 <Image src={avatarUrl} alt="Perfil" width={64} height={64} className="w-full h-full object-cover" />
@@ -50,18 +50,24 @@ export default async function Home() {
         <Card className="w-full flex flex-col gap-8 p-10 bg-background/40">
           <QuickSearch />
           
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
+          <div className="grid grid-cols-2 gap-4 mt-2">
             <Link href="/agenda" className="w-full">
-              <Button variant="primary" className="w-full !py-4 shadow-neu-sm hover:shadow-neu-flat">Agenda</Button>
-            </Link>
-            <Link href="/calculadora" className="w-full">
-              <Button variant="secondary" className="w-full !py-4">Cálculo</Button>
+              <Button variant="primary" className="w-full !py-4 shadow-sm border border-border hover:shadow-sm border border-border">Agenda</Button>
             </Link>
             <Link href="/pacientes" className="w-full">
               <Button variant="secondary" className="w-full !py-4">Pacientes</Button>
             </Link>
+            <Link href="/tutores" className="w-full">
+              <Button variant="secondary" className="w-full !py-4">Tutores</Button>
+            </Link>
+            <Link href="/financeiro" className="w-full">
+              <Button variant="secondary" className="w-full !py-4">Financeiro</Button>
+            </Link>
             <Link href="/estoque" className="w-full">
-              <Button variant="secondary" className="w-full !py-4">Itens</Button>
+              <Button variant="secondary" className="w-full !py-4">Estoque</Button>
+            </Link>
+            <Link href="/calculadora" className="w-full">
+              <Button variant="secondary" className="w-full !py-4">Cálculo</Button>
             </Link>
           </div>
         </Card>

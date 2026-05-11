@@ -23,7 +23,7 @@ export default async function LoginPage({
         <form className="flex flex-col gap-6">
           
           {params?.message && (
-            <div className="p-3 bg-red-100 text-red-700 text-sm font-bold rounded-xl text-center shadow-neu-pressed">
+            <div className="p-3 bg-red-100 text-red-700 text-sm font-bold rounded-xl text-center shadow-inner border border-border bg-gray-50/50">
               {params.message}
             </div>
           )}
