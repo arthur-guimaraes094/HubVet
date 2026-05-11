@@ -191,13 +191,19 @@ export function TutorList() {
 
       <div className={`grid gap-6 w-full ${viewMode === 'grid' ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-1 max-w-4xl mx-auto'}`}>
         {filteredTutors.map((tutor) => (
-          <Link key={tutor.id} href={`/pacientes?tutorId=${tutor.id}&tutorName=${encodeURIComponent(tutor.name)}`} className="group block">
+          <Link 
+            key={tutor.id} 
+            href={`/pacientes?tutorId=${tutor.id}&tutorName=${encodeURIComponent(tutor.name)}`} 
+            className="group block"
+            style={{ WebkitTouchCallout: 'none' }}
+            onContextMenu={(e) => e.preventDefault()}
+            onMouseDown={(e) => handleStartPress(e, tutor)}
+            onMouseUp={handleEndPress}
+            onMouseLeave={handleEndPress}
+            onTouchStart={(e) => handleStartPress(e, tutor)}
+            onTouchEnd={handleEndPress}
+          >
             <Card 
-              onMouseDown={(e) => handleStartPress(e, tutor)}
-              onMouseUp={handleEndPress}
-              onMouseLeave={handleEndPress}
-              onTouchStart={(e) => handleStartPress(e, tutor)}
-              onTouchEnd={handleEndPress}
               style={{ transform: pressingTutorId === tutor.id ? 'scale(0.98)' : 'scale(1)' }}
               className={`relative flex flex-col h-full group-hover:shadow-sm border border-border group-active:shadow-inner border border-border bg-gray-50/50 transition-all duration-500 rounded-3xl overflow-hidden hover:border-primary/10 select-none ${pressingTutorId === tutor.id ? 'brightness-95' : ''} ${
                 viewMode === 'list' ? 'p-8 gap-4' : 'p-4 gap-2 text-center'

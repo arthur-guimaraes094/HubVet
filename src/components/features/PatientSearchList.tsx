@@ -171,6 +171,8 @@ export function PatientSearchList({ initialPatients }: PatientSearchListProps) {
               key={patient.id} 
               href={`/pacientes/${patient.id}`} 
               className="group block"
+              style={{ WebkitTouchCallout: 'none' }}
+              onContextMenu={(e) => e.preventDefault()}
               onMouseDown={(e) => handleStartPress(e, patient)}
               onMouseUp={handleEndPress}
               onMouseLeave={handleEndPress}
