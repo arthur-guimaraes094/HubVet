@@ -28,7 +28,7 @@ export default async function EstoquePage() {
     <main className="flex-1 flex flex-col p-8 gap-8 w-full max-w-5xl mx-auto">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 px-2">
         <div>
-          <h1 className="text-5xl font-black text-foreground tracking-tighter">Estoque</h1>
+          <h1 className="text-5xl font-black text-foreground tracking-tighter">Maleta</h1>
           <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] opacity-70 mt-1">Catálogo de Itens e Materiais</p>
         </div>
         <div className="flex gap-4 w-full md:w-auto">

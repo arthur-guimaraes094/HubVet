@@ -64,7 +64,7 @@ export default async function Home() {
               <Button variant="secondary" className="w-full !py-4">Financeiro</Button>
             </Link>
             <Link href="/estoque" className="w-full">
-              <Button variant="secondary" className="w-full !py-4">Estoque</Button>
+              <Button variant="secondary" className="w-full !py-4">Maleta</Button>
             </Link>
             <Link href="/calculadora" className="w-full">
               <Button variant="secondary" className="w-full !py-4">Cálculo</Button>

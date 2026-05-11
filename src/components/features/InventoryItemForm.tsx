@@ -210,7 +210,7 @@ export function InventoryItemForm({ itemToEdit, onClose }: InventoryItemFormProp
                 disabled={loading || deleting}
                 className="w-full !text-error hover:bg-error/10 border-error/20 font-black uppercase tracking-widest text-[10px]"
               >
-                Excluir Item do Estoque
+                Excluir Item da Maleta
               </Button>
             )}
           </div>
