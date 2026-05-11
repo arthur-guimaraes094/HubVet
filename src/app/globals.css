@@ -89,6 +89,16 @@ input, select, textarea {
   }
 }
 
+@keyframes haptic-impact {
+  0% { transform: scale(0.96); }
+  50% { transform: scale(1.03); }
+  100% { transform: scale(1); }
+}
+
+.animate-haptic {
+  animation: haptic-impact 0.1s ease-out;
+}
+
 .animate-ios-pop {
   animation: ios-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }

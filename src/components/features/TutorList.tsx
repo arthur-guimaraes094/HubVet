@@ -24,6 +24,7 @@ export function TutorList() {
   const [menuTutor, setMenuTutor] = useState<Tutor | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [isMenuClosing, setIsMenuClosing] = useState(false);
+  const [lastTriggeredId, setLastTriggeredId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [pressingTutorId, setPressingTutorId] = useState<string | null>(null);
@@ -39,9 +40,11 @@ export function TutorList() {
     longPressTimer.current = setTimeout(() => {
       setMenuPosition({ x, y });
       setMenuTutor(tutor);
+      setLastTriggeredId(tutor.id);
+      setTimeout(() => setLastTriggeredId(null), 150);
       setPressingTutorId(null);
       if (window.navigator.vibrate) window.navigator.vibrate(50);
-    }, 600);
+    }, 500);
   };
 
   const handleEndPress = () => {
@@ -204,8 +207,8 @@ export function TutorList() {
             onTouchEnd={handleEndPress}
           >
             <Card 
-              style={{ transform: pressingTutorId === tutor.id ? 'scale(0.98)' : 'scale(1)' }}
-              className={`relative flex flex-col h-full group-hover:shadow-sm border border-border group-active:shadow-inner border border-border bg-gray-50/50 transition-all duration-500 rounded-3xl overflow-hidden hover:border-primary/10 select-none ${pressingTutorId === tutor.id ? 'brightness-95' : ''} ${
+              style={{ transform: pressingTutorId === tutor.id ? 'scale(0.96)' : 'scale(1)' }}
+              className={`relative flex flex-col h-full group-hover:shadow-sm border border-border group-active:shadow-inner border border-border bg-gray-50/50 transition-all duration-500 rounded-3xl overflow-hidden hover:border-primary/10 select-none ${pressingTutorId === tutor.id ? 'brightness-95' : ''} ${lastTriggeredId === tutor.id ? 'animate-haptic' : ''} ${
                 viewMode === 'list' ? 'p-8 gap-4' : 'p-4 gap-2 text-center'
               }`}
             >

@@ -37,6 +37,7 @@ export function PatientSearchList({ initialPatients }: PatientSearchListProps) {
   const [patientToEdit, setPatientToEdit] = useState<Patient | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ x: number, y: number } | null>(null);
   const [isMenuClosing, setIsMenuClosing] = useState(false);
+  const [lastTriggeredId, setLastTriggeredId] = useState<string | null>(null);
   const [pressingPatientId, setPressingPatientId] = useState<string | null>(null);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -51,9 +52,11 @@ export function PatientSearchList({ initialPatients }: PatientSearchListProps) {
     longPressTimer.current = setTimeout(() => {
       setMenuPosition({ x, y });
       setMenuPatient(patient);
+      setLastTriggeredId(patient.id);
+      setTimeout(() => setLastTriggeredId(null), 150);
       setPressingPatientId(null);
       if (window.navigator.vibrate) window.navigator.vibrate(50);
-    }, 600);
+    }, 500);
   };
 
   const handleEndPress = () => {
@@ -180,8 +183,8 @@ export function PatientSearchList({ initialPatients }: PatientSearchListProps) {
               onTouchEnd={handleEndPress}
             >
               <Card 
-                style={{ transform: pressingPatientId === patient.id ? 'scale(0.98)' : 'scale(1)' }}
-                className={`relative flex flex-col h-full group-hover:shadow-sm border border-border group-active:shadow-inner border border-border bg-gray-50/50 transition-all duration-500 rounded-3xl overflow-hidden hover:border-primary/10 select-none ${pressingPatientId === patient.id ? 'brightness-95' : ''} ${viewMode === 'list' ? 'p-8 gap-4' : 'p-4 gap-2 text-center'}`}
+                style={{ transform: pressingPatientId === patient.id ? 'scale(0.96)' : 'scale(1)' }}
+                className={`relative flex flex-col h-full group-hover:shadow-sm border border-border group-active:shadow-inner border border-border bg-gray-50/50 transition-all duration-500 rounded-3xl overflow-hidden hover:border-primary/10 select-none ${pressingPatientId === patient.id ? 'brightness-95' : ''} ${lastTriggeredId === patient.id ? 'animate-haptic' : ''} ${viewMode === 'list' ? 'p-8 gap-4' : 'p-4 gap-2 text-center'}`}
               >
                 
                 {/* Header Section */}

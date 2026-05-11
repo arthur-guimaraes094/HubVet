@@ -35,6 +35,7 @@ export function CatalogList({ initialItems }: CatalogListProps) {
   const [menuItem, setMenuItem] = useState<InventoryItem | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ x: number, y: number } | null>(null);
   const [isMenuClosing, setIsMenuClosing] = useState(false);
+  const [lastTriggeredId, setLastTriggeredId] = useState<string | null>(null);
   const [itemToDelete, setItemToDelete] = useState<InventoryItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const pressTimer = useRef<NodeJS.Timeout | null>(null);
@@ -50,9 +51,11 @@ export function CatalogList({ initialItems }: CatalogListProps) {
     pressTimer.current = setTimeout(() => {
       setMenuItem(item);
       setMenuPosition({ x: clientX, y: clientY });
+      setLastTriggeredId(item.id);
+      setTimeout(() => setLastTriggeredId(null), 150);
       if (window.navigator.vibrate) window.navigator.vibrate(50);
       setPressingItemId(null);
-    }, 600);
+    }, 500);
   };
 
   const handleEndPress = () => {
@@ -177,12 +180,12 @@ export function CatalogList({ initialItems }: CatalogListProps) {
               onTouchEnd={handleEndPress}
               onContextMenu={(e) => e.preventDefault()}
               style={{ 
-                transform: pressingItemId === item.id ? 'scale(0.98)' : 'scale(1)',
+                transform: pressingItemId === item.id ? 'scale(0.96)' : 'scale(1)',
                 WebkitTouchCallout: 'none'
               }}
               className={`flex flex-col h-full group transition-all duration-500 rounded-3xl overflow-hidden border border-transparent hover:border-primary/10 cursor-pointer hover:shadow-sm border border-border select-none ${
                 viewMode === 'list' ? 'p-8 gap-4' : 'p-4 gap-2 text-center'
-              } ${pressingItemId === item.id ? 'brightness-95' : ''}`}
+              } ${pressingItemId === item.id ? 'brightness-95' : ''} ${lastTriggeredId === item.id ? 'animate-haptic' : ''}`}
             >
               {/* Header Section */}
               <div className={`flex ${viewMode === 'list' ? 'justify-between items-start' : 'flex-col items-center'} gap-3`}>
