@@ -82,13 +82,13 @@ export function PushNotificationManager() {
           body: JSON.stringify(sub),
         });
 
-        alert('Notificações ativadas com sucesso!');
+        // alert('Notificações ativadas com sucesso!');
       } else {
-        alert('Permissão de notificação negada.');
+        // alert('Permissão de notificação negada.');
       }
     } catch (error) {
       console.error('Failed to subscribe:', error);
-      alert('Erro ao ativar notificações.');
+      // alert('Erro ao ativar notificações.');
     } finally {
       setIsLoading(false);
     }
@@ -104,7 +104,7 @@ export function PushNotificationManager() {
         // Em um app real, você também chamaria o backend para remover a inscrição do banco.
         // fetch('/api/push/unsubscribe', { method: 'POST', body: JSON.stringify({ endpoint: subscription.endpoint }) });
         
-        alert('Notificações desativadas.');
+        // alert('Notificações desativadas.');
       }
     } catch (error) {
       console.error('Failed to unsubscribe:', error);
