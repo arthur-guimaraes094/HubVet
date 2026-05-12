@@ -105,7 +105,7 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
         
         {/* Avatar Upload */}
         <div className="flex items-center justify-center mb-4">
-          <label className="relative flex items-center justify-center w-32 h-32 bg-background rounded-full cursor-pointer overflow-hidden group shadow-sm border border-border hover:shadow-inner border border-border bg-gray-50/50 transition-all border border-foreground/[0.03] p-1.5">
+          <label className="relative flex items-center justify-center w-32 h-32 bg-background rounded-full cursor-pointer overflow-hidden group shadow-sm border border-border hover:shadow-inner border border-border bg-foreground/5 transition-all border border-foreground/[0.03] p-1.5">
             <div className="w-full h-full rounded-full overflow-hidden bg-foreground/5 flex items-center justify-center">
               {avatarPreview ? (
                 <Image 

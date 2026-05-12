@@ -277,7 +277,7 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
         <textarea 
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          className="w-full bg-background/50 border border-foreground/10 rounded-xl p-4 shadow-inner border border-border bg-gray-50/50 min-h-[120px] focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground resize-y"
+          className="w-full bg-background/50 border border-foreground/10 rounded-xl p-4 shadow-inner border border-border bg-foreground/5 min-h-[120px] focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground resize-y"
           placeholder="Anote aqui a evolução clínica, sinais vitais e os medicamentos prescritos para a receita..."
         />
       </div>
@@ -289,7 +289,7 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
         </h4>
         <div className="flex flex-wrap gap-4">
           {images.map((url, i) => (
-            <div key={i} className="relative group w-24 h-24 rounded-2xl overflow-hidden shadow-inner border border-border bg-gray-50/50 bg-foreground/5 border border-foreground/5">
+            <div key={i} className="relative group w-24 h-24 rounded-2xl overflow-hidden shadow-inner border border-border bg-foreground/5 bg-foreground/5 border border-foreground/5">
               <Image src={url} alt="Anexo" fill sizes="96px" className="object-cover" />
               <button 
                 onClick={() => removeImage(i)}
@@ -322,8 +322,8 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
                 onClick={() => setConsultationType(t)}
                 className={`flex-1 py-3 rounded-xl font-bold transition-all ${
                   consultationType === t 
-                  ? 'bg-primary text-white shadow-inner border border-border bg-gray-50/50' 
-                  : 'bg-background text-foreground shadow-sm border border-border hover:shadow-inner border border-border bg-gray-50/50'
+                  ? 'bg-primary text-white shadow-inner border border-border bg-foreground/5' 
+                  : 'bg-background text-foreground shadow-sm border border-border hover:shadow-inner border border-border bg-foreground/5'
                 }`}
               >
                 {t === 'Home' ? '🏠 Domicílio' : '🏥 Hospital'}
@@ -361,12 +361,12 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
                 <select 
                   value={newItemCategory}
                   onChange={(e) => setNewItemCategory(e.target.value)}
-                  className="w-full bg-background border-none rounded-xl px-4 py-3 shadow-inner border border-border bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm font-bold text-foreground"
+                  className="w-full bg-card border-none rounded-xl px-4 py-3 shadow-inner border border-border border-foreground/5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm font-bold text-foreground"
                 >
-                  <option value="Consultation">Consulta</option>
-                  <option value="Medication">Medicamento</option>
-                  <option value="Vaccine">Vacina</option>
-                  <option value="Material">Material/Serviço</option>
+                  <option className="bg-card text-foreground" value="Consultation">Consulta</option>
+                  <option className="bg-card text-foreground" value="Medication">Medicamento</option>
+                  <option className="bg-card text-foreground" value="Vaccine">Vacina</option>
+                  <option className="bg-card text-foreground" value="Material">Material/Serviço</option>
                 </select>
               </div>
               <Input label="Valor Aplicação (R$)" type="number" value={newItemPrice} onChange={e => setNewItemPrice(e.target.value)} placeholder="Ex: 50.00" />
@@ -382,7 +382,7 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
               placeholder="Buscar..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-background border-none rounded-2xl px-6 py-4 shadow-inner border border-border bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground font-medium placeholder:text-foreground/30 transition-all"
+              className="w-full bg-background border-none rounded-2xl px-6 py-4 shadow-inner border border-border bg-foreground/5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground font-medium placeholder:text-foreground/30 transition-all"
             />
             {searchTerm && (
               <button 
@@ -402,7 +402,7 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
                 <button 
                   key={item.id} 
                   onClick={() => handleAddItem(item.id)} 
-                  className="flex items-center gap-3 px-5 py-3 bg-background shadow-sm border border-border hover:shadow-inner border border-border bg-gray-50/50 rounded-full border border-foreground/[0.03] hover:border-primary/20 transition-all duration-300 group"
+                  className="flex items-center gap-3 px-5 py-3 bg-background shadow-sm border border-border hover:shadow-inner border border-border bg-foreground/5 rounded-full border border-foreground/[0.03] hover:border-primary/20 transition-all duration-300 group"
                 >
                   <div className="flex flex-col items-start leading-tight">
                     <span className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">{item.name}</span>
@@ -430,7 +430,7 @@ export function ConsultationForm({ inventory, patientId, patientName, tutorName,
         </div>
         
         {selectedItems.length > 0 && (
-          <div className="mt-4 p-5 rounded-2xl bg-background shadow-inner border border-border bg-gray-50/50 flex flex-col gap-3 border border-primary/5 animate-in zoom-in-95 duration-300">
+          <div className="mt-4 p-5 rounded-2xl bg-background shadow-inner border border-border bg-foreground/5 flex flex-col gap-3 border border-primary/5 animate-in zoom-in-95 duration-300">
             <span className="text-xs font-black text-foreground/40 uppercase tracking-widest pl-1">Itens Selecionados</span>
             <div className="flex flex-col gap-2">
               {selectedItems.map(item => {

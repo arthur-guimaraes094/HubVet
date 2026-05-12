@@ -6,6 +6,8 @@ import Image from "next/image";
 import { createClient } from '@/infrastructure/database/server';
 import { ViewTransition } from "react";
 
+import { SettingsModal } from "@/components/features/SettingsModal";
+
 export default async function Home() {
   const supabase = await createClient();
   // O proxy já garante autenticação — usamos getSession() (local, sem HTTP)
@@ -36,15 +38,18 @@ export default async function Home() {
             </p>
           </div>
           
-          <Link href="/perfil" className="w-16 h-16 bg-background rounded-full shadow-sm border border-border flex items-center justify-center text-primary hover:shadow-inner border border-border bg-gray-50/50 transition-all active:scale-95 cursor-pointer border border-foreground/[0.03] overflow-hidden p-1">
-            <div className="w-full h-full rounded-full overflow-hidden bg-foreground/5 flex items-center justify-center">
-              {avatarUrl ? (
-                <Image src={avatarUrl} alt="Perfil" width={64} height={64} className="w-full h-full object-cover" />
-              ) : (
-                <span className="font-black text-xl tracking-tighter">MV</span>
-              )}
-            </div>
-          </Link>
+          <div className="flex items-center gap-2">
+            <SettingsModal />
+            <Link href="/perfil" className="w-16 h-16 bg-background rounded-full shadow-sm border border-border flex items-center justify-center text-primary hover:shadow-inner bg-foreground/5 transition-all active:scale-95 cursor-pointer border border-foreground/[0.03] overflow-hidden p-1">
+              <div className="w-full h-full rounded-full overflow-hidden bg-foreground/5 flex items-center justify-center">
+                {avatarUrl ? (
+                  <Image src={avatarUrl} alt="Perfil" width={64} height={64} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="font-black text-xl tracking-tighter">MV</span>
+                )}
+              </div>
+            </Link>
+          </div>
         </div>
 
         <Card className="w-full flex flex-col gap-8 p-10 bg-background/40">
@@ -67,7 +72,7 @@ export default async function Home() {
               <Button variant="secondary" className="w-full !py-4">Maleta</Button>
             </Link>
             <Link href="/calculadora" className="w-full">
-              <Button variant="secondary" className="w-full !py-4">Cálculo</Button>
+              <Button variant="secondary" className="w-full !py-4">Calculadora</Button>
             </Link>
           </div>
         </Card>

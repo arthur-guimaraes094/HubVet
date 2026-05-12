@@ -1,15 +1,17 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { LocalDate } from '@/components/ui/LocalDate';
 import Link from 'next/link';
 import { ScheduleConsultationForm } from './ScheduleConsultationForm';
-import { getConsultationDetails } from '@/app/agenda/actions';
+import { getConsultationDetails, cancelarConsulta } from '@/app/agenda/actions';
 import { gerarPDFReceituario } from '@/core/use-cases/generate-pdf';
 import { useToast } from '@/components/ui/Toast';
 import { translateSpecies } from '@/core/utils/translations';
+import { Edit2, Trash2, X, MoreVertical } from 'lucide-react';
+import { Modal } from '@/components/ui/Modal';
 
 export interface Consultation {
   id: string;
@@ -48,7 +50,73 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
   const [currentDate, setCurrentDate] = useState(new Date());
   const [editingConsultation, setEditingConsultation] = useState<Consultation | null>(null);
   const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null);
+  const [menuConsultation, setMenuConsultation] = useState<Consultation | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
+  const [isMenuClosing, setIsMenuClosing] = useState(false);
+  const [pressingConsultationId, setPressingConsultationId] = useState<string | null>(null);
+  const [consultationToDelete, setConsultationToDelete] = useState<Consultation | null>(null);
+  const [lastTriggeredId, setLastTriggeredId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const { success, error } = useToast();
+
+  const handleStartPress = (e: React.MouseEvent | React.TouchEvent, consult: Consultation) => {
+    if (consult.status === 'Completed') return;
+
+    const x = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const y = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+    
+    setPressingConsultationId(consult.id);
+    longPressTimer.current = setTimeout(() => {
+      triggerMenu(x, y, consult);
+    }, 500);
+  };
+
+  const triggerMenu = (x: number, y: number, consult: Consultation) => {
+    setMenuPosition({ x, y });
+    setMenuConsultation(consult);
+    setLastTriggeredId(consult.id);
+    setTimeout(() => setLastTriggeredId(null), 150);
+    setPressingConsultationId(null);
+    if (window.navigator.vibrate) window.navigator.vibrate(50);
+  };
+
+  const handleEndPress = () => {
+    setPressingConsultationId(null);
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handleCloseMenu = () => {
+    setIsMenuClosing(true);
+    setTimeout(() => {
+      setMenuConsultation(null);
+      setMenuPosition(null);
+      setIsMenuClosing(false);
+    }, 200);
+  };
+
+  const handleCancelAction = async () => {
+    if (!consultationToDelete) return;
+    setIsDeleting(true);
+    try {
+      const result = await cancelarConsulta(consultationToDelete.id);
+      if (result.success) {
+        success('Consulta cancelada com sucesso.');
+        setConsultationToDelete(null);
+        setMenuConsultation(null);
+        window.location.reload(); 
+      } else {
+        error(result.error);
+      }
+    } catch {
+      error('Erro ao cancelar consulta.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const handlePrevious = () => {
     const next = new Date(currentDate);
@@ -158,18 +226,42 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
         return (
           <Card 
             key={consult.id} 
-            className={`cursor-pointer flex flex-col sm:flex-row justify-between items-center gap-6 border-l-8 overflow-hidden hover:shadow-sm border border-border transition-all duration-300 active:scale-[0.98] ${
+            className={`relative flex flex-col sm:flex-row justify-between items-center gap-6 border-l-8 overflow-hidden border border-border transition-all duration-300 ${
               isCompleted 
-                ? 'border-emerald-500/50 opacity-60 grayscale-[0.5]' 
-                : 'border-primary'
+                ? 'border-emerald-500/50 bg-emerald-500/[0.03] cursor-default' 
+                : `border-primary shadow-lg shadow-primary/5 cursor-pointer hover:shadow-sm active:scale-[0.98] ${
+                    pressingConsultationId === consult.id ? 'bg-primary/5 scale-[0.98] border-primary/40' : ''
+                  }`
             }`}
-            onClick={() => setEditingConsultation(consult)}
+            onMouseDown={(e) => handleStartPress(e, consult)}
+            onMouseUp={handleEndPress}
+            onMouseLeave={handleEndPress}
+            onTouchStart={(e) => handleStartPress(e, consult)}
+            onTouchEnd={handleEndPress}
+            onClick={() => {
+              if (lastTriggeredId === consult.id) return;
+              if (consult.status !== 'Completed') {
+                setEditingConsultation(consult);
+              }
+            }}
           >
+            {!isCompleted && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  triggerMenu(e.clientX, e.clientY, consult);
+                }}
+                className="absolute top-2 right-2 sm:top-4 sm:right-4 p-2 rounded-full hover:bg-foreground/5 transition-all text-foreground/20 hover:text-foreground/60 z-20"
+              >
+                <MoreVertical className="w-5 h-5" />
+              </button>
+            )}
             <div className="flex items-center gap-4 sm:gap-6 w-full min-w-0 pointer-events-none">
-              <div className={`flex flex-col items-center justify-center min-w-[80px] p-3 rounded-2xl bg-background shadow-sm border border-border border border-foreground/5 shrink-0 ${
-                isCompleted ? 'bg-emerald-50/10' : ''
+              <div className={`flex flex-col items-center justify-center min-w-[80px] p-3 rounded-2xl bg-card shadow-sm border border-border shrink-0 ${
+                isCompleted ? 'bg-emerald-500/10 border-emerald-500/20' : ''
               }`}>
-                <span className={`text-[10px] font-black uppercase ${isCompleted ? 'text-emerald-600' : 'text-primary'}`}>
+                <span className={`text-[10px] font-black uppercase ${isCompleted ? 'text-emerald-500' : 'text-primary'}`}>
                   <LocalDate date={consult.date} format="date" />
                 </span>
                 <span className="text-xl font-black text-foreground">
@@ -181,7 +273,7 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
                 <div className="flex items-center gap-2">
                   <h3 className="text-xl font-extrabold text-foreground truncate">{consult.patients?.name}</h3>
                   {isCompleted && (
-                    <span className="flex items-center gap-1 text-[9px] font-black bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full uppercase tracking-widest">
+                    <span className="flex items-center gap-1 text-[9px] font-black bg-emerald-500/20 text-emerald-500 px-2 py-0.5 rounded-full uppercase tracking-widest">
                       ✓ Realizada
                     </span>
                   )}
@@ -189,22 +281,24 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
                 <span className="text-sm font-bold text-foreground/60 truncate">
                   {consult.patients?.species} • Tutor: {consult.patients?.tutors?.name}
                 </span>
-                <div className="mt-2 flex flex-col gap-1">
+                <div className="mt-3 bg-foreground/10 p-3 rounded-2xl flex flex-col gap-2 border border-foreground/5">
                   <div className="flex flex-wrap gap-2">
-                    <span className={`w-fit text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${
-                      consult.type === 'Home' ? 'bg-orange-100/50 text-orange-600' : 'bg-primary/10 text-primary'
+                    <span className={`w-fit text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${
+                      consult.type === 'Home' 
+                        ? 'bg-orange-500/20 text-orange-500 border-orange-500/30' 
+                        : 'bg-primary/20 text-primary border-primary/30'
                     }`}>
                       {consult.type === 'Home' ? '🏠 Domicílio' : '🏥 Hospital'}
                     </span>
                     {isCompleted && (
-                      <span className="w-fit text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
+                      <span className="w-fit text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-600 border border-emerald-500/30">
                         Histórico Disponível
                       </span>
                     )}
                   </div>
                   {consult.address && (
-                    <span className="text-xs text-foreground/50 font-medium italic truncate w-full flex items-center gap-1">
-                      <span className="text-primary/40">📍</span> {consult.address}
+                    <span className="text-xs text-foreground/60 font-medium italic truncate w-full flex items-center gap-1.5 px-1">
+                      <span className="text-primary/60">📍</span> {consult.address}
                     </span>
                   )}
                 </div>
@@ -214,10 +308,10 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
             <div className="flex flex-wrap sm:flex-row gap-3 w-full sm:w-auto mt-2 sm:mt-0" onClick={(e) => e.stopPropagation()}>
               {isCompleted ? (
                 <Button 
-                  variant="secondary" 
+                  variant="info" 
                   onClick={() => handleDownloadPDF(consult.id)}
                   disabled={downloadingPdf === consult.id}
-                  className="w-full !px-8 !py-2 text-sm shadow-sm border border-border border-emerald-200 text-emerald-700 flex items-center justify-center gap-2"
+                  className="w-full !px-8 !py-2 text-sm shadow-sm flex items-center justify-center gap-2"
                 >
                   {downloadingPdf === consult.id ? (
                     <>
@@ -287,9 +381,9 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
                 d.consultations.slice(0, 3).map(c => {
                   const isComp = c.status === 'Completed';
                   return (
-                    <div key={c.id} className={`text-[10px] font-bold p-2 rounded-lg truncate border ${
+                    <div key={c.id} className={`text-[10px] font-black p-2 rounded-lg truncate border ${
                       isComp 
-                        ? 'bg-emerald-50/50 text-emerald-600 border-emerald-100 opacity-60' 
+                        ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' 
                         : 'bg-primary/5 text-primary border-primary/10'
                     }`}>
                       {isComp ? '✓ ' : ''}{new Date(c.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} • {c.patients?.name}
@@ -357,7 +451,7 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
                 onClick={() => { setCurrentDate(d.date); setView('day'); }}
                 className={`aspect-square p-1 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group ${
                   d.currentMonth ? 'hover:shadow-sm border border-border' : 'opacity-20'
-                } ${isToday ? 'bg-primary/5 border border-primary/20' : 'bg-background shadow-inner border border-border bg-gray-50/50'}`}
+                } ${isToday ? 'bg-primary/5 border border-primary/20' : 'bg-background shadow-inner border border-border bg-foreground/5'}`}
               >
                 <span className={`text-xs font-black ${isToday ? 'text-primary' : d.currentMonth ? 'text-foreground' : 'text-foreground/40'}`}>
                   {d.date.getDate()}
@@ -399,7 +493,7 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
               className="p-6 flex flex-col items-center gap-4 cursor-pointer hover:shadow-sm border border-border group transition-all"
             >
               <div className="text-sm font-black text-primary uppercase tracking-[0.2em]">{m.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}</div>
-              <div className="flex flex-col items-center bg-background shadow-inner border border-border bg-gray-50/50 p-4 rounded-3xl w-full">
+              <div className="flex flex-col items-center bg-background shadow-inner border border-border bg-foreground/5 p-4 rounded-3xl w-full">
                 <span className="text-3xl font-black text-foreground group-hover:scale-110 transition-transform">{count}</span>
                 <span className="text-[9px] font-bold text-foreground/40 uppercase tracking-widest mt-1">Consultas</span>
               </div>
@@ -438,7 +532,7 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
         </div>
 
         {/* View Switcher & Navigation */}
-        <div className="flex flex-col md:flex-row items-center gap-4 bg-background/40 p-2 rounded-3xl shadow-inner border border-border bg-gray-50/50">
+        <div className="flex flex-col md:flex-row items-center gap-4 bg-background/40 p-2 rounded-3xl shadow-inner border border-border bg-foreground/5">
           <div className="flex p-1 bg-background rounded-full shadow-sm border border-border border border-foreground/5 w-full md:w-auto">
             {(['day', 'week', 'month', 'year'] as ViewType[]).map((v) => (
               <button
@@ -500,6 +594,103 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
           </>
         )}
       </div>
+      {/* iOS Style Context Menu Overlay */}
+      {menuConsultation && menuPosition && (
+        <div className="fixed inset-0 z-[100]">
+          {/* Backdrop Blur */}
+          <div 
+            className={`absolute inset-0 bg-black/5 backdrop-blur-[1px] ${isMenuClosing ? 'animate-fade-out' : 'animate-fade-in'}`}
+            onClick={handleCloseMenu}
+            onContextMenu={(e) => { e.preventDefault(); handleCloseMenu(); }}
+          />
+          
+          {/* Menu Content */}
+          <div 
+            style={{ 
+              top: Math.min(menuPosition.y, typeof window !== 'undefined' ? window.innerHeight - 150 : menuPosition.y),
+              left: Math.min(menuPosition.x, typeof window !== 'undefined' ? window.innerWidth - 220 : menuPosition.x)
+            }}
+            className={`absolute w-full max-w-[200px] bg-card/90 backdrop-blur-2xl rounded-2xl shadow-2xl shadow-black/20 overflow-hidden border border-border z-[101] ${
+              isMenuClosing ? 'animate-ios-pop-out' : 'animate-ios-pop'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex flex-col divide-y divide-foreground/10">
+              <button
+                onClick={() => {
+                  setEditingConsultation(menuConsultation);
+                  handleCloseMenu();
+                }}
+                className="w-full px-5 py-4 flex items-center gap-3 hover:bg-foreground/5 active:bg-foreground/10 transition-colors text-foreground"
+              >
+                <Edit2 className="w-4 h-4 opacity-40" />
+                <span className="font-bold text-sm">Editar Consulta</span>
+              </button>
+              
+              <button
+                onClick={() => {
+                  setConsultationToDelete(menuConsultation);
+                  handleCloseMenu();
+                }}
+                className="w-full px-5 py-4 flex items-center gap-3 hover:bg-error/5 active:bg-error/10 transition-colors text-error"
+              >
+                <Trash2 className="w-4 h-4 opacity-60" />
+                <span className="font-bold text-sm">Cancelar Consulta</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={!!consultationToDelete}
+        onClose={() => !isDeleting && setConsultationToDelete(null)}
+        title="Cancelar Consulta"
+        showCloseButton={false}
+      >
+        <div className="flex flex-col items-center gap-6 py-4">
+          <div className="text-6xl animate-bounce">
+            ⚠️
+          </div>
+          
+          <div className="text-center space-y-4">
+            <p className="text-foreground/60 font-medium text-lg leading-relaxed">
+              Você está prestes a cancelar a consulta de <span className="text-foreground font-black italic">&quot;{consultationToDelete?.patients?.name}&quot;</span>.
+            </p>
+            
+            <div className="bg-error/5 border-2 border-error/20 p-5 rounded-2xl">
+              <p className="text-error text-sm font-black leading-tight uppercase tracking-wide">
+                Esta ação removerá o agendamento da sua agenda. Você poderá agendá-lo novamente depois se desejar.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col w-full gap-3 mt-4">
+            <button
+              onClick={handleCancelAction}
+              disabled={isDeleting}
+              className="w-full bg-error text-white font-black py-4 rounded-2xl shadow-lg shadow-error/20 hover:bg-error/90 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isDeleting ? (
+                <>
+                  <div className="w-5 h-5 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+                  CANCELANDO...
+                </>
+              ) : (
+                'SIM, CANCELAR CONSULTA'
+              )}
+            </button>
+            <button
+              onClick={() => setConsultationToDelete(null)}
+              disabled={isDeleting}
+              className="w-full bg-foreground/5 text-foreground/60 font-black py-4 rounded-2xl hover:bg-foreground/10 active:scale-[0.98] transition-all disabled:opacity-50 uppercase tracking-widest text-[10px]"
+            >
+              NÃO, MANTER CONSULTA
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

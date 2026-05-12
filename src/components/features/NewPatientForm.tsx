@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { Modal } from '@/components/ui/Modal';
 import { addPatientAndTutor, getTutors } from '@/app/pacientes/actions';
 
 import { useToast } from '@/components/ui/Toast';
@@ -98,14 +99,6 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
     setIsTutorListOpen(false);
   };
 
-  if (!isOpen) {
-    return (
-      <Button variant="primary" onClick={() => setIsOpen(true)} className="!px-4 !py-2 text-sm">
-        + Novo Paciente
-      </Button>
-    );
-  }
-
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -165,19 +158,26 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-      <Card className="w-full max-w-lg flex flex-col gap-8 max-h-[90vh] overflow-y-auto p-10 animate-in zoom-in-95 duration-500">
-        <div className="flex flex-col gap-1">
-          <h3 className="text-3xl font-black text-foreground tracking-tighter">Novo Cadastro</h3>
-          <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] opacity-60">Tutor e Paciente</p>
-        </div>
+    <>
+      <Button variant="primary" onClick={() => setIsOpen(true)} className="!px-4 !py-2 text-sm">
+        + Novo Paciente
+      </Button>
+
+      <Modal 
+        isOpen={isOpen} 
+        onClose={() => setIsOpen(false)} 
+        title="Novo Cadastro"
+        showCloseButton={false}
+        maxWidth="max-w-md"
+      >
+        <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] opacity-60 -mt-6 mb-8">Tutor e Paciente</p>
         
-        <form onSubmit={handleSave} className="flex flex-col gap-8">
+        <form onSubmit={handleSave} className="flex flex-col gap-8 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
           {/* Dados do Tutor */}
           <div className="flex flex-col gap-6 p-6 bg-foreground/[0.02] rounded-3xl border border-foreground/[0.03]">
             <div className="flex justify-between items-center px-2">
               <span className="text-[10px] font-black text-foreground/20 uppercase tracking-[0.2em]">Responsável</span>
-              <div className="flex bg-background shadow-inner border border-border bg-gray-50/50 p-0.5 rounded-full border border-foreground/5 scale-90">
+              <div className="flex bg-background shadow-inner border border-border bg-foreground/5 p-0.5 rounded-full border border-foreground/5 scale-90">
                 <button 
                   type="button"
                   onClick={() => setTutorSelectionMode('new')}
@@ -235,7 +235,7 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
                       setIsTutorListOpen(true);
                     }}
                     onFocus={() => setIsTutorListOpen(true)}
-                    className="w-full bg-background rounded-2xl px-6 py-4 shadow-inner border border-border bg-gray-50/50 outline-none focus:ring-2 focus:ring-primary/40 text-foreground font-medium transition-all border border-foreground/[0.03]"
+                    className="w-full bg-background rounded-2xl px-6 py-4 shadow-inner border border-border bg-foreground/5 outline-none focus:ring-2 focus:ring-primary/40 text-foreground font-medium transition-all border border-foreground/[0.03]"
                     required={tutorSelectionMode === 'existing'}
                   />
                   {isTutorListOpen && tutorSearch && (
@@ -259,7 +259,7 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
                       )}
                     </div>
                   )}
-                  {/* Click outside to close */}
+                  {/* Click outside to close inner list */}
                   {isTutorListOpen && (
                     <div className="fixed inset-0 z-10" onClick={() => setIsTutorListOpen(false)} />
                   )}
@@ -287,7 +287,7 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
                     value={patientSpecies} 
                     onChange={e => setPatientSpecies(e.target.value)}
                     required
-                    className={`w-full bg-white rounded-xl px-4 py-3 shadow-sm outline-none focus:ring-2 focus:ring-primary/40 font-medium transition-all border border-border appearance-none ${!patientSpecies ? 'text-foreground/40' : 'text-foreground'}`}
+                    className={`w-full bg-card rounded-xl px-4 py-3 shadow-sm outline-none focus:ring-2 focus:ring-primary/40 font-medium transition-all border border-border appearance-none ${!patientSpecies ? 'text-foreground/40' : 'text-foreground'}`}
                   >
                     <option value=""></option>
                     <option value="Canine" className="text-foreground">Cão</option>
@@ -325,13 +325,13 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
           </div>
 
           <div className="flex gap-4 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setIsOpen(false)} className="flex-1 !py-5">Cancelar</Button>
-            <Button type="submit" variant="primary" disabled={loading} className="flex-[2] !py-5 shadow-sm border border-border hover:shadow-sm border border-border">
+            <Button type="button" variant="secondary" onClick={() => setIsOpen(false)} className="flex-1 !py-5 uppercase font-black text-[10px] tracking-widest">Cancelar</Button>
+            <Button type="submit" variant="primary" disabled={loading} className="flex-[2] !py-5 shadow-sm border border-border uppercase font-black text-[10px] tracking-widest">
               {loading ? 'Salvando...' : 'Finalizar Cadastro'}
             </Button>
           </div>
         </form>
-      </Card>
-    </div>
+      </Modal>
+    </>
   );
 }

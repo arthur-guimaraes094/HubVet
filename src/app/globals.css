@@ -10,6 +10,16 @@
   --error: #EF4444;
 }
 
+.dark {
+  --background: #111827;
+  --card: #1F2937;
+  --border: #374151;
+  --foreground: #F9FAFB;
+  --primary: #FF85A2;
+  --success: #10B981;
+  --error: #EF4444;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-card: var(--card);
@@ -42,8 +52,23 @@ input, select, textarea {
   }
 }
 
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
 .animate-slide-in {
   animation: slideIn 0.3s ease-out forwards;
+}
+
+.animate-slide-out {
+  animation: slideOut 0.25s ease-in forwards;
 }
 
 @keyframes slideUp {
@@ -55,6 +80,25 @@ input, select, textarea {
     transform: translateY(0);
     opacity: 1;
   }
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+.animate-slideDown {
+  animation: slideDown 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-slideUp {
+  animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
 @keyframes fadeIn {
@@ -152,3 +196,22 @@ input, select, textarea {
     animation: none !important;
   }
 }
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+  opacity: 0.5;
+}
+

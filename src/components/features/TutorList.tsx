@@ -2,10 +2,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Card } from '@/components/ui/Card';
+import { MoreVertical } from 'lucide-react';
 import { getTutors, deleteTutor, updateTutor } from '@/app/pacientes/actions';
 import Link from 'next/link';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
+import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
 
 interface Tutor {
   id: string;
@@ -38,13 +41,17 @@ export function TutorList() {
     
     setPressingTutorId(tutor.id);
     longPressTimer.current = setTimeout(() => {
-      setMenuPosition({ x, y });
-      setMenuTutor(tutor);
-      setLastTriggeredId(tutor.id);
-      setTimeout(() => setLastTriggeredId(null), 150);
-      setPressingTutorId(null);
-      if (window.navigator.vibrate) window.navigator.vibrate(50);
+      triggerMenu(x, y, tutor);
     }, 500);
+  };
+
+  const triggerMenu = (x: number, y: number, tutor: Tutor) => {
+    setMenuPosition({ x, y });
+    setMenuTutor(tutor);
+    setLastTriggeredId(tutor.id);
+    setTimeout(() => setLastTriggeredId(null), 150);
+    setPressingTutorId(null);
+    if (window.navigator.vibrate) window.navigator.vibrate(50);
   };
 
   const handleEndPress = () => {
@@ -136,8 +143,39 @@ export function TutorList() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-20">
-        <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+      <div className="flex flex-col gap-8 w-full animate-in fade-in duration-500">
+        {/* Search Bar Skeleton */}
+        <div className="flex flex-col md:flex-row items-center gap-4 max-w-4xl mx-auto w-full">
+          <div className="h-16 bg-foreground/5 rounded-2xl flex-1 w-full animate-pulse" />
+          <div className="flex gap-2 w-full md:w-auto">
+            <div className="h-14 w-14 bg-foreground/5 rounded-full animate-pulse" />
+            <div className="h-14 w-32 bg-foreground/5 rounded-full animate-pulse" />
+          </div>
+        </div>
+
+        {/* Cards Grid Skeleton */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <Card key={i} className="p-8 flex flex-col gap-6 bg-card/50 border-border/50 rounded-3xl">
+              <div className="flex flex-col items-center gap-4 text-center">
+                <div className="w-20 h-20 bg-foreground/5 rounded-full animate-pulse" />
+                <div className="space-y-3 w-full">
+                  <div className="h-6 bg-foreground/10 rounded-lg w-3/4 mx-auto animate-pulse" />
+                  <div className="h-4 bg-foreground/5 rounded-lg w-1/2 mx-auto animate-pulse" />
+                </div>
+              </div>
+              
+              <div className="space-y-3 mt-4">
+                <div className="h-12 bg-foreground/5 rounded-2xl w-full animate-pulse border border-foreground/5" />
+                <div className="h-12 bg-foreground/5 rounded-2xl w-full animate-pulse border border-foreground/5" />
+              </div>
+
+              <div className="mt-auto pt-6 border-t border-foreground/5 flex justify-center">
+                <div className="h-4 bg-foreground/5 rounded-full w-32 animate-pulse" />
+              </div>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }
@@ -156,7 +194,7 @@ export function TutorList() {
             placeholder="Pesquisar tutor por nome, CPF ou telefone..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-background border-none rounded-2xl pl-14 pr-12 py-4 shadow-inner border border-border bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground font-medium placeholder:text-foreground/30 transition-all text-base"
+            className="w-full bg-background border-none rounded-2xl pl-14 pr-12 py-4 shadow-inner border border-border bg-foreground/5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground font-medium placeholder:text-foreground/30 transition-all text-base"
           />
           {searchTerm && (
             <button 
@@ -170,7 +208,7 @@ export function TutorList() {
           )}
         </div>
 
-        <div className="flex bg-background shadow-inner border border-border bg-gray-50/50 p-1 rounded-full border border-foreground/5 shrink-0">
+        <div className="flex bg-background shadow-inner border border-border bg-foreground/5 p-1 rounded-full border border-foreground/5 shrink-0">
           <button 
             onClick={() => setViewMode('list')}
             className={`p-2 px-5 rounded-full transition-all duration-300 flex items-center gap-2 ${viewMode === 'list' ? 'bg-primary text-white shadow-sm' : 'text-foreground/40 hover:text-foreground'}`}
@@ -208,10 +246,21 @@ export function TutorList() {
           >
             <Card 
               style={{ transform: pressingTutorId === tutor.id ? 'scale(0.96)' : 'scale(1)' }}
-              className={`relative flex flex-col h-full group-hover:shadow-sm border border-border group-active:shadow-inner border border-border bg-gray-50/50 transition-all duration-500 rounded-3xl overflow-hidden hover:border-primary/10 select-none ${pressingTutorId === tutor.id ? 'brightness-95' : ''} ${lastTriggeredId === tutor.id ? 'animate-haptic' : ''} ${
+              className={`relative flex flex-col h-full group-hover:shadow-sm border border-border group-active:shadow-inner border border-border bg-foreground/5 transition-all duration-500 rounded-3xl overflow-hidden hover:border-primary/10 select-none ${pressingTutorId === tutor.id ? 'brightness-95' : ''} ${lastTriggeredId === tutor.id ? 'animate-haptic' : ''} ${
                 viewMode === 'list' ? 'p-8 gap-4' : 'p-4 gap-2 text-center'
               }`}
             >
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  triggerMenu(e.clientX, e.clientY, tutor);
+                }}
+                className="absolute top-2 right-2 sm:top-4 sm:right-4 p-2 rounded-full hover:bg-foreground/5 transition-all text-foreground/20 hover:text-foreground/60 z-20"
+              >
+                <MoreVertical className="w-5 h-5" />
+              </button>
               {/* Header Section */}
               <div className={`flex ${viewMode === 'list' ? 'justify-between items-center' : 'flex-col items-center'} gap-3`}>
                 {/* Icon */}
@@ -241,7 +290,7 @@ export function TutorList() {
               </div>
               
               {/* Details Section */}
-              <div className={`mt-auto flex flex-col bg-foreground/[0.02] rounded-2xl shadow-inner border border-border bg-gray-50/50 border border-foreground/[0.03] ${viewMode === 'list' ? 'p-4' : 'p-2'}`}>
+              <div className={`mt-auto flex flex-col bg-foreground/5 rounded-2xl shadow-inner border border-border border-foreground/[0.03] ${viewMode === 'list' ? 'p-4' : 'p-2'}`}>
                 {viewMode === 'list' && (
                   <div className="flex items-center gap-2 mb-1">
                     <svg className="w-3 h-3 text-primary/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -275,46 +324,43 @@ export function TutorList() {
         isOpen={!!tutorToDelete} 
         onClose={() => !isDeleting && setTutorToDelete(null)}
         title="Confirmar Exclusão?"
+        showCloseButton={false}
+        maxWidth="max-w-md"
       >
-        <div className="flex flex-col items-center gap-6 py-4">
+        <div className="flex flex-col items-center gap-6 py-2">
           <div className="text-6xl animate-bounce">
             ⚠️
           </div>
           
           <div className="text-center space-y-4">
-            <p className="text-foreground/60 font-medium text-lg">
+            <p className="text-foreground/60 font-medium text-lg leading-relaxed">
               Você está prestes a remover o tutor <span className="text-foreground font-black italic">&quot;{tutorToDelete?.name}&quot;</span>.
             </p>
             
-            <div className="bg-error/5 border-2 border-error/20 p-5 rounded-2xl">
+            <div className="bg-error/5 border-2 border-error/10 p-5 rounded-2xl">
               <p className="text-error text-sm font-black leading-tight uppercase tracking-wide">
-                CUIDADO: Esta ação excluirá permanentemente o tutor e TODOS os pets vinculados a ele, incluindo todo o histórico clínico e financeiro.
+                Esta ação excluirá permanentemente o tutor e TODOS os pets vinculados a ele.
               </p>
             </div>
           </div>
 
           <div className="flex flex-col w-full gap-3 mt-4">
-            <button
+            <Button
+              variant="primary"
               onClick={handleDelete}
               disabled={isDeleting}
-              className="w-full bg-error text-white font-black py-4 rounded-2xl shadow-lg shadow-error/20 hover:bg-error/90 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full !bg-error !border-none !py-5 uppercase font-black text-[10px] tracking-widest shadow-lg shadow-error/20"
             >
-              {isDeleting ? (
-                <>
-                  <div className="w-5 h-5 border-3 border-white/30 border-t-white rounded-full animate-spin" />
-                  EXCLUINDO...
-                </>
-              ) : (
-                'SIM, EXCLUIR TUDO'
-              )}
-            </button>
-            <button
+              {isDeleting ? 'EXCLUINDO...' : 'SIM, EXCLUIR TUDO'}
+            </Button>
+            <Button
+              variant="secondary"
               onClick={() => setTutorToDelete(null)}
               disabled={isDeleting}
-              className="w-full bg-foreground/5 text-foreground/60 font-black py-4 rounded-2xl hover:bg-foreground/10 active:scale-[0.98] transition-all disabled:opacity-50"
+              className="w-full !py-5 uppercase font-black text-[10px] tracking-widest"
             >
               NÃO, MANTER TUTOR
-            </button>
+            </Button>
           </div>
         </div>
       </Modal>
@@ -334,7 +380,7 @@ export function TutorList() {
               top: Math.min(menuPosition.y, typeof window !== 'undefined' ? window.innerHeight - 150 : menuPosition.y),
               left: Math.min(menuPosition.x, typeof window !== 'undefined' ? window.innerWidth - 220 : menuPosition.x)
             }}
-            className={`absolute w-full max-w-[200px] bg-white/90 backdrop-blur-2xl rounded-2xl shadow-2xl shadow-black/20 overflow-hidden border border-white/40 ${isMenuClosing ? 'animate-ios-pop-out' : 'animate-ios-pop'}`}
+            className={`absolute w-full max-w-[200px] bg-card/90 backdrop-blur-2xl rounded-2xl shadow-2xl shadow-black/20 overflow-hidden border border-border ${isMenuClosing ? 'animate-ios-pop-out' : 'animate-ios-pop'}`}
           >
             <div className="flex flex-col divide-y divide-foreground/10">
               <button
@@ -342,7 +388,7 @@ export function TutorList() {
                   setTutorToEdit(menuTutor);
                   handleCloseMenu();
                 }}
-                className="w-full px-5 py-4 flex items-center gap-3 hover:bg-black/5 active:bg-black/10 transition-colors text-foreground"
+                className="w-full px-5 py-4 flex items-center gap-3 hover:bg-foreground/5 active:bg-foreground/10 transition-colors text-foreground"
               >
                 <svg className="w-4 h-4 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -371,59 +417,54 @@ export function TutorList() {
         isOpen={!!tutorToEdit}
         onClose={() => !isUpdating && setTutorToEdit(null)}
         title="Editar Tutor"
+        showCloseButton={false}
+        maxWidth="max-w-md"
       >
-        <form onSubmit={handleUpdate} className="flex flex-col gap-6 py-4">
-          <div className="space-y-4">
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-primary ml-1">Nome Completo</label>
-              <input 
+        <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] opacity-60 -mt-6 mb-8">{tutorToEdit?.name}</p>
+        
+        <form onSubmit={handleUpdate} className="flex flex-col gap-8 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
+          <div className="flex flex-col gap-6 p-6 bg-foreground/[0.02] rounded-3xl border border-foreground/[0.03]">
+            <span className="text-[10px] font-black text-foreground/20 uppercase tracking-[0.2em] pl-2">Informações Pessoais</span>
+            <div className="flex flex-col gap-4">
+              <Input 
+                label="Nome Completo *"
                 name="name"
                 defaultValue={tutorToEdit?.name}
+                placeholder="Ex: João da Silva"
                 required
-                className="w-full bg-gray-50 border border-border rounded-2xl px-5 py-4 focus:outline-none focus:ring-2 focus:ring-primary/50 font-medium"
               />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-primary ml-1">Telefone</label>
-              <input 
+              <Input 
+                label="Telefone"
                 name="phone"
                 defaultValue={tutorToEdit?.phone || ''}
-                className="w-full bg-gray-50 border border-border rounded-2xl px-5 py-4 focus:outline-none focus:ring-2 focus:ring-primary/50 font-medium"
+                placeholder="(00) 00000-0000"
               />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-primary ml-1">CPF</label>
-              <input 
+              <Input 
+                label="CPF"
                 name="cpf"
                 defaultValue={tutorToEdit?.cpf || ''}
-                className="w-full bg-gray-50 border border-border rounded-2xl px-5 py-4 focus:outline-none focus:ring-2 focus:ring-primary/50 font-medium"
+                placeholder="000.000.000-00"
               />
             </div>
           </div>
 
-          <div className="flex flex-col gap-3">
-            <button
-              type="submit"
-              disabled={isUpdating}
-              className="w-full bg-primary text-white font-black py-4 rounded-2xl shadow-lg shadow-primary/20 hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+          <div className="flex gap-4 pt-2">
+            <Button 
+              type="button" 
+              variant="secondary" 
+              onClick={() => setTutorToEdit(null)} 
+              className="flex-1 !py-5 uppercase font-black text-[10px] tracking-widest"
             >
-              {isUpdating ? (
-                <>
-                  <div className="w-5 h-5 border-3 border-white/30 border-t-white rounded-full animate-spin" />
-                  SALVANDO...
-                </>
-              ) : (
-                'SALVAR ALTERAÇÕES'
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => setTutorToEdit(null)}
-              disabled={isUpdating}
-              className="w-full bg-foreground/5 text-foreground/60 font-black py-4 rounded-2xl hover:bg-foreground/10 transition-all"
+              Cancelar
+            </Button>
+            <Button 
+              type="submit" 
+              variant="primary" 
+              disabled={isUpdating} 
+              className="flex-[2] !py-5 shadow-sm border border-border uppercase font-black text-[10px] tracking-widest"
             >
-              CANCELAR
-            </button>
+              {isUpdating ? 'Salvando...' : 'Salvar Alterações'}
+            </Button>
           </div>
         </form>
       </Modal>

@@ -2,6 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { Card } from '@/components/ui/Card';
+import { MoreVertical } from 'lucide-react';
 import { InventoryItemForm } from './InventoryItemForm';
 import { deleteInventoryItem } from '@/app/estoque/actions';
 import { useToast } from '@/components/ui/Toast';
@@ -49,13 +50,17 @@ export function CatalogList({ initialItems }: CatalogListProps) {
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
 
     pressTimer.current = setTimeout(() => {
-      setMenuItem(item);
-      setMenuPosition({ x: clientX, y: clientY });
-      setLastTriggeredId(item.id);
-      setTimeout(() => setLastTriggeredId(null), 150);
-      if (window.navigator.vibrate) window.navigator.vibrate(50);
-      setPressingItemId(null);
+      triggerMenu(clientX, clientY, item);
     }, 500);
+  };
+
+  const triggerMenu = (x: number, y: number, item: InventoryItem) => {
+    setMenuItem(item);
+    setMenuPosition({ x, y });
+    setLastTriggeredId(item.id);
+    setTimeout(() => setLastTriggeredId(null), 150);
+    if (window.navigator.vibrate) window.navigator.vibrate(50);
+    setPressingItemId(null);
   };
 
   const handleEndPress = () => {
@@ -111,7 +116,7 @@ export function CatalogList({ initialItems }: CatalogListProps) {
             placeholder="Pesquisar por nome do item..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-14 pr-6 py-5 bg-background rounded-2xl shadow-inner border border-border bg-gray-50/50 border border-foreground/[0.03] text-foreground font-medium placeholder:text-foreground/20 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-lg"
+            className="w-full pl-14 pr-6 py-5 bg-background rounded-2xl shadow-inner border border-border bg-foreground/5 border border-foreground/[0.03] text-foreground font-medium placeholder:text-foreground/20 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-lg"
           />
           <div className="absolute left-6 top-1/2 -translate-y-1/2 text-foreground/20 group-focus-within:text-primary transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -125,13 +130,13 @@ export function CatalogList({ initialItems }: CatalogListProps) {
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-              className="w-full appearance-none px-6 py-4 bg-background rounded-full shadow-sm border border-border border border-foreground/[0.03] text-foreground font-black uppercase tracking-widest text-[10px] focus:outline-none focus:shadow-inner border border-border bg-gray-50/50 transition-all cursor-pointer"
+              className="w-full appearance-none px-6 py-4 bg-card rounded-full shadow-sm border border-border border-foreground/[0.03] text-foreground font-black uppercase tracking-widest text-[10px] focus:outline-none focus:shadow-inner transition-all cursor-pointer"
             >
-              <option value="all">TODOS OS ITENS</option>
-              <option value="Medication">MEDICAMENTOS</option>
-              <option value="Vaccine">VACINAS</option>
-              <option value="Consultation">CONSULTAS</option>
-              <option value="Supply">OUTROS / MATERIAIS</option>
+              <option className="bg-card text-foreground" value="all">TODOS OS ITENS</option>
+              <option className="bg-card text-foreground" value="Medication">MEDICAMENTOS</option>
+              <option className="bg-card text-foreground" value="Vaccine">VACINAS</option>
+              <option className="bg-card text-foreground" value="Consultation">CONSULTAS</option>
+              <option className="bg-card text-foreground" value="Supply">OUTROS / MATERIAIS</option>
             </select>
             <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-foreground/30">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -140,7 +145,7 @@ export function CatalogList({ initialItems }: CatalogListProps) {
             </div>
           </div>
 
-          <div className="flex bg-background shadow-inner border border-border bg-gray-50/50 p-1 rounded-full border border-foreground/5 shrink-0 justify-center mx-auto sm:mx-0">
+          <div className="flex bg-background shadow-inner border border-border bg-foreground/5 p-1 rounded-full border border-foreground/5 shrink-0 justify-center mx-auto sm:mx-0">
             <button 
               onClick={() => setViewMode('list')}
               className={`p-2 px-5 rounded-full transition-all duration-300 flex items-center gap-2 ${viewMode === 'list' ? 'bg-primary text-white shadow-sm border border-border' : 'text-foreground/40 hover:text-foreground'}`}
@@ -183,10 +188,20 @@ export function CatalogList({ initialItems }: CatalogListProps) {
                 transform: pressingItemId === item.id ? 'scale(0.96)' : 'scale(1)',
                 WebkitTouchCallout: 'none'
               }}
-              className={`flex flex-col h-full group transition-all duration-500 rounded-3xl overflow-hidden border border-transparent hover:border-primary/10 cursor-pointer hover:shadow-sm border border-border select-none ${
+              className={`relative flex flex-col h-full group transition-all duration-500 rounded-3xl overflow-hidden border border-transparent hover:border-primary/10 cursor-pointer hover:shadow-sm border border-border select-none ${
                 viewMode === 'list' ? 'p-8 gap-4' : 'p-4 gap-2 text-center'
               } ${pressingItemId === item.id ? 'brightness-95' : ''} ${lastTriggeredId === item.id ? 'animate-haptic' : ''}`}
             >
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  triggerMenu(e.clientX, e.clientY, item);
+                }}
+                className="absolute top-2 right-2 sm:top-4 sm:right-4 p-2 rounded-full hover:bg-foreground/5 transition-all text-foreground/20 hover:text-foreground/60 z-20"
+              >
+                <MoreVertical className="w-5 h-5" />
+              </button>
               {/* Header Section */}
               <div className={`flex ${viewMode === 'list' ? 'justify-between items-start' : 'flex-col items-center'} gap-3`}>
                 
@@ -214,7 +229,7 @@ export function CatalogList({ initialItems }: CatalogListProps) {
               </div>
               
               {/* Price Section */}
-              <div className={`mt-auto flex flex-col bg-foreground/[0.02] rounded-2xl shadow-inner border border-border bg-gray-50/50 border border-foreground/[0.03] ${viewMode === 'list' ? 'p-4' : 'p-2'}`}>
+              <div className={`mt-auto flex flex-col bg-foreground/5 rounded-2xl shadow-inner border border-border border-foreground/[0.03] ${viewMode === 'list' ? 'p-4' : 'p-2'}`}>
                 <div className={`flex flex-col ${viewMode === 'list' ? 'pl-2' : 'items-center'}`}>
                   <span className="text-[8px] font-black text-foreground/30 uppercase tracking-[0.2em] mb-0.5">Valor Aplicação</span>
                   <span className={`${viewMode === 'list' ? 'text-2xl' : 'text-lg'} font-black text-primary tracking-tighter`}>
@@ -242,7 +257,7 @@ export function CatalogList({ initialItems }: CatalogListProps) {
               top: Math.min(menuPosition.y, typeof window !== 'undefined' ? window.innerHeight - 150 : menuPosition.y),
               left: Math.min(menuPosition.x, typeof window !== 'undefined' ? window.innerWidth - 220 : menuPosition.x)
             }}
-            className={`absolute w-full max-w-[200px] bg-white/90 backdrop-blur-2xl rounded-2xl shadow-2xl shadow-black/20 overflow-hidden border border-white/40 ${isMenuClosing ? 'animate-ios-pop-out' : 'animate-ios-pop'}`}
+            className={`absolute w-full max-w-[200px] bg-card/90 backdrop-blur-2xl rounded-2xl shadow-2xl shadow-black/20 overflow-hidden border border-border ${isMenuClosing ? 'animate-ios-pop-out' : 'animate-ios-pop'}`}
           >
             <div className="flex flex-col divide-y divide-foreground/10">
               <button
@@ -250,7 +265,7 @@ export function CatalogList({ initialItems }: CatalogListProps) {
                   setEditingItem(menuItem);
                   handleCloseMenu();
                 }}
-                className="w-full px-5 py-4 flex items-center gap-3 hover:bg-black/5 active:bg-black/10 transition-colors text-foreground"
+                className="w-full px-5 py-4 flex items-center gap-3 hover:bg-foreground/5 active:bg-foreground/10 transition-colors text-foreground"
               >
                 <svg className="w-4 h-4 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />

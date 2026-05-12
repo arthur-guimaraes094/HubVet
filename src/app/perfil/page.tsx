@@ -39,7 +39,6 @@ export default async function PerfilPage() {
             <Link href="/" className="text-primary hover:underline font-bold text-sm">
               &larr; Voltar
             </Link>
-            <h2 className="text-2xl font-black text-foreground">Configurações</h2>
           </div>
 
           <ProfileForm initialData={initialData} />

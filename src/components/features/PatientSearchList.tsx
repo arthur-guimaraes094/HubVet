@@ -2,6 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { Card } from '@/components/ui/Card';
+import { MoreVertical } from 'lucide-react';
 import Link from 'next/link';
 import { translateSpecies } from '@/core/utils/translations';
 import { useRouter } from 'next/navigation';
@@ -50,13 +51,17 @@ export function PatientSearchList({ initialPatients }: PatientSearchListProps) {
     
     setPressingPatientId(patient.id);
     longPressTimer.current = setTimeout(() => {
-      setMenuPosition({ x, y });
-      setMenuPatient(patient);
-      setLastTriggeredId(patient.id);
-      setTimeout(() => setLastTriggeredId(null), 150);
-      setPressingPatientId(null);
-      if (window.navigator.vibrate) window.navigator.vibrate(50);
+      triggerMenu(x, y, patient);
     }, 500);
+  };
+
+  const triggerMenu = (x: number, y: number, patient: Patient) => {
+    setMenuPosition({ x, y });
+    setMenuPatient(patient);
+    setLastTriggeredId(patient.id);
+    setTimeout(() => setLastTriggeredId(null), 150);
+    setPressingPatientId(null);
+    if (window.navigator.vibrate) window.navigator.vibrate(50);
   };
 
   const handleEndPress = () => {
@@ -126,7 +131,7 @@ export function PatientSearchList({ initialPatients }: PatientSearchListProps) {
             placeholder="Pesquisar por nome do pet, espécie ou tutor..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-background border-none rounded-2xl pl-14 pr-12 py-4 shadow-inner border border-border bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground font-medium placeholder:text-foreground/30 transition-all text-base"
+            className="w-full bg-background border-none rounded-2xl pl-14 pr-12 py-4 shadow-inner border border-border bg-foreground/5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground font-medium placeholder:text-foreground/30 transition-all text-base"
           />
           {searchTerm && (
             <button 
@@ -140,7 +145,7 @@ export function PatientSearchList({ initialPatients }: PatientSearchListProps) {
           )}
         </div>
 
-        <div className="flex bg-background shadow-inner border border-border bg-gray-50/50 p-1 rounded-full border border-foreground/5 shrink-0">
+        <div className="flex bg-background shadow-inner border border-border bg-foreground/5 p-1 rounded-full border border-foreground/5 shrink-0">
           <button 
             onClick={() => setViewMode('list')}
             className={`p-2 px-5 rounded-full transition-all duration-300 flex items-center gap-2 ${viewMode === 'list' ? 'bg-primary text-white shadow-sm border border-border' : 'text-foreground/40 hover:text-foreground'}`}
@@ -184,8 +189,19 @@ export function PatientSearchList({ initialPatients }: PatientSearchListProps) {
             >
               <Card 
                 style={{ transform: pressingPatientId === patient.id ? 'scale(0.96)' : 'scale(1)' }}
-                className={`relative flex flex-col h-full group-hover:shadow-sm border border-border group-active:shadow-inner border border-border bg-gray-50/50 transition-all duration-500 rounded-3xl overflow-hidden hover:border-primary/10 select-none ${pressingPatientId === patient.id ? 'brightness-95' : ''} ${lastTriggeredId === patient.id ? 'animate-haptic' : ''} ${viewMode === 'list' ? 'p-8 gap-4' : 'p-4 gap-2 text-center'}`}
+                className={`relative flex flex-col h-full group-hover:shadow-sm border border-border group-active:shadow-inner border border-border bg-foreground/5 transition-all duration-500 rounded-3xl overflow-hidden hover:border-primary/10 select-none ${pressingPatientId === patient.id ? 'brightness-95' : ''} ${lastTriggeredId === patient.id ? 'animate-haptic' : ''} ${viewMode === 'list' ? 'p-8 gap-4' : 'p-4 gap-2 text-center'}`}
               >
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    triggerMenu(e.clientX, e.clientY, patient);
+                  }}
+                  className="absolute top-2 right-2 sm:top-4 sm:right-4 p-2 rounded-full hover:bg-foreground/5 transition-all text-foreground/20 hover:text-foreground/60 z-20"
+                >
+                  <MoreVertical className="w-5 h-5" />
+                </button>
                 
                 {/* Header Section */}
                 <div className={`flex ${viewMode === 'list' ? 'justify-between items-start' : 'flex-col items-center'} gap-3`}>
@@ -222,7 +238,7 @@ export function PatientSearchList({ initialPatients }: PatientSearchListProps) {
                 </div>
                 
                 {/* Tutor Section */}
-                <div className={`mt-auto flex flex-col bg-foreground/[0.02] rounded-2xl shadow-inner border border-border bg-gray-50/50 border border-foreground/[0.03] ${viewMode === 'list' ? 'p-4' : 'p-2'}`}>
+                <div className={`mt-auto flex flex-col bg-foreground/5 rounded-2xl shadow-inner border border-border border-foreground/[0.03] ${viewMode === 'list' ? 'p-4' : 'p-2'}`}>
                   {viewMode === 'list' && (
                     <div className="flex items-center gap-2 mb-1">
                       <svg className="w-3 h-3 text-primary/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -318,7 +334,7 @@ export function PatientSearchList({ initialPatients }: PatientSearchListProps) {
               top: Math.min(menuPosition.y, typeof window !== 'undefined' ? window.innerHeight - 150 : menuPosition.y),
               left: Math.min(menuPosition.x, typeof window !== 'undefined' ? window.innerWidth - 220 : menuPosition.x)
             }}
-            className={`absolute w-full max-w-[200px] bg-white/90 backdrop-blur-2xl rounded-2xl shadow-2xl shadow-black/20 overflow-hidden border border-white/40 ${isMenuClosing ? 'animate-ios-pop-out' : 'animate-ios-pop'}`}
+            className={`absolute w-full max-w-[200px] bg-card/90 backdrop-blur-2xl rounded-2xl shadow-2xl shadow-black/20 overflow-hidden border border-border ${isMenuClosing ? 'animate-ios-pop-out' : 'animate-ios-pop'}`}
           >
             <div className="flex flex-col divide-y divide-foreground/10">
               <button
@@ -326,7 +342,7 @@ export function PatientSearchList({ initialPatients }: PatientSearchListProps) {
                   setPatientToEdit(menuPatient);
                   handleCloseMenu();
                 }}
-                className="w-full px-5 py-4 flex items-center gap-3 hover:bg-black/5 active:bg-black/10 transition-colors text-foreground"
+                className="w-full px-5 py-4 flex items-center gap-3 hover:bg-foreground/5 active:bg-foreground/10 transition-colors text-foreground"
               >
                 <svg className="w-4 h-4 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
