@@ -82,11 +82,9 @@ export async function GET(request: Request) {
       const userAgenda = userConsultations[profileId];
       const firstConsultation = userAgenda[0]; // Como já ordenamos por data, o 0 é a primeira
       
-      const consultTime = new Date(firstConsultation.date).getTime();
-      const timeDiff = consultTime - oneHourFromNow;
-
-      // Se a primeira consulta for em aproximadamente 1 hora, ou se ?force=true foi passado na URL
-      if (force || Math.abs(timeDiff) <= margin) {
+      // Como o Vercel Hobby limita a execução do Cron a 1 vez por dia,
+      // enviamos a notificação de resumo matinal diretamente se houver consultas hoje.
+      if (true) {
         // Quantas consultas ele tem hoje?
         const totalConsultations = userAgenda.length;
         // @ts-ignore - Supabase type for joined table
