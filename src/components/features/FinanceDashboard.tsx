@@ -112,7 +112,7 @@ export function FinanceDashboard({ initialInvoices }: { initialInvoices: Invoice
                       <div className="flex items-center justify-end gap-2">
                         <Button 
                           variant="secondary" 
-                          className="!px-3 !py-1 text-xs"
+                          className="px-3! py-1! text-xs"
                           disabled={isUpdating === invoice.id}
                           onClick={() => handleUpdateStatus(invoice.id, 'paid')}
                         >
@@ -120,7 +120,7 @@ export function FinanceDashboard({ initialInvoices }: { initialInvoices: Invoice
                         </Button>
                         <Button 
                           variant="secondary" 
-                          className="!px-3 !py-1 text-xs"
+                          className="px-3! py-1! text-xs"
                           disabled={isUpdating === invoice.id}
                           onClick={() => handleUpdateStatus(invoice.id, 'cancelled')}
                         >

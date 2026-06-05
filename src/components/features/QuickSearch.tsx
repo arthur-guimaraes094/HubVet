@@ -85,7 +85,7 @@ export function QuickSearch() {
       </div>
       
       {results.length > 0 && (
-        <Card className="absolute top-[105%] mt-2 w-full z-10 !p-2 !shadow-sm border border-border max-h-60 overflow-y-auto">
+        <Card className="absolute top-[105%] mt-2 w-full z-10 p-2! shadow-sm! border border-border max-h-60 overflow-y-auto">
           {results.map((res) => (
             <Link 
               href={res.type === 'Tutor' ? `/pacientes?tutorId=${res.id}` : `/pacientes/${res.id}`} 

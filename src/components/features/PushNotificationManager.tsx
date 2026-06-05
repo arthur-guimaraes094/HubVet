@@ -1,9 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/Button';
-
-// Utility para converter a chave pública VAPID (base64) para Uint8Array
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding)
@@ -24,16 +21,6 @@ export function PushNotificationManager() {
   const [subscription, setSubscription] = useState<PushSubscription | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    if ('serviceWorker' in navigator && 'PushManager' in window) {
-      setIsSupported(true);
-      checkSubscription();
-      registerServiceWorker();
-    } else {
-      setIsLoading(false);
-    }
-  }, []);
-
   async function registerServiceWorker() {
     try {
       await navigator.serviceWorker.register('/sw.js');
@@ -53,6 +40,20 @@ export function PushNotificationManager() {
       setIsLoading(false);
     }
   }
+
+  useEffect(() => {
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      Promise.resolve().then(() => {
+        setIsSupported(true);
+        checkSubscription();
+        registerServiceWorker();
+      });
+    } else {
+      Promise.resolve().then(() => {
+        setIsLoading(false);
+      });
+    }
+  }, []);
 
   async function subscribeToPush() {
     setIsLoading(true);

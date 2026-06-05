@@ -15,8 +15,11 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "HubVet | Prontuário Expresso",
-  description: "Ecossistema digital veterinário",
+  title: {
+    default: "HubVet | Prontuário Expresso",
+    template: "%s | HubVet"
+  },
+  description: "Ecossistema digital veterinário - Prontuários, faturamento, agenda e controle de estoque de forma simples e rápida.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

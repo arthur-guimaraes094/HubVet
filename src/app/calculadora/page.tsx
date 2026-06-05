@@ -8,7 +8,7 @@ export default function CalculadoraPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-extrabold text-foreground">Calculadora Clínica</h1>
         <Link href="/">
-          <Button variant="secondary" className="!px-4 !py-2 text-sm">Voltar</Button>
+          <Button variant="secondary" className="px-4! py-2! text-sm">Voltar</Button>
         </Link>
       </div>
 

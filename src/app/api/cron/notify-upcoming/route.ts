@@ -70,12 +70,6 @@ export async function GET(request: Request) {
     }, {} as Record<string, typeof consultations>);
 
     const notificationsSent = [];
-    const oneHourFromNow = now.getTime() + 60 * 60 * 1000;
-    // Margem de erro de 30 minutos (já que o cron roda a cada 1h)
-    const margin = 30 * 60 * 1000;
-
-    const url = new URL(request.url);
-    const force = url.searchParams.get('force') === 'true';
 
     // 5. Para cada usuário, pegar a primeira consulta e verificar o horário
     for (const profileId of Object.keys(userConsultations)) {
@@ -85,9 +79,7 @@ export async function GET(request: Request) {
       // Como o Vercel Hobby limita a execução do Cron a 1 vez por dia,
       // enviamos a notificação de resumo matinal diretamente se houver consultas hoje.
       if (true) {
-        // Quantas consultas ele tem hoje?
         const totalConsultations = userAgenda.length;
-        // @ts-ignore - Supabase type for joined table
         const userName = firstConsultation.profiles?.full_name?.split(' ')[0] || 'Veterinário';
 
         // Buscar as inscrições (celulares) desse usuário
@@ -128,8 +120,9 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ success: true, notifiedUsers: notificationsSent }, { status: 200 });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in cron job:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

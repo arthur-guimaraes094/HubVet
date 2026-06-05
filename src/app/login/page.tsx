@@ -3,6 +3,12 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { login } from './actions'
 import Link from 'next/link'
+import { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Entrar',
+  description: 'Acesse sua conta no HubVet, o prontuário expresso digital veterinário.',
+}
 
 export default async function LoginPage({
   searchParams,
@@ -24,7 +30,7 @@ export default async function LoginPage({
         <form className="flex flex-col gap-6">
           
           {params?.message && (
-            <div className="p-3 bg-red-100 text-red-700 text-sm font-bold rounded-xl text-center shadow-inner border border-border bg-gray-50/50">
+            <div className="p-3 bg-red-100 text-red-700 text-sm font-bold rounded-xl text-center shadow-inner border border-border">
               {params.message}
             </div>
           )}

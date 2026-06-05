@@ -4,8 +4,14 @@ import { Button } from '@/components/ui/Button';
 import { InventoryItemForm } from '@/components/features/InventoryItemForm';
 import { CatalogList } from '@/components/features/CatalogList';
 import Link from 'next/link';
+import { Metadata } from 'next';
 
 export const revalidate = 0;
+
+export const metadata: Metadata = {
+  title: 'Catálogo de Insumos',
+  description: 'Gerencie o catálogo de medicamentos, vacinas, procedimentos e materiais utilizados nos atendimentos.',
+};
 
 export default async function EstoquePage() {
   const supabase = await createClient();
@@ -34,7 +40,7 @@ export default async function EstoquePage() {
         <div className="flex gap-4 w-full md:w-auto">
           <InventoryItemForm />
           <Link href="/" className="flex-1 md:flex-none">
-            <Button variant="secondary" className="w-full !px-8 !py-4">Voltar</Button>
+            <Button variant="secondary" className="w-full px-8! py-4!">Voltar</Button>
           </Link>
         </div>
       </div>

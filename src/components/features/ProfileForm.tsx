@@ -105,7 +105,7 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
         
         {/* Avatar Upload */}
         <div className="flex items-center justify-center mb-4">
-          <label className="relative flex items-center justify-center w-32 h-32 bg-background rounded-full cursor-pointer overflow-hidden group shadow-sm border border-border hover:shadow-inner border border-border bg-foreground/5 transition-all border border-foreground/[0.03] p-1.5">
+          <label className="relative flex items-center justify-center w-32 h-32 bg-background rounded-full cursor-pointer overflow-hidden group shadow-sm border border-border hover:shadow-inner transition-all p-1.5">
             <div className="w-full h-full rounded-full overflow-hidden bg-foreground/5 flex items-center justify-center">
               {avatarPreview ? (
                 <Image 
@@ -172,11 +172,11 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
               {submitError}
             </div>
           )}
-          <Button variant="primary" type="submit" disabled={loading} className="w-full !py-6 shadow-sm border border-border hover:shadow-sm border border-border">
+          <Button variant="primary" type="submit" disabled={loading} className="w-full py-6! shadow-sm border border-border hover:shadow-sm">
             {loading ? 'Salvando...' : 'Salvar Perfil'}
           </Button>
 
-          <Button variant="secondary" type="button" onClick={handleSignOut} className="w-full !py-4 text-error border-error/10 hover:bg-error/10">
+          <Button variant="secondary" type="button" onClick={handleSignOut} className="w-full py-4! text-error border-error/10 hover:bg-error/10">
             Encerrar Sessão
           </Button>
         </div>

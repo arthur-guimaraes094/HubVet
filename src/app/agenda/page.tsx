@@ -1,7 +1,13 @@
 import { createClient } from '@/infrastructure/database/server';
 import { AgendaClient, Consultation, Patient } from '@/components/features/AgendaClient';
+import { Metadata } from 'next';
 
 export const revalidate = 0;
+
+export const metadata: Metadata = {
+  title: 'Agenda',
+  description: 'Gerencie seus atendimentos e compromissos veterinários.',
+};
 
 export default async function AgendaPage() {
   const supabase = await createClient();

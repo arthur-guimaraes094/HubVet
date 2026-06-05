@@ -14,7 +14,7 @@ self.addEventListener('push', function (event) {
       }
 
       event.waitUntil(self.registration.showNotification(title, options))
-    } catch (e) {
+    } catch {
       // Falha ao parsear JSON, tenta mostrar como texto puro
       event.waitUntil(
         self.registration.showNotification('HubVet', {

@@ -45,7 +45,7 @@ export function CancelConsultationButton({ id }: CancelConsultationButtonProps) 
     <>
       {isConfirming && (
         <div 
-          className="absolute inset-0 z-[60] bg-background/95 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center animate-in zoom-in-95 duration-200"
+          className="absolute inset-0 z-60 bg-background/95 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center animate-in zoom-in-95 duration-200"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="text-6xl mb-6 animate-bounce">⚠️</div>
@@ -59,7 +59,7 @@ export function CancelConsultationButton({ id }: CancelConsultationButtonProps) 
               variant="primary" 
               onClick={handleCancel} 
               disabled={loading}
-              className="w-full !bg-error hover:!bg-error/80 !border-none !py-4 shadow-sm border border-border text-[10px] font-black uppercase tracking-widest"
+              className="w-full bg-error! hover:bg-error/80! border-none! py-4! shadow-sm text-[10px] font-black uppercase tracking-widest"
             >
               {loading ? 'Cancelando...' : 'Sim, Cancelar Agendamento'}
             </Button>
@@ -68,7 +68,7 @@ export function CancelConsultationButton({ id }: CancelConsultationButtonProps) 
               variant="secondary" 
               onClick={toggleConfirm}
               disabled={loading}
-              className="w-full !py-4 text-[10px] font-black uppercase tracking-widest"
+              className="w-full py-4! text-[10px] font-black uppercase tracking-widest"
             >
               Não, Manter Agendamento
             </Button>
@@ -81,7 +81,7 @@ export function CancelConsultationButton({ id }: CancelConsultationButtonProps) 
         variant="secondary" 
         onClick={toggleConfirm} 
         disabled={loading}
-        className="!text-error hover:!bg-error/10 w-full py-4 text-sm font-bold shadow-sm border border-border"
+        className="text-error! hover:bg-error/10! w-full py-4 text-sm font-bold shadow-sm border border-border"
       >
         Cancelar Agendamento
       </Button>

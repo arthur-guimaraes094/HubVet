@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Card } from '@/components/ui/Card';
+import React, { useState, useId } from 'react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -28,6 +27,7 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
   const { success, error } = useToast();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const speciesSelectId = useId();
 
   const [patientName, setPatientName] = useState(patient.name);
   const [patientSpecies, setPatientSpecies] = useState(patient.species);
@@ -79,7 +79,7 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
       <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] opacity-60 -mt-6 mb-8">{patient.name}</p>
       
       <form onSubmit={handleSave} className="flex flex-col gap-8 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
-        <div className="flex flex-col gap-6 p-6 bg-foreground/[0.02] rounded-3xl border border-foreground/[0.03]">
+        <div className="flex flex-col gap-6 p-6 bg-foreground/2 rounded-3xl border border-foreground/3">
           <span className="text-[10px] font-black text-foreground/20 uppercase tracking-[0.2em] pl-2">Informações do Pet</span>
           <div className="flex flex-col gap-4">
             <Input 
@@ -92,8 +92,14 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
             
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-2">
-                <span className="text-[10px] font-black text-foreground/30 uppercase tracking-[0.2em] pl-4">Espécie *</span>
+                <label 
+                  htmlFor={speciesSelectId} 
+                  className="text-[10px] font-black text-foreground/30 uppercase tracking-[0.2em] pl-4"
+                >
+                  Espécie *
+                </label>
                 <select 
+                  id={speciesSelectId}
                   value={patientSpecies} 
                   onChange={e => setPatientSpecies(e.target.value)}
                   required
@@ -135,8 +141,8 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
         </div>
 
         <div className="flex gap-4 pt-2">
-          <Button type="button" variant="secondary" onClick={onClose} className="flex-1 !py-5 uppercase font-black text-[10px] tracking-widest">Cancelar</Button>
-          <Button type="submit" variant="primary" disabled={loading} className="flex-[2] !py-5 shadow-sm border border-border uppercase font-black text-[10px] tracking-widest">
+          <Button type="button" variant="secondary" onClick={onClose} className="flex-1 py-5! uppercase font-black text-[10px] tracking-widest">Cancelar</Button>
+          <Button type="submit" variant="primary" disabled={loading} className="flex-2 py-5! shadow-sm border border-border uppercase font-black text-[10px] tracking-widest">
             {loading ? 'Salvando...' : 'Salvar Alterações'}
           </Button>
         </div>

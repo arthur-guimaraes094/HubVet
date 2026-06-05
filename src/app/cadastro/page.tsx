@@ -97,7 +97,7 @@ export default function CadastroPage() {
           </p>
         </div>
 
-        <Card className="w-full !p-8 bg-background/40">
+        <Card className="w-full p-8! bg-background/40">
           <form onSubmit={handleRegister} className="flex flex-col gap-5">
             <div className="flex flex-col gap-4">
               <Input 
@@ -168,7 +168,7 @@ export default function CadastroPage() {
                 variant="primary" 
                 type="submit" 
                 disabled={loading}
-                className="w-full !py-4"
+                className="w-full py-4!"
               >
                 {loading ? 'Cadastrando...' : 'Criar Conta'}
               </Button>

@@ -4,8 +4,14 @@ import { Button } from '@/components/ui/Button';
 import { NewPatientForm } from '@/components/features/NewPatientForm';
 import { PatientSearchList } from '@/components/features/PatientSearchList';
 import Link from 'next/link';
+import { Metadata } from 'next';
 
 export const revalidate = 0;
+
+export const metadata: Metadata = {
+  title: 'Pacientes',
+  description: 'Gerencie e consulte o prontuário dos seus pacientes de forma expressa.',
+};
 
 export default async function PacientesPage({
   searchParams,
@@ -46,7 +52,7 @@ export default async function PacientesPage({
             initialTutorName={tutorName} 
           />
           <Link href="/">
-            <Button variant="secondary" className="!px-6 !py-2 text-sm">Voltar</Button>
+            <Button variant="secondary" className="px-6! py-2! text-sm">Voltar</Button>
           </Link>
         </div>
       </div>

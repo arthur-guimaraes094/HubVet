@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Card } from '@/components/ui/Card';
+import React, { useState, useId } from 'react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { addInventoryItem, updateInventoryItem, deleteInventoryItem } from '@/app/estoque/actions';
@@ -26,6 +25,7 @@ export function InventoryItemForm({ itemToEdit, onClose }: InventoryItemFormProp
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const categorySelectId = useId();
   
   const [name, setName] = useState(itemToEdit?.name || '');
   const [type, setType] = useState(itemToEdit?.type || 'Medication');
@@ -104,7 +104,7 @@ export function InventoryItemForm({ itemToEdit, onClose }: InventoryItemFormProp
 
   if (!effectivelyOpen) {
     return (
-      <Button variant="primary" onClick={() => setIsOpen(true)} className="!px-4 !py-2 text-sm">
+      <Button variant="primary" onClick={() => setIsOpen(true)} className="px-4! py-2! text-sm">
         + Novo Item
       </Button>
     );
@@ -113,7 +113,7 @@ export function InventoryItemForm({ itemToEdit, onClose }: InventoryItemFormProp
   return (
     <>
       {!isEdit && (
-        <Button variant="primary" onClick={() => setIsOpen(true)} className="!px-4 !py-2 text-sm">
+        <Button variant="primary" onClick={() => setIsOpen(true)} className="px-4! py-2! text-sm">
           + Novo Item
         </Button>
       )}
@@ -128,7 +128,7 @@ export function InventoryItemForm({ itemToEdit, onClose }: InventoryItemFormProp
         <div className="relative">
           {/* Custom Confirmation Overlay */}
           {isConfirmingDelete && (
-            <div className="absolute inset-0 z-[60] bg-background/95 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center animate-in zoom-in-95 duration-200">
+            <div className="absolute inset-0 z-60 bg-background/95 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center animate-in zoom-in-95 duration-200">
               <div className="text-6xl mb-6 animate-bounce">⚠️</div>
               <h3 className="text-2xl font-black text-foreground mb-2">Confirmar Exclusão?</h3>
               <p className="text-foreground/60 font-medium mb-8 leading-relaxed">
@@ -139,7 +139,7 @@ export function InventoryItemForm({ itemToEdit, onClose }: InventoryItemFormProp
                   variant="primary" 
                   onClick={confirmDelete} 
                   disabled={deleting}
-                  className="w-full !bg-error hover:!bg-error/80 !border-none !py-4 shadow-sm border border-border"
+                  className="w-full bg-error! hover:bg-error/80! border-none! py-4! shadow-sm"
                 >
                   {deleting ? 'Removendo...' : 'Sim, Excluir Item'}
                 </Button>
@@ -147,7 +147,7 @@ export function InventoryItemForm({ itemToEdit, onClose }: InventoryItemFormProp
                   variant="secondary" 
                   onClick={() => setIsConfirmingDelete(false)}
                   disabled={deleting}
-                  className="w-full !py-4"
+                  className="w-full py-4!"
                 >
                   Não, Manter Item
                 </Button>
@@ -172,8 +172,14 @@ export function InventoryItemForm({ itemToEdit, onClose }: InventoryItemFormProp
             />
             
             <div className="flex flex-col gap-2">
-              <span className="text-[10px] font-black text-foreground/30 uppercase tracking-[0.2em] pl-4">Categoria</span>
+              <label 
+                htmlFor={categorySelectId} 
+                className="text-[10px] font-black text-foreground/30 uppercase tracking-[0.2em] pl-4"
+              >
+                Categoria
+              </label>
               <select 
+                id={categorySelectId}
                 value={type} 
                 onChange={e => setType(e.target.value)}
                 className="w-full bg-card rounded-xl px-4 py-3 shadow-sm outline-none focus:ring-2 focus:ring-primary/40 font-medium transition-all border border-border appearance-none text-foreground"
@@ -197,10 +203,10 @@ export function InventoryItemForm({ itemToEdit, onClose }: InventoryItemFormProp
 
             <div className="flex flex-col gap-3 mt-4">
               <div className="flex gap-3">
-                <Button type="button" variant="secondary" onClick={() => isEdit ? onClose?.() : setIsOpen(false)} className="w-full uppercase font-black text-[10px] tracking-widest !py-5">
+                <Button type="button" variant="secondary" onClick={() => isEdit ? onClose?.() : setIsOpen(false)} className="w-full uppercase font-black text-[10px] tracking-widest py-5!">
                   Cancelar
                 </Button>
-                <Button type="submit" variant="primary" disabled={loading || deleting} className="w-full uppercase font-black text-[10px] tracking-widest !py-5">
+                <Button type="submit" variant="primary" disabled={loading || deleting} className="w-full uppercase font-black text-[10px] tracking-widest py-5!">
                   {loading ? 'Salvando...' : 'Salvar'}
                 </Button>
               </div>
