@@ -1,7 +1,8 @@
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { login, signup } from './actions'
+import { login } from './actions'
+import Link from 'next/link'
 
 export default async function LoginPage({
   searchParams,
@@ -50,13 +51,15 @@ export default async function LoginPage({
               Entrar
             </Button>
             
-            {/* Opcional: Remova o botão de cadastro depois de criar a conta principal */}
-            <Button formAction={signup} variant="secondary" className="w-full !text-sm mt-2 opacity-50 hover:opacity-100">
-              Primeiro acesso? Cadastre-se
-            </Button>
+            <Link href="/cadastro" className="w-full text-center">
+              <span className="text-[10px] font-black uppercase text-foreground/40 hover:text-primary tracking-widest transition-colors cursor-pointer py-2 block mt-2">
+                Primeiro acesso? Cadastre-se
+              </span>
+            </Link>
           </div>
         </form>
       </Card>
     </main>
   )
 }
+

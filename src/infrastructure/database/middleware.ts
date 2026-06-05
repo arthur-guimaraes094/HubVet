@@ -34,12 +34,22 @@ export async function updateSession(request: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession()
 
-  const isAuthRoute = request.nextUrl.pathname.startsWith('/login')
+  const isAuthRoute = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/cadastro')
   
   if (!session && !isAuthRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
-    return NextResponse.redirect(url)
+    const redirectResponse = NextResponse.redirect(url)
+    
+    // Limpar cookies do Supabase se a sessão for inválida
+    // para evitar loops infinitos de Refresh Token Not Found
+    request.cookies.getAll().forEach(cookie => {
+      if (cookie.name.startsWith('sb-')) {
+        redirectResponse.cookies.delete(cookie.name)
+      }
+    })
+    
+    return redirectResponse
   }
 
   if (session && isAuthRoute) {
