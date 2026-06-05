@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Card } from '@/components/ui/Card';
+import React, { useState, useId } from 'react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -28,6 +27,7 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
   const { success, error } = useToast();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const speciesSelectId = useId();
 
   const [patientName, setPatientName] = useState(patient.name);
   const [patientSpecies, setPatientSpecies] = useState(patient.species);
@@ -92,8 +92,14 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
             
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-2">
-                <span className="text-[10px] font-black text-foreground/30 uppercase tracking-[0.2em] pl-4">Espécie *</span>
+                <label 
+                  htmlFor={speciesSelectId} 
+                  className="text-[10px] font-black text-foreground/30 uppercase tracking-[0.2em] pl-4"
+                >
+                  Espécie *
+                </label>
                 <select 
+                  id={speciesSelectId}
                   value={patientSpecies} 
                   onChange={e => setPatientSpecies(e.target.value)}
                   required

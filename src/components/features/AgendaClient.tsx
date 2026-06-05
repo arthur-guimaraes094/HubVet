@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { LocalDate } from '@/components/ui/LocalDate';
@@ -10,7 +10,7 @@ import { getConsultationDetails, cancelarConsulta } from '@/app/agenda/actions';
 import { gerarPDFReceituario } from '@/core/use-cases/generate-pdf';
 import { useToast } from '@/components/ui/Toast';
 import { translateSpecies } from '@/core/utils/translations';
-import { Edit2, Trash2, X, MoreVertical } from 'lucide-react';
+import { Edit2, Trash2, MoreVertical } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 
 export interface Consultation {
@@ -60,7 +60,16 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const { success, error } = useToast();
 
-  const handleStartPress = (e: React.MouseEvent | React.TouchEvent, consult: Consultation) => {
+  const triggerMenu = useCallback((x: number, y: number, consult: Consultation) => {
+    setMenuPosition({ x, y });
+    setMenuConsultation(consult);
+    setLastTriggeredId(consult.id);
+    setTimeout(() => setLastTriggeredId(null), 150);
+    setPressingConsultationId(null);
+    if (window.navigator.vibrate) window.navigator.vibrate(50);
+  }, []);
+
+  const handleStartPress = useCallback((e: React.MouseEvent | React.TouchEvent, consult: Consultation) => {
     if (consult.status === 'Completed') return;
 
     const x = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
@@ -70,33 +79,24 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
     longPressTimer.current = setTimeout(() => {
       triggerMenu(x, y, consult);
     }, 500);
-  };
+  }, [triggerMenu]);
 
-  const triggerMenu = (x: number, y: number, consult: Consultation) => {
-    setMenuPosition({ x, y });
-    setMenuConsultation(consult);
-    setLastTriggeredId(consult.id);
-    setTimeout(() => setLastTriggeredId(null), 150);
-    setPressingConsultationId(null);
-    if (window.navigator.vibrate) window.navigator.vibrate(50);
-  };
-
-  const handleEndPress = () => {
+  const handleEndPress = useCallback(() => {
     setPressingConsultationId(null);
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
     }
-  };
+  }, []);
 
-  const handleCloseMenu = () => {
+  const handleCloseMenu = useCallback(() => {
     setIsMenuClosing(true);
     setTimeout(() => {
       setMenuConsultation(null);
       setMenuPosition(null);
       setIsMenuClosing(false);
     }, 200);
-  };
+  }, []);
 
   const handleCancelAction = async () => {
     if (!consultationToDelete) return;

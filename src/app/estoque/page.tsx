@@ -4,8 +4,14 @@ import { Button } from '@/components/ui/Button';
 import { InventoryItemForm } from '@/components/features/InventoryItemForm';
 import { CatalogList } from '@/components/features/CatalogList';
 import Link from 'next/link';
+import { Metadata } from 'next';
 
 export const revalidate = 0;
+
+export const metadata: Metadata = {
+  title: 'Catálogo de Insumos',
+  description: 'Gerencie o catálogo de medicamentos, vacinas, procedimentos e materiais utilizados nos atendimentos.',
+};
 
 export default async function EstoquePage() {
   const supabase = await createClient();

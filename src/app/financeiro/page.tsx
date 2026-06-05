@@ -3,8 +3,14 @@ import { FinanceDashboard } from '@/components/features/FinanceDashboard';
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
 import { ViewTransition } from 'react';
+import { Metadata } from 'next';
 
 export const revalidate = 0;
+
+export const metadata: Metadata = {
+  title: 'Financeiro',
+  description: 'Acompanhe suas receitas, faturas de atendimentos e controle financeiro de sua clínica.',
+};
 
 export default async function FinanceiroPage() {
   const supabase = await createClient();

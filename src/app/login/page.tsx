@@ -3,6 +3,12 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { login } from './actions'
 import Link from 'next/link'
+import { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Entrar',
+  description: 'Acesse sua conta no HubVet, o prontuário expresso digital veterinário.',
+}
 
 export default async function LoginPage({
   searchParams,

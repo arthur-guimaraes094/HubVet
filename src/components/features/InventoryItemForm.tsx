@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Card } from '@/components/ui/Card';
+import React, { useState, useId } from 'react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { addInventoryItem, updateInventoryItem, deleteInventoryItem } from '@/app/estoque/actions';
@@ -26,6 +25,7 @@ export function InventoryItemForm({ itemToEdit, onClose }: InventoryItemFormProp
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const categorySelectId = useId();
   
   const [name, setName] = useState(itemToEdit?.name || '');
   const [type, setType] = useState(itemToEdit?.type || 'Medication');
@@ -172,8 +172,14 @@ export function InventoryItemForm({ itemToEdit, onClose }: InventoryItemFormProp
             />
             
             <div className="flex flex-col gap-2">
-              <span className="text-[10px] font-black text-foreground/30 uppercase tracking-[0.2em] pl-4">Categoria</span>
+              <label 
+                htmlFor={categorySelectId} 
+                className="text-[10px] font-black text-foreground/30 uppercase tracking-[0.2em] pl-4"
+              >
+                Categoria
+              </label>
               <select 
+                id={categorySelectId}
                 value={type} 
                 onChange={e => setType(e.target.value)}
                 className="w-full bg-card rounded-xl px-4 py-3 shadow-sm outline-none focus:ring-2 focus:ring-primary/40 font-medium transition-all border border-border appearance-none text-foreground"

@@ -25,12 +25,16 @@ export function Modal({
 
   useEffect(() => {
     if (isOpen) {
-      setShouldRender(true);
-      setIsExiting(false);
+      Promise.resolve().then(() => {
+        setShouldRender(true);
+        setIsExiting(false);
+      });
       document.body.style.overflow = 'hidden';
     } else {
       if (shouldRender) {
-        setIsExiting(true);
+        Promise.resolve().then(() => {
+          setIsExiting(true);
+        });
         const timer = setTimeout(() => {
           setShouldRender(false);
           setIsExiting(false);
