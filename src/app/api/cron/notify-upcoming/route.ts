@@ -17,9 +17,13 @@ if (vapidPublicKey && vapidPrivateKey) {
 
 export async function GET(request: Request) {
   try {
-    // 1. Segurança: Se houver um CRON_SECRET, validar
+    // 1. Segurança: Validar CRON_SECRET de forma rígida (fail closed)
     const authHeader = request.headers.get('authorization');
-    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    if (!process.env.CRON_SECRET) {
+      console.error('CRON_SECRET is not configured in environment variables.');
+      return new Response('Internal Server Error: Cron secret not configured', { status: 500 });
+    }
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
       return new Response('Unauthorized', { status: 401 });
     }
 
@@ -78,11 +82,9 @@ export async function GET(request: Request) {
       const userAgenda = userConsultations[profileId];
       const firstConsultation = userAgenda[0]; // Como já ordenamos por data, o 0 é a primeira
       
-      const consultTime = new Date(firstConsultation.date).getTime();
-      const timeDiff = consultTime - oneHourFromNow;
-
-      // Se a primeira consulta for em aproximadamente 1 hora, ou se ?force=true foi passado na URL
-      if (force || Math.abs(timeDiff) <= margin) {
+      // Como o Vercel Hobby limita a execução do Cron a 1 vez por dia,
+      // enviamos a notificação de resumo matinal diretamente se houver consultas hoje.
+      if (true) {
         // Quantas consultas ele tem hoje?
         const totalConsultations = userAgenda.length;
         // @ts-ignore - Supabase type for joined table

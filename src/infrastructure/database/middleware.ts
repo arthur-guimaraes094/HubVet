@@ -35,8 +35,9 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getSession()
 
   const isAuthRoute = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/cadastro')
+  const isApiRoute = request.nextUrl.pathname.startsWith('/api')
   
-  if (!session && !isAuthRoute) {
+  if (!session && !isAuthRoute && !isApiRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     const redirectResponse = NextResponse.redirect(url)
