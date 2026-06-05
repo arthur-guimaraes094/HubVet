@@ -17,9 +17,13 @@ if (vapidPublicKey && vapidPrivateKey) {
 
 export async function GET(request: Request) {
   try {
-    // 1. Segurança: Se houver um CRON_SECRET, validar
+    // 1. Segurança: Validar CRON_SECRET de forma rígida (fail closed)
     const authHeader = request.headers.get('authorization');
-    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    if (!process.env.CRON_SECRET) {
+      console.error('CRON_SECRET is not configured in environment variables.');
+      return new Response('Internal Server Error: Cron secret not configured', { status: 500 });
+    }
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
       return new Response('Unauthorized', { status: 401 });
     }
 
