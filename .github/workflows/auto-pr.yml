@@ -1,0 +1,34 @@
+name: Auto Create PR
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  create-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create or Check Pull Request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Verifica se já existe um PR aberto da branch 'dev' para a branch 'main'
+          existing_pr=$(gh pr list --head dev --base main --state open --json number -q '.[0].number')
+          
+          if [ -z "$existing_pr" ]; then
+            echo "Nenhum PR aberto detectado. Criando novo Pull Request de dev para main..."
+            gh pr create \
+              --title "Sync: dev -> main" \
+              --body "Este Pull Request foi criado automaticamente a partir de alterações enviadas para a branch 'dev'." \
+              --base main \
+              --head dev
+          else
+            echo "Pull Request #$existing_pr já está aberto e será atualizado automaticamente com as novas alterações."
+          fi
