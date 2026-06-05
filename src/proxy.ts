@@ -19,3 +19,5 @@ export const config = {
     '/((?!_next/static|_next/image|favicon.ico|manifest\\.json|icons/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
+
+// Triggering redeploy after adding environment variables to Preview environment.
