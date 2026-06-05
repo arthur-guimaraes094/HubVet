@@ -40,7 +40,7 @@ export default async function EstoquePage() {
         <div className="flex gap-4 w-full md:w-auto">
           <InventoryItemForm />
           <Link href="/" className="flex-1 md:flex-none">
-            <Button variant="secondary" className="w-full !px-8 !py-4">Voltar</Button>
+            <Button variant="secondary" className="w-full px-8! py-4!">Voltar</Button>
           </Link>
         </div>
       </div>

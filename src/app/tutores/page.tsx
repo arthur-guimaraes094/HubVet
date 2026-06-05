@@ -12,7 +12,7 @@ export default function TutoresPage() {
         </div>
         <div className="flex gap-4">
           <Link href="/">
-            <Button variant="secondary" className="!px-6 !py-2 text-sm">Voltar</Button>
+            <Button variant="secondary" className="px-6! py-2! text-sm">Voltar</Button>
           </Link>
         </div>
       </div>

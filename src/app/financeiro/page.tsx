@@ -63,7 +63,7 @@ export default async function FinanceiroPage() {
             <p className="text-muted-foreground mt-1">Gestão de Faturas e Receitas</p>
           </div>
           <Link href="/">
-            <Button variant="secondary" className="!px-4 !py-2 text-sm">Voltar</Button>
+            <Button variant="secondary" className="px-4! py-2! text-sm">Voltar</Button>
           </Link>
         </div>
 

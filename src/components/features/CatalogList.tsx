@@ -116,7 +116,7 @@ export function CatalogList({ initialItems }: CatalogListProps) {
             placeholder="Pesquisar por nome do item..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-14 pr-6 py-5 bg-background rounded-2xl shadow-inner border border-border bg-foreground/5 border border-foreground/[0.03] text-foreground font-medium placeholder:text-foreground/20 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-lg"
+            className="w-full pl-14 pr-6 py-5 bg-background rounded-2xl shadow-inner border border-border text-foreground font-medium placeholder:text-foreground/20 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-lg"
           />
           <div className="absolute left-6 top-1/2 -translate-y-1/2 text-foreground/20 group-focus-within:text-primary transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -130,7 +130,7 @@ export function CatalogList({ initialItems }: CatalogListProps) {
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-              className="w-full appearance-none px-6 py-4 bg-card rounded-full shadow-sm border border-border border-foreground/[0.03] text-foreground font-black uppercase tracking-widest text-[10px] focus:outline-none focus:shadow-inner transition-all cursor-pointer"
+              className="w-full appearance-none px-6 py-4 bg-card rounded-full shadow-sm border border-border text-foreground font-black uppercase tracking-widest text-[10px] focus:outline-none focus:shadow-inner transition-all cursor-pointer"
             >
               <option className="bg-card text-foreground" value="all">TODOS OS ITENS</option>
               <option className="bg-card text-foreground" value="Medication">MEDICAMENTOS</option>
@@ -145,7 +145,7 @@ export function CatalogList({ initialItems }: CatalogListProps) {
             </div>
           </div>
 
-          <div className="flex bg-background shadow-inner border border-border bg-foreground/5 p-1 rounded-full border border-foreground/5 shrink-0 justify-center mx-auto sm:mx-0">
+          <div className="flex bg-foreground/5 p-1 rounded-full border border-border shrink-0 justify-center mx-auto sm:mx-0">
             <button 
               onClick={() => setViewMode('list')}
               className={`p-2 px-5 rounded-full transition-all duration-300 flex items-center gap-2 ${viewMode === 'list' ? 'bg-primary text-white shadow-sm border border-border' : 'text-foreground/40 hover:text-foreground'}`}
@@ -188,7 +188,7 @@ export function CatalogList({ initialItems }: CatalogListProps) {
                 transform: pressingItemId === item.id ? 'scale(0.96)' : 'scale(1)',
                 WebkitTouchCallout: 'none'
               }}
-              className={`relative flex flex-col h-full group transition-all duration-500 rounded-3xl overflow-hidden border border-transparent hover:border-primary/10 cursor-pointer hover:shadow-sm border border-border select-none ${
+              className={`relative flex flex-col h-full group transition-all duration-500 rounded-3xl overflow-hidden cursor-pointer hover:shadow-sm border border-border hover:border-primary/10 select-none ${
                 viewMode === 'list' ? 'p-8 gap-4' : 'p-4 gap-2 text-center'
               } ${pressingItemId === item.id ? 'brightness-95' : ''} ${lastTriggeredId === item.id ? 'animate-haptic' : ''}`}
             >
@@ -229,7 +229,7 @@ export function CatalogList({ initialItems }: CatalogListProps) {
               </div>
               
               {/* Price Section */}
-              <div className={`mt-auto flex flex-col bg-foreground/5 rounded-2xl shadow-inner border border-border border-foreground/[0.03] ${viewMode === 'list' ? 'p-4' : 'p-2'}`}>
+              <div className={`mt-auto flex flex-col bg-foreground/5 rounded-2xl shadow-inner border border-border ${viewMode === 'list' ? 'p-4' : 'p-2'}`}>
                 <div className={`flex flex-col ${viewMode === 'list' ? 'pl-2' : 'items-center'}`}>
                   <span className="text-[8px] font-black text-foreground/30 uppercase tracking-[0.2em] mb-0.5">Valor Aplicação</span>
                   <span className={`${viewMode === 'list' ? 'text-2xl' : 'text-lg'} font-black text-primary tracking-tighter`}>
@@ -244,7 +244,7 @@ export function CatalogList({ initialItems }: CatalogListProps) {
 
       {/* iOS Style Context Menu Overlay */}
       {menuItem && menuPosition && (
-        <div className="fixed inset-0 z-[200]">
+        <div className="fixed inset-0 z-200">
           {/* Backdrop Blur */}
           <div 
             className={`absolute inset-0 bg-black/5 backdrop-blur-[1px] ${isMenuClosing ? 'animate-fade-out' : 'animate-fade-in'}`}
@@ -311,7 +311,7 @@ export function CatalogList({ initialItems }: CatalogListProps) {
               variant="primary" 
               onClick={handleDelete}
               disabled={isDeleting}
-              className="flex-[2] !bg-error hover:!bg-error/90 border-none text-white"
+              className="flex-2 bg-error! hover:bg-error/90! border-none text-white"
             >
               {isDeleting ? 'Apagando...' : 'Sim, Apagar'}
             </Button>

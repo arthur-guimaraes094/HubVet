@@ -57,22 +57,22 @@ export default async function Home() {
           
           <div className="grid grid-cols-2 gap-4 mt-2">
             <Link href="/agenda" className="w-full">
-              <Button variant="primary" className="w-full !py-4 shadow-sm border border-border hover:shadow-sm border border-border">Agenda</Button>
+              <Button variant="primary" className="w-full py-4! shadow-sm border border-border hover:shadow-sm">Agenda</Button>
             </Link>
             <Link href="/pacientes" className="w-full">
-              <Button variant="secondary" className="w-full !py-4">Pacientes</Button>
+              <Button variant="secondary" className="w-full py-4!">Pacientes</Button>
             </Link>
             <Link href="/tutores" className="w-full">
-              <Button variant="secondary" className="w-full !py-4">Tutores</Button>
+              <Button variant="secondary" className="w-full py-4!">Tutores</Button>
             </Link>
             <Link href="/financeiro" className="w-full">
-              <Button variant="secondary" className="w-full !py-4">Financeiro</Button>
+              <Button variant="secondary" className="w-full py-4!">Financeiro</Button>
             </Link>
             <Link href="/estoque" className="w-full">
-              <Button variant="secondary" className="w-full !py-4">Maleta</Button>
+              <Button variant="secondary" className="w-full py-4!">Maleta</Button>
             </Link>
             <Link href="/calculadora" className="w-full">
-              <Button variant="secondary" className="w-full !py-4">Calculadora</Button>
+              <Button variant="secondary" className="w-full py-4!">Calculadora</Button>
             </Link>
           </div>
         </Card>

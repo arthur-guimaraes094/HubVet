@@ -104,7 +104,7 @@ export function InventoryItemForm({ itemToEdit, onClose }: InventoryItemFormProp
 
   if (!effectivelyOpen) {
     return (
-      <Button variant="primary" onClick={() => setIsOpen(true)} className="!px-4 !py-2 text-sm">
+      <Button variant="primary" onClick={() => setIsOpen(true)} className="px-4! py-2! text-sm">
         + Novo Item
       </Button>
     );
@@ -113,7 +113,7 @@ export function InventoryItemForm({ itemToEdit, onClose }: InventoryItemFormProp
   return (
     <>
       {!isEdit && (
-        <Button variant="primary" onClick={() => setIsOpen(true)} className="!px-4 !py-2 text-sm">
+        <Button variant="primary" onClick={() => setIsOpen(true)} className="px-4! py-2! text-sm">
           + Novo Item
         </Button>
       )}
@@ -128,7 +128,7 @@ export function InventoryItemForm({ itemToEdit, onClose }: InventoryItemFormProp
         <div className="relative">
           {/* Custom Confirmation Overlay */}
           {isConfirmingDelete && (
-            <div className="absolute inset-0 z-[60] bg-background/95 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center animate-in zoom-in-95 duration-200">
+            <div className="absolute inset-0 z-60 bg-background/95 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center animate-in zoom-in-95 duration-200">
               <div className="text-6xl mb-6 animate-bounce">⚠️</div>
               <h3 className="text-2xl font-black text-foreground mb-2">Confirmar Exclusão?</h3>
               <p className="text-foreground/60 font-medium mb-8 leading-relaxed">
@@ -139,7 +139,7 @@ export function InventoryItemForm({ itemToEdit, onClose }: InventoryItemFormProp
                   variant="primary" 
                   onClick={confirmDelete} 
                   disabled={deleting}
-                  className="w-full !bg-error hover:!bg-error/80 !border-none !py-4 shadow-sm border border-border"
+                  className="w-full bg-error! hover:bg-error/80! border-none! py-4! shadow-sm"
                 >
                   {deleting ? 'Removendo...' : 'Sim, Excluir Item'}
                 </Button>
@@ -147,7 +147,7 @@ export function InventoryItemForm({ itemToEdit, onClose }: InventoryItemFormProp
                   variant="secondary" 
                   onClick={() => setIsConfirmingDelete(false)}
                   disabled={deleting}
-                  className="w-full !py-4"
+                  className="w-full py-4!"
                 >
                   Não, Manter Item
                 </Button>
@@ -203,10 +203,10 @@ export function InventoryItemForm({ itemToEdit, onClose }: InventoryItemFormProp
 
             <div className="flex flex-col gap-3 mt-4">
               <div className="flex gap-3">
-                <Button type="button" variant="secondary" onClick={() => isEdit ? onClose?.() : setIsOpen(false)} className="w-full uppercase font-black text-[10px] tracking-widest !py-5">
+                <Button type="button" variant="secondary" onClick={() => isEdit ? onClose?.() : setIsOpen(false)} className="w-full uppercase font-black text-[10px] tracking-widest py-5!">
                   Cancelar
                 </Button>
-                <Button type="submit" variant="primary" disabled={loading || deleting} className="w-full uppercase font-black text-[10px] tracking-widest !py-5">
+                <Button type="submit" variant="primary" disabled={loading || deleting} className="w-full uppercase font-black text-[10px] tracking-widest py-5!">
                   {loading ? 'Salvando...' : 'Salvar'}
                 </Button>
               </div>

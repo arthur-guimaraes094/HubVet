@@ -194,7 +194,7 @@ export function TutorList() {
             placeholder="Pesquisar tutor por nome, CPF ou telefone..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-background border-none rounded-2xl pl-14 pr-12 py-4 shadow-inner border border-border bg-foreground/5 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground font-medium placeholder:text-foreground/30 transition-all text-base"
+            className="w-full bg-background rounded-2xl pl-14 pr-12 py-4 shadow-inner border border-border focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground font-medium placeholder:text-foreground/30 transition-all text-base"
           />
           {searchTerm && (
             <button 
@@ -208,7 +208,7 @@ export function TutorList() {
           )}
         </div>
 
-        <div className="flex bg-background shadow-inner border border-border bg-foreground/5 p-1 rounded-full border border-foreground/5 shrink-0">
+        <div className="flex bg-foreground/5 p-1 rounded-full border border-border shrink-0">
           <button 
             onClick={() => setViewMode('list')}
             className={`p-2 px-5 rounded-full transition-all duration-300 flex items-center gap-2 ${viewMode === 'list' ? 'bg-primary text-white shadow-sm' : 'text-foreground/40 hover:text-foreground'}`}
@@ -246,7 +246,7 @@ export function TutorList() {
           >
             <Card 
               style={{ transform: pressingTutorId === tutor.id ? 'scale(0.96)' : 'scale(1)' }}
-              className={`relative flex flex-col h-full group-hover:shadow-sm border border-border group-active:shadow-inner border border-border bg-foreground/5 transition-all duration-500 rounded-3xl overflow-hidden hover:border-primary/10 select-none ${pressingTutorId === tutor.id ? 'brightness-95' : ''} ${lastTriggeredId === tutor.id ? 'animate-haptic' : ''} ${
+              className={`relative flex flex-col h-full group-hover:shadow-sm border border-border group-active:shadow-inner bg-foreground/5 transition-all duration-500 rounded-3xl overflow-hidden hover:border-primary/10 select-none ${pressingTutorId === tutor.id ? 'brightness-95' : ''} ${lastTriggeredId === tutor.id ? 'animate-haptic' : ''} ${
                 viewMode === 'list' ? 'p-8 gap-4' : 'p-4 gap-2 text-center'
               }`}
             >
@@ -289,8 +289,7 @@ export function TutorList() {
                 </div>
               </div>
               
-              {/* Details Section */}
-              <div className={`mt-auto flex flex-col bg-foreground/5 rounded-2xl shadow-inner border border-border border-foreground/[0.03] ${viewMode === 'list' ? 'p-4' : 'p-2'}`}>
+              <div className={`mt-auto flex flex-col bg-foreground/5 rounded-2xl shadow-inner border border-border ${viewMode === 'list' ? 'p-4' : 'p-2'}`}>
                 {viewMode === 'list' && (
                   <div className="flex items-center gap-2 mb-1">
                     <svg className="w-3 h-3 text-primary/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -349,7 +348,7 @@ export function TutorList() {
               variant="primary"
               onClick={handleDelete}
               disabled={isDeleting}
-              className="w-full !bg-error !border-none !py-5 uppercase font-black text-[10px] tracking-widest shadow-lg shadow-error/20"
+              className="w-full bg-error! border-none! py-5! uppercase font-black text-[10px] tracking-widest shadow-lg shadow-error/20"
             >
               {isDeleting ? 'EXCLUINDO...' : 'SIM, EXCLUIR TUDO'}
             </Button>
@@ -357,7 +356,7 @@ export function TutorList() {
               variant="secondary"
               onClick={() => setTutorToDelete(null)}
               disabled={isDeleting}
-              className="w-full !py-5 uppercase font-black text-[10px] tracking-widest"
+              className="w-full py-5! uppercase font-black text-[10px] tracking-widest"
             >
               NÃO, MANTER TUTOR
             </Button>
@@ -367,7 +366,7 @@ export function TutorList() {
 
       {/* iOS Style Context Menu Overlay */}
       {menuTutor && menuPosition && (
-        <div className="fixed inset-0 z-[100]">
+        <div className="fixed inset-0 z-100">
           {/* Backdrop Blur */}
           <div 
             className={`absolute inset-0 bg-black/5 backdrop-blur-[1px] ${isMenuClosing ? 'animate-fade-out' : 'animate-fade-in'}`}
@@ -423,7 +422,7 @@ export function TutorList() {
         <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] opacity-60 -mt-6 mb-8">{tutorToEdit?.name}</p>
         
         <form onSubmit={handleUpdate} className="flex flex-col gap-8 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
-          <div className="flex flex-col gap-6 p-6 bg-foreground/[0.02] rounded-3xl border border-foreground/[0.03]">
+          <div className="flex flex-col gap-6 p-6 bg-foreground/2 rounded-3xl border border-foreground/3">
             <span className="text-[10px] font-black text-foreground/20 uppercase tracking-[0.2em] pl-2">Informações Pessoais</span>
             <div className="flex flex-col gap-4">
               <Input 
@@ -453,7 +452,7 @@ export function TutorList() {
               type="button" 
               variant="secondary" 
               onClick={() => setTutorToEdit(null)} 
-              className="flex-1 !py-5 uppercase font-black text-[10px] tracking-widest"
+              className="flex-1 py-5! uppercase font-black text-[10px] tracking-widest"
             >
               Cancelar
             </Button>
@@ -461,7 +460,7 @@ export function TutorList() {
               type="submit" 
               variant="primary" 
               disabled={isUpdating} 
-              className="flex-[2] !py-5 shadow-sm border border-border uppercase font-black text-[10px] tracking-widest"
+              className="flex-2 py-5! shadow-sm border border-border uppercase font-black text-[10px] tracking-widest"
             >
               {isUpdating ? 'Salvando...' : 'Salvar Alterações'}
             </Button>

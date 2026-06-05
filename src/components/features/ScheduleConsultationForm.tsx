@@ -143,7 +143,7 @@ export function ScheduleConsultationForm({ patients, itemToEdit, onClose, isOpen
   return (
     <>
       {!isEdit && (
-        <Button variant="primary" onClick={() => setIsOpen(true)} className="!px-6 shadow-sm border border-border">
+        <Button variant="primary" onClick={() => setIsOpen(true)} className="px-6! shadow-sm border border-border">
           Agendar Consulta
         </Button>
       )}
@@ -164,7 +164,7 @@ export function ScheduleConsultationForm({ patients, itemToEdit, onClose, isOpen
               Paciente
             </label>
             {isEdit ? (
-              <div className="w-full bg-background border border-border rounded-2xl px-5 py-4 text-foreground/40 font-black italic bg-foreground/5">
+              <div className="w-full bg-foreground/5 border border-border rounded-2xl px-5 py-4 text-foreground/40 font-black italic">
                 {itemToEdit?.patients?.name} ({translateSpecies(itemToEdit?.patients?.species || '')})
               </div>
             ) : (
@@ -172,7 +172,7 @@ export function ScheduleConsultationForm({ patients, itemToEdit, onClose, isOpen
                 id={patientSelectId}
                 value={formData.patientId}
                 onChange={(e) => handlePatientChange(e.target.value)}
-                className="w-full bg-card rounded-2xl shadow-inner border border-border border-foreground/5 p-4 focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground appearance-none"
+                className="w-full bg-card rounded-2xl shadow-inner border border-border p-4 focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground appearance-none"
               >
                 <option className="bg-card text-foreground" value="">Selecione um paciente...</option>
                 {patients.map(p => (
@@ -210,8 +210,8 @@ export function ScheduleConsultationForm({ patients, itemToEdit, onClose, isOpen
                   aria-pressed={formData.type === t}
                   className={`flex-1 py-3 rounded-xl font-bold transition-all ${
                     formData.type === t 
-                    ? 'bg-primary text-white shadow-inner border border-border bg-foreground/5' 
-                    : 'bg-background text-foreground shadow-sm border border-border hover:shadow-inner bg-foreground/5'
+                    ? 'bg-primary text-white shadow-inner border border-border' 
+                    : 'bg-background text-foreground shadow-sm border border-border hover:shadow-inner'
                   }`}
                 >
                   {t === 'Home' ? '🏠 Domicílio' : '🏥 Hospital'}
@@ -241,7 +241,7 @@ export function ScheduleConsultationForm({ patients, itemToEdit, onClose, isOpen
             >
               Cancelar
             </Button>
-            <Button variant="primary" type="submit" disabled={loading} className="py-5 flex-[2] font-black uppercase tracking-widest text-[10px]">
+            <Button variant="primary" type="submit" disabled={loading} className="py-5 flex-2 font-black uppercase tracking-widest text-[10px]">
               {loading ? 'Processando...' : isEdit ? 'Salvar Alterações' : 'Confirmar Agendamento'}
             </Button>
           </div>

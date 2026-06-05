@@ -228,7 +228,7 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
             key={consult.id} 
             className={`relative flex flex-col sm:flex-row justify-between items-center gap-6 border-l-8 overflow-hidden border border-border transition-all duration-300 ${
               isCompleted 
-                ? 'border-emerald-500/50 bg-emerald-500/[0.03] cursor-default' 
+                ? 'border-emerald-500/50 bg-emerald-500/3 cursor-default' 
                 : `border-primary shadow-lg shadow-primary/5 cursor-pointer hover:shadow-sm active:scale-[0.98] ${
                     pressingConsultationId === consult.id ? 'bg-primary/5 scale-[0.98] border-primary/40' : ''
                   }`
@@ -311,7 +311,7 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
                   variant="info" 
                   onClick={() => handleDownloadPDF(consult.id)}
                   disabled={downloadingPdf === consult.id}
-                  className="w-full !px-8 !py-2 text-sm shadow-sm flex items-center justify-center gap-2"
+                  className="w-full px-8! py-2! text-sm shadow-sm flex items-center justify-center gap-2"
                 >
                   {downloadingPdf === consult.id ? (
                     <>
@@ -329,7 +329,7 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
                 </Button>
               ) : (
                 <Link href={`/prontuario?id=${consult.patients?.id}&type=Paciente&consultationId=${consult.id}&returnTo=agenda`} className="flex-1 sm:flex-none">
-                  <Button variant="primary" className="w-full !px-8 !py-2 text-sm shadow-sm border border-border">
+                  <Button variant="primary" className="w-full px-8! py-2! text-sm shadow-sm border border-border">
                     Atender
                   </Button>
                 </Link>
@@ -451,7 +451,7 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
                 onClick={() => { setCurrentDate(d.date); setView('day'); }}
                 className={`aspect-square p-1 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group ${
                   d.currentMonth ? 'hover:shadow-sm border border-border' : 'opacity-20'
-                } ${isToday ? 'bg-primary/5 border border-primary/20' : 'bg-background shadow-inner border border-border bg-foreground/5'}`}
+                } ${isToday ? 'bg-primary/5 border border-primary/20' : 'bg-foreground/5 shadow-inner border border-border'}`}
               >
                 <span className={`text-xs font-black ${isToday ? 'text-primary' : d.currentMonth ? 'text-foreground' : 'text-foreground/40'}`}>
                   {d.date.getDate()}
@@ -493,7 +493,7 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
               className="p-6 flex flex-col items-center gap-4 cursor-pointer hover:shadow-sm border border-border group transition-all"
             >
               <div className="text-sm font-black text-primary uppercase tracking-[0.2em]">{m.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}</div>
-              <div className="flex flex-col items-center bg-background shadow-inner border border-border bg-foreground/5 p-4 rounded-3xl w-full">
+              <div className="flex flex-col items-center bg-foreground/5 shadow-inner border border-border p-4 rounded-3xl w-full">
                 <span className="text-3xl font-black text-foreground group-hover:scale-110 transition-transform">{count}</span>
                 <span className="text-[9px] font-bold text-foreground/40 uppercase tracking-widest mt-1">Consultas</span>
               </div>
@@ -526,14 +526,14 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
           <div className="flex flex-wrap items-center gap-3">
             <ScheduleConsultationForm patients={patients} />
             <Link href="/">
-              <Button variant="secondary" className="!px-4 !py-2 text-sm">Voltar</Button>
+              <Button variant="secondary" className="px-4! py-2! text-sm">Voltar</Button>
             </Link>
           </div>
         </div>
 
         {/* View Switcher & Navigation */}
-        <div className="flex flex-col md:flex-row items-center gap-4 bg-background/40 p-2 rounded-3xl shadow-inner border border-border bg-foreground/5">
-          <div className="flex p-1 bg-background rounded-full shadow-sm border border-border border border-foreground/5 w-full md:w-auto">
+        <div className="flex flex-col md:flex-row items-center gap-4 bg-foreground/5 p-2 rounded-3xl shadow-inner border border-border">
+          <div className="flex p-1 bg-background rounded-full shadow-sm border border-border w-full md:w-auto">
             {(['day', 'week', 'month', 'year'] as ViewType[]).map((v) => (
               <button
                 key={v}
@@ -548,7 +548,7 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
           </div>
 
           <div className="flex items-center gap-2 ml-auto w-full md:w-auto">
-            <Button type="button" variant="secondary" onClick={handlePrevious} className="w-10 h-10 !p-0 !rounded-full shadow-sm border border-border shrink-0 flex items-center justify-center">
+            <Button type="button" variant="secondary" onClick={handlePrevious} className="w-10 h-10 p-0! rounded-full! shadow-sm border border-border shrink-0 flex items-center justify-center">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7" />
               </svg>
@@ -569,7 +569,7 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
                 return isToday ? 'Hoje' : getViewTitle();
               })()}
             </Button>
-            <Button type="button" variant="secondary" onClick={handleNext} className="w-10 h-10 !p-0 !rounded-full shadow-sm border border-border shrink-0 flex items-center justify-center">
+            <Button type="button" variant="secondary" onClick={handleNext} className="w-10 h-10 p-0! rounded-full! shadow-sm border border-border shrink-0 flex items-center justify-center">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7" />
               </svg>
@@ -596,7 +596,7 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
       </div>
       {/* iOS Style Context Menu Overlay */}
       {menuConsultation && menuPosition && (
-        <div className="fixed inset-0 z-[100]">
+        <div className="fixed inset-0 z-100">
           {/* Backdrop Blur */}
           <div 
             className={`absolute inset-0 bg-black/5 backdrop-blur-[1px] ${isMenuClosing ? 'animate-fade-out' : 'animate-fade-in'}`}
@@ -610,7 +610,7 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
               top: Math.min(menuPosition.y, typeof window !== 'undefined' ? window.innerHeight - 150 : menuPosition.y),
               left: Math.min(menuPosition.x, typeof window !== 'undefined' ? window.innerWidth - 220 : menuPosition.x)
             }}
-            className={`absolute w-full max-w-[200px] bg-card/90 backdrop-blur-2xl rounded-2xl shadow-2xl shadow-black/20 overflow-hidden border border-border z-[101] ${
+            className={`absolute w-full max-w-[200px] bg-card/90 backdrop-blur-2xl rounded-2xl shadow-2xl shadow-black/20 overflow-hidden border border-border z-101 ${
               isMenuClosing ? 'animate-ios-pop-out' : 'animate-ios-pop'
             }`}
             onClick={(e) => e.stopPropagation()}

@@ -52,7 +52,7 @@ export default async function PacientesPage({
             initialTutorName={tutorName} 
           />
           <Link href="/">
-            <Button variant="secondary" className="!px-6 !py-2 text-sm">Voltar</Button>
+            <Button variant="secondary" className="px-6! py-2! text-sm">Voltar</Button>
           </Link>
         </div>
       </div>

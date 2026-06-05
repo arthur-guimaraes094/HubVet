@@ -46,7 +46,7 @@ export default async function ProntuarioPage({
             returnTo === 'history' ? `/pacientes/${targetId}` : 
             '/'
           }>
-            <Button variant="secondary" className="!px-4 !py-2 text-sm">Voltar</Button>
+            <Button variant="secondary" className="px-4! py-2! text-sm">Voltar</Button>
           </Link>
         </div>
 

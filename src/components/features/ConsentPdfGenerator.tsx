@@ -57,7 +57,7 @@ export function ConsentPdfGenerator({ patientName, species, breed, tutorName, pr
     <Button 
       variant="secondary" 
       onClick={generatePDF}
-      className="text-sm !px-4 !py-2"
+      className="text-sm px-4! py-2!"
     >
       Gerar Termo (PDF)
     </Button>
