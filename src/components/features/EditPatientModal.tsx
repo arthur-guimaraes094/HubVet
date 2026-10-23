@@ -302,24 +302,32 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
           {/* Idade */}
           <div className="flex flex-col gap-3 pt-2 border-t border-foreground/5">
             <div className="flex items-center justify-between px-1">
-              <span className="text-[9px] font-black text-foreground/40 uppercase tracking-[0.2em]">
+              <span className="text-[11px] font-bold text-foreground/70 uppercase tracking-wider">
                 🎂 Idade do Paciente
               </span>
-              <div className="flex bg-background border border-border p-0.5 rounded-full scale-90">
+              <div 
+                role="radiogroup" 
+                aria-label="Formato da idade"
+                className="flex bg-foreground/5 border border-border/70 p-0.5 rounded-xl gap-0.5"
+              >
                 <button
                   type="button"
+                  role="radio"
+                  aria-checked={ageMode === 'approx'}
                   onClick={() => setAgeMode('approx')}
-                  className={`p-1 px-2.5 rounded-full text-[8px] font-black uppercase tracking-wider transition-all ${
-                    ageMode === 'approx' ? 'bg-primary text-white' : 'text-foreground/40'
+                  className={`py-1 px-3 rounded-lg text-xs font-bold transition-[transform,background-color,color] duration-150 active:scale-[0.97] ${
+                    ageMode === 'approx' ? 'bg-primary text-white shadow-sm' : 'text-foreground/70 hover:text-foreground'
                   }`}
                 >
                   Anos / Meses
                 </button>
                 <button
                   type="button"
+                  role="radio"
+                  aria-checked={ageMode === 'exact'}
                   onClick={() => setAgeMode('exact')}
-                  className={`p-1 px-2.5 rounded-full text-[8px] font-black uppercase tracking-wider transition-all ${
-                    ageMode === 'exact' ? 'bg-primary text-white' : 'text-foreground/40'
+                  className={`py-1 px-3 rounded-lg text-xs font-bold transition-[transform,background-color,color] duration-150 active:scale-[0.97] ${
+                    ageMode === 'exact' ? 'bg-primary text-white shadow-sm' : 'text-foreground/70 hover:text-foreground'
                   }`}
                 >
                   Data de Nasc.

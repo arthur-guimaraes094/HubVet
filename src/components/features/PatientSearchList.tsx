@@ -163,26 +163,38 @@ export function PatientSearchList({ initialPatients }: PatientSearchListProps) {
           )}
         </div>
 
-        <div className="flex bg-background shadow-inner border border-border bg-foreground/5 p-1 rounded-full shrink-0">
+        <div 
+          role="radiogroup" 
+          aria-label="Modo de visualização"
+          className="flex bg-foreground/5 border border-border/70 p-1 rounded-2xl shrink-0 gap-1"
+        >
           <button
+            type="button"
+            role="radio"
+            aria-checked={viewMode === 'list'}
+            aria-label="Visualização em lista"
             onClick={() => setViewMode('list')}
-            className={`p-2 px-5 rounded-full transition-all duration-300 flex items-center gap-2 ${
+            className={`py-2 px-4 rounded-xl transition-[transform,background-color,color] duration-150 active:scale-[0.97] flex items-center gap-1.5 text-xs font-bold ${
               viewMode === 'list'
-                ? 'bg-primary text-white shadow-sm border border-border'
-                : 'text-foreground/40 hover:text-foreground'
+                ? 'bg-primary text-white shadow-sm'
+                : 'text-foreground/70 hover:text-foreground hover:bg-foreground/5'
             }`}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
-            <span className="text-[10px] font-black uppercase tracking-widest">Lista</span>
+            <span>Lista</span>
           </button>
           <button
+            type="button"
+            role="radio"
+            aria-checked={viewMode === 'grid'}
+            aria-label="Visualização em grade"
             onClick={() => setViewMode('grid')}
-            className={`p-2 px-5 rounded-full transition-all duration-300 flex items-center gap-2 ${
+            className={`py-2 px-4 rounded-xl transition-[transform,background-color,color] duration-150 active:scale-[0.97] flex items-center gap-1.5 text-xs font-bold ${
               viewMode === 'grid'
-                ? 'bg-primary text-white shadow-sm border border-border'
-                : 'text-foreground/40 hover:text-foreground'
+                ? 'bg-primary text-white shadow-sm'
+                : 'text-foreground/70 hover:text-foreground hover:bg-foreground/5'
             }`}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -193,7 +205,7 @@ export function PatientSearchList({ initialPatients }: PatientSearchListProps) {
                 d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
               />
             </svg>
-            <span className="text-[10px] font-black uppercase tracking-widest">Grade</span>
+            <span>Grade</span>
           </button>
         </div>
       </div>
@@ -307,31 +319,31 @@ export function PatientSearchList({ initialPatients }: PatientSearchListProps) {
                           viewMode === 'grid' ? 'justify-center' : ''
                         }`}
                       >
-                        <span className="text-[9px] font-black bg-primary/10 text-primary px-2.5 py-0.5 rounded-full uppercase tracking-widest">
+                        <span className="text-[11px] font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full tracking-wide">
                           {translateSpecies(patient.species)}
                         </span>
                         {patient.breed && (
-                          <span className="text-[9px] font-black bg-foreground/5 text-foreground/60 px-2.5 py-0.5 rounded-full uppercase tracking-widest truncate max-w-[120px]">
+                          <span className="text-[11px] font-bold bg-foreground/5 text-foreground/70 px-2.5 py-0.5 rounded-full tracking-wide truncate max-w-[120px]">
                             {patient.breed}
                           </span>
                         )}
                         {patient.weight_kg && (
-                          <span className="text-[9px] font-black bg-success/10 text-success px-2.5 py-0.5 rounded-full uppercase tracking-widest">
+                          <span className="text-[11px] font-bold bg-success/10 text-success px-2.5 py-0.5 rounded-full tracking-wide">
                             {patient.weight_kg} kg
                           </span>
                         )}
                         {ageText && (
-                          <span className="text-[9px] font-black bg-foreground/5 text-foreground/60 px-2.5 py-0.5 rounded-full uppercase tracking-widest">
+                          <span className="text-[11px] font-bold bg-foreground/5 text-foreground/70 px-2.5 py-0.5 rounded-full tracking-wide">
                             🎂 {ageText}
                           </span>
                         )}
                         {fertilityText && viewMode === 'list' && (
-                          <span className="text-[9px] font-black bg-primary/5 text-primary/80 px-2.5 py-0.5 rounded-full uppercase tracking-widest">
+                          <span className="text-[11px] font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full tracking-wide">
                             {fertilityText}
                           </span>
                         )}
                         {patient.clinical_observations && (
-                          <span className="text-[9px] font-black bg-error/15 text-error px-2.5 py-0.5 rounded-full uppercase tracking-widest">
+                          <span className="text-[11px] font-bold bg-error/15 text-error px-2.5 py-0.5 rounded-full tracking-wide">
                             ⚠️ Obs/Alergia
                           </span>
                         )}
@@ -360,7 +372,7 @@ export function PatientSearchList({ initialPatients }: PatientSearchListProps) {
                             d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                           />
                         </svg>
-                        <span className="text-[8px] font-black text-foreground/30 uppercase tracking-[0.2em]">
+                        <span className="text-[10px] font-bold text-foreground/60 uppercase tracking-wider">
                           Tutor
                         </span>
                       </div>

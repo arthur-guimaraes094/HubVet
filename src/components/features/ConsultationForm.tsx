@@ -1005,19 +1005,19 @@ export function ConsultationForm({
 
       {!consultationId && (
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-bold text-foreground/60 ml-1">
+          <label className="text-xs font-bold text-foreground/70 uppercase tracking-wider pl-1">
             Tipo de Atendimento
           </label>
-          <div className="flex gap-4">
+          <div className="flex p-1 bg-foreground/5 rounded-2xl border border-border/70 gap-1">
             {(['Home', 'Hospital'] as const).map((t) => (
               <button
                 key={t}
                 type="button"
                 onClick={() => setConsultationType(t)}
-                className={`flex-1 py-3 rounded-xl font-bold transition-all ${
+                className={`flex-1 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-[transform,background-color,color] duration-150 active:scale-[0.98] flex items-center justify-center gap-2 ${
                   consultationType === t
-                    ? 'bg-primary text-white shadow-inner border border-border'
-                    : 'bg-background text-foreground shadow-sm border border-border hover:bg-foreground/5'
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'text-foreground/70 hover:text-foreground hover:bg-foreground/5'
                 }`}
               >
                 {t === 'Home' ? '🏠 Domicílio' : '🏥 Consultório / Hospital'}
