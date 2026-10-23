@@ -3,13 +3,30 @@ import { NextResponse, type NextRequest } from 'next/server'
 import type { Database } from '@/types/supabase'
 
 export async function updateSession(request: NextRequest) {
+  // Não interceptar rotas internas da Vercel (SSO de Preview, Toolbar, Analytics)
+  if (request.nextUrl.pathname.startsWith('/_vercel')) {
+    return NextResponse.next()
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  // Evita crash 500 (Internal Server Error) caso a branch de Preview na Vercel
+  // ainda não tenha as Environment Variables liberadas
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error(
+      'Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY in this Vercel environment/branch.'
+    )
+    return NextResponse.next({ request })
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   })
 
   const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         getAll() {
@@ -28,35 +45,39 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // Usando getSession() no proxy para validação rápida (JWT local, sem HTTP).
-  // A proteção real dos dados é feita via RLS + getUser() nas Server Actions.
   const {
     data: { session },
   } = await supabase.auth.getSession()
 
-  const isAuthRoute = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/cadastro')
+  const isAuthRoute =
+    request.nextUrl.pathname.startsWith('/login') ||
+    request.nextUrl.pathname.startsWith('/cadastro')
   const isApiRoute = request.nextUrl.pathname.startsWith('/api')
-  
+
   if (!session && !isAuthRoute && !isApiRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
+    url.search = ''
     const redirectResponse = NextResponse.redirect(url)
-    
+    redirectResponse.headers.set('Content-Type', 'text/html; charset=utf-8')
+
     // Limpar cookies do Supabase se a sessão for inválida
-    // para evitar loops infinitos de Refresh Token Not Found
-    request.cookies.getAll().forEach(cookie => {
+    request.cookies.getAll().forEach((cookie) => {
       if (cookie.name.startsWith('sb-')) {
         redirectResponse.cookies.delete(cookie.name)
       }
     })
-    
+
     return redirectResponse
   }
 
   if (session && isAuthRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/'
-    return NextResponse.redirect(url)
+    url.search = ''
+    const redirectResponse = NextResponse.redirect(url)
+    redirectResponse.headers.set('Content-Type', 'text/html; charset=utf-8')
+    return redirectResponse
   }
 
   return supabaseResponse

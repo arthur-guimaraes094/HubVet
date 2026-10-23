@@ -12,33 +12,37 @@ export const metadata: Metadata = {
 export default async function AgendaPage() {
   const supabase = await createClient();
 
-  // 1. Buscar consultas agendadas
+  // 1. Buscar consultas agendadas e realizadas (incluindo endereço do tutor)
   const { data: consultations } = await supabase
     .from('consultations')
-    .select(`
+    .select(
+      `
       *,
       patients (
         id,
         name,
         species,
         tutors (
-          name
+          name,
+          address,
+          phone
         )
       )
-    `)
+    `
+    )
     .in('status', ['Scheduled', 'Completed'])
     .order('date', { ascending: true });
 
   // 2. Buscar pacientes para o form (incluindo endereço do tutor)
   const { data: patients } = await supabase
     .from('patients')
-    .select('id, name, species, tutors (address)');
+    .select('id, name, species, tutors (name, address, phone)');
 
   return (
     <main className="flex-1 flex flex-col p-4 md:p-8 gap-8 w-full">
-      <AgendaClient 
-        initialConsultations={(consultations as unknown as Consultation[]) || []} 
-        patients={(patients as unknown as Patient[]) || []} 
+      <AgendaClient
+        initialConsultations={(consultations as unknown as Consultation[]) || []}
+        patients={(patients as unknown as Patient[]) || []}
       />
     </main>
   );

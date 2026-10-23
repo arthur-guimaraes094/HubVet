@@ -11,13 +11,12 @@ export const config = {
      * Match all request paths except for the ones starting with:
      * - _next/static (static files)
      * - _next/image (image optimization files)
+     * - _vercel (Vercel internal preview/SSO/insights endpoints)
      * - favicon.ico (favicon file)
      * - manifest.json (PWA manifest)
      * - icons/ (PWA icons)
-     * Feel free to modify this pattern to include more paths.
+     * - templates/ (PDF stationery templates)
      */
-    '/((?!_next/static|_next/image|favicon.ico|manifest\\.json|icons/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|_vercel|favicon.ico|manifest\\.json|icons/|templates/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
-
-// Triggering redeploy after adding environment variables to Preview environment.
