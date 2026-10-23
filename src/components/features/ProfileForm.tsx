@@ -20,6 +20,8 @@ interface ProfileFormProps {
     base_cep?: string;
     base_address?: string;
     km_rate?: number;
+    pix_key?: string;
+    pix_key_type?: string;
   };
 }
 
@@ -38,6 +40,20 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
   );
   const [kmRate, setKmRate] = useState((initialData.km_rate ?? 2.5).toString());
   const [loadingCep, setLoadingCep] = useState(false);
+  const [pixKey, setPixKey] = useState<string>(() => {
+    if (initialData.pix_key) return initialData.pix_key;
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('hubvet_pix_key') || '';
+    }
+    return '';
+  });
+  const [pixKeyType, setPixKeyType] = useState<string>(() => {
+    if (initialData.pix_key_type) return initialData.pix_key_type;
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('hubvet_pix_key_type') || 'CPF';
+    }
+    return 'CPF';
+  });
 
   const [avatarPreview, setAvatarPreview] = useState<string | null>(
     initialData.avatar_url || null
@@ -101,6 +117,12 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
       formData.append('baseCep', baseCep);
       formData.append('baseAddress', baseAddress);
       formData.append('kmRate', kmRate);
+      formData.append('pixKey', pixKey);
+      formData.append('pixKeyType', pixKeyType);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('hubvet_pix_key', pixKey);
+        localStorage.setItem('hubvet_pix_key_type', pixKeyType);
+      }
       if (avatarFile) {
         formData.append('avatar', avatarFile);
       }
@@ -242,6 +264,45 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
             />
             <span className="text-[11px] text-foreground/50 italic px-1">
               O sistema calcula automaticamente a distância de ida e volta até a residência do tutor e multiplica pela taxa de R$/km configurada acima.
+            </span>
+          </div>
+
+          {/* Dados de Pagamento (PIX) */}
+          <div className="flex flex-col gap-4 p-5 rounded-2xl bg-foreground/[0.02] border border-border">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground/50">
+                💳 Dados de Pagamento (Cobrança PIX)
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-semibold text-foreground/85">
+                  Tipo de Chave
+                </label>
+                <select
+                  value={pixKeyType}
+                  onChange={(e) => setPixKeyType(e.target.value)}
+                  className="w-full bg-card border border-border rounded-xl px-3.5 py-2.5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                >
+                  <option value="CPF">CPF</option>
+                  <option value="Telefone">Telefone Celular</option>
+                  <option value="Email">E-mail</option>
+                  <option value="CNPJ">CNPJ</option>
+                  <option value="Aleatória">Chave Aleatória (EVP)</option>
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <Input
+                  label="Chave PIX"
+                  placeholder="Ex: 84986365455 ou seu@email.com"
+                  value={pixKey}
+                  onChange={(e) => setPixKey(e.target.value)}
+                />
+              </div>
+            </div>
+            <span className="text-[11px] text-foreground/50 italic px-1">
+              Esta chave será exibida na tela de finalização de consultas com botão de cópia rápida e opção de envio no WhatsApp do tutor.
             </span>
           </div>
         </div>

@@ -26,14 +26,19 @@ export default async function ProntuarioPage({
 
   let vetName: string | undefined;
   let vetCrmv: string | undefined;
+  let vetPixKey: string | undefined;
+  let vetPixKeyType: string | undefined;
   if (userData?.user) {
     const { data: profileData } = await supabase
       .from('profiles')
-      .select('full_name, crmv')
+      .select('full_name, crmv, pix_key, pix_key_type')
       .eq('id', userData.user.id)
       .single();
-    vetName = profileData?.full_name || undefined;
-    vetCrmv = profileData?.crmv || undefined;
+    const p = profileData as Record<string, unknown> | null;
+    vetName = (p?.full_name as string) || undefined;
+    vetCrmv = (p?.crmv as string) || undefined;
+    vetPixKey = (p?.pix_key as string) || undefined;
+    vetPixKeyType = (p?.pix_key_type as string) || undefined;
   }
   
   const inventory = rawInventory?.map(item => ({
@@ -124,6 +129,7 @@ export default async function ProntuarioPage({
           patientId={patientData?.id} 
           patientName={patientData?.name}
           tutorName={tutorObj?.name}
+          tutorPhone={tutorObj?.phone}
           tutorAddress={scheduledConsultation?.address || tutorAddress || undefined}
           species={patientData?.species}
           breed={patientData?.breed || undefined}
@@ -141,6 +147,8 @@ export default async function ProntuarioPage({
           initialPrescriptionText={initialPrescriptionText}
           vetName={vetName}
           vetCrmv={vetCrmv}
+          pixKey={vetPixKey}
+          pixKeyType={vetPixKeyType}
         />
       </main>
     </ViewTransition>

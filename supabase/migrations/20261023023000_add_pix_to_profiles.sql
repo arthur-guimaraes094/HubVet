@@ -1,0 +1,3 @@
+-- Adiciona colunas para chave PIX no perfil do veterinário
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS pix_key text;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS pix_key_type text DEFAULT 'CPF';

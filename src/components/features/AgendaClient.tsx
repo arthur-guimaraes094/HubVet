@@ -15,6 +15,7 @@ import {
 import { useToast } from '@/components/ui/Toast';
 import { translateSpecies } from '@/core/utils/translations';
 import { buildGoogleMapsUrl } from '@/core/utils/cep';
+import { buildWazeUrl, buildWhatsAppOnMyWayUrl } from '@/core/utils/whatsapp';
 import { Edit2, Trash2, MoreVertical } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 
@@ -358,14 +359,44 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
               onClick={(e) => e.stopPropagation()}
             >
               {consult.type === 'Home' && effectiveAddress && (
-                <a
-                  href={buildGoogleMapsUrl(effectiveAddress)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full px-4 py-2 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 text-orange-600 border border-orange-500/30 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors"
-                >
-                  🗺️ Abrir no Mapa
-                </a>
+                <div className="flex flex-col gap-1.5 w-full">
+                  <div className="flex gap-1.5 w-full">
+                    <a
+                      href={buildGoogleMapsUrl(effectiveAddress)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 px-2.5 py-1.5 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 text-orange-600 border border-orange-500/30 text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-1 transition-colors"
+                      title="Abrir no Google Maps"
+                    >
+                      🗺️ Maps
+                    </a>
+                    <a
+                      href={buildWazeUrl(effectiveAddress)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 px-2.5 py-1.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 text-sky-600 border border-sky-500/30 text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-1 transition-colors"
+                      title="Navegar com Waze"
+                    >
+                      🚙 Waze
+                    </a>
+                  </div>
+
+                  {!isCompleted && consult.patients?.tutors?.phone && (
+                    <a
+                      href={buildWhatsAppOnMyWayUrl({
+                        phone: consult.patients.tutors.phone,
+                        tutorName: consult.patients.tutors.name,
+                        patientName: consult.patients.name,
+                        address: effectiveAddress,
+                      })}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full px-3 py-1.5 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#1ea952] border border-[#25D366]/30 text-[11px] font-black flex items-center justify-center gap-1.5 transition-colors"
+                    >
+                      🚗 Avisar a Caminho
+                    </a>
+                  )}
+                </div>
               )}
 
               {isCompleted ? (

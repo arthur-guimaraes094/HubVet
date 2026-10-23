@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -17,6 +17,14 @@ import {
   calculateVaccineSchedule,
 } from '@/core/use-cases/vaccine-protocols';
 import { VET_SUPPLIES_CATALOG } from '@/core/data/vet-supplies-catalog';
+import {
+  DEFAULT_PRESCRIPTION_TEMPLATES,
+  type PrescriptionTemplate,
+} from '@/core/data/prescription-templates';
+import {
+  buildWhatsAppConsultationSummaryUrl,
+  buildWhatsAppPixBillingUrl,
+} from '@/core/utils/whatsapp';
 import { buildGoogleMapsUrl } from '@/core/utils/cep';
 import { formatPatientAge, formatFertilityStatus } from '@/core/utils/age';
 import { translateSpecies } from '@/core/utils/translations';
@@ -65,6 +73,9 @@ interface ConsultationFormProps {
   initialPrescriptionText?: string;
   vetName?: string;
   vetCrmv?: string;
+  tutorPhone?: string;
+  pixKey?: string;
+  pixKeyType?: string;
 }
 
 export function ConsultationForm({
@@ -72,6 +83,7 @@ export function ConsultationForm({
   patientId,
   patientName,
   tutorName,
+  tutorPhone,
   tutorAddress,
   species,
   breed,
@@ -89,12 +101,41 @@ export function ConsultationForm({
   initialPrescriptionText,
   vetName,
   vetCrmv,
+  pixKey,
+  pixKeyType,
 }: ConsultationFormProps) {
   const router = useRouter();
   const { success, error } = useToast();
-  const [weight, setWeight] = useState<string>(lastWeight ? String(lastWeight) : '');
-  const [notes, setNotes] = useState<string>(initialNotes || '');
-  const [selectedItems, setSelectedItems] = useState<{ id: string; quantity: number }[]>([]);
+
+  // Rascunho inicial do localStorage
+  const draftKey = patientId ? `hubvet_draft_consultation_${patientId}` : null;
+  const initialDraft = useMemo(() => {
+    if (!draftKey || typeof window === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem(draftKey);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }, [draftKey]);
+
+  const [hasRestoredDraft, setHasRestoredDraft] = useState(() => Boolean(initialDraft));
+  const [weight, setWeight] = useState<string>(() => {
+    if (lastWeight) return String(lastWeight);
+    if (initialDraft?.weight) return initialDraft.weight;
+    return '';
+  });
+  const [notes, setNotes] = useState<string>(() => {
+    if (initialNotes) return initialNotes;
+    if (initialDraft?.notes) return initialDraft.notes;
+    return '';
+  });
+  const [selectedItems, setSelectedItems] = useState<{ id: string; quantity: number }[]>(() => {
+    if (initialDraft?.selectedItems && Array.isArray(initialDraft.selectedItems)) {
+      return initialDraft.selectedItems;
+    }
+    return [];
+  });
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [images, setImages] = useState<string[]>([]);
@@ -111,7 +152,11 @@ export function ConsultationForm({
       ? initialTravelDistanceKm
       : null;
 
-  const [address, setAddress] = useState<string>(tutorAddress || '');
+  const [address, setAddress] = useState<string>(() => {
+    if (tutorAddress) return tutorAddress;
+    if (initialDraft?.address) return initialDraft.address;
+    return '';
+  });
   const [travelDistanceKm, setTravelDistanceKm] = useState<number | null>(
     safeInitialDistance
   );
@@ -124,9 +169,11 @@ export function ConsultationForm({
   const [calculatingTravel, setCalculatingTravel] = useState(false);
 
   // Módulo de Receitas (Prescrição Domiciliar Livre + Estruturada)
-  const [prescriptionText, setPrescriptionText] = useState<string>(
-    initialPrescriptionText || ''
-  );
+  const [prescriptionText, setPrescriptionText] = useState<string>(() => {
+    if (initialPrescriptionText) return initialPrescriptionText;
+    if (initialDraft?.prescriptionText) return initialDraft.prescriptionText;
+    return '';
+  });
   const [showCatalogPicker, setShowCatalogPicker] = useState(false);
   const [catalogSearchTerm, setCatalogSearchTerm] = useState('');
   const [prescriptions, setPrescriptions] = useState<PrescriptionItem[]>([]);
@@ -162,6 +209,111 @@ export function ConsultationForm({
     () => Array.from(new Set(VET_SUPPLIES_CATALOG.map((c) => c.name))),
     []
   );
+
+  // Salvar rascunho com debounce no localStorage
+  useEffect(() => {
+    if (!draftKey || typeof window === 'undefined') return;
+    if (!notes && !weight && !prescriptionText && selectedItems.length === 0) return;
+
+    const timer = setTimeout(() => {
+      try {
+        const payload = {
+          notes,
+          weight,
+          prescriptionText,
+          selectedItems,
+          address,
+          updatedAt: new Date().toISOString(),
+        };
+        localStorage.setItem(draftKey, JSON.stringify(payload));
+      } catch (e) {
+        console.warn('Erro ao salvar rascunho:', e);
+      }
+    }, 700);
+
+    return () => clearTimeout(timer);
+  }, [draftKey, notes, weight, prescriptionText, selectedItems, address]);
+
+  const handleDiscardDraft = () => {
+    if (draftKey && typeof window !== 'undefined') {
+      localStorage.removeItem(draftKey);
+    }
+    setNotes(initialNotes || '');
+    setWeight(lastWeight ? String(lastWeight) : '');
+    setPrescriptionText(initialPrescriptionText || '');
+    setSelectedItems([]);
+    setHasRestoredDraft(false);
+    success('Rascunho descartado.');
+  };
+
+  // Modelos de Prescrição (Templates Clínicos)
+  const [showTemplatesModal, setShowTemplatesModal] = useState(false);
+  const [customTemplates, setCustomTemplates] = useState<PrescriptionTemplate[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('hubvet_custom_prescription_templates');
+        if (saved) return JSON.parse(saved);
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+    return [];
+  });
+
+  const allTemplates = useMemo(() => {
+    return [...customTemplates, ...DEFAULT_PRESCRIPTION_TEMPLATES];
+  }, [customTemplates]);
+
+  const handleApplyTemplate = (
+    template: PrescriptionTemplate,
+    mode: 'append' | 'replace'
+  ) => {
+    if (mode === 'replace' && prescriptionText.trim()) {
+      if (!confirm('Deseja substituir o texto atual da receita pelo modelo selecionado?')) {
+        return;
+      }
+      setPrescriptionText(template.content);
+    } else {
+      setPrescriptionText((prev) =>
+        prev.trim() ? `${prev.trim()}\n\n${template.content}` : template.content
+      );
+    }
+    setShowTemplatesModal(false);
+    success(`Modelo "${template.title}" aplicado!`);
+  };
+
+  const handleSaveCurrentAsTemplate = () => {
+    if (!prescriptionText.trim()) {
+      error('Escreva o texto da receita antes de salvar como modelo.');
+      return;
+    }
+    const title = prompt('Digite o nome deste modelo de receita (Ex: Minha Otite Padrão):');
+    if (!title || !title.trim()) return;
+
+    const newTemplate: PrescriptionTemplate = {
+      id: `custom-${Date.now()}`,
+      title: title.trim(),
+      category: 'Preventivo',
+      description: 'Modelo salvo pela veterinária',
+      content: prescriptionText.trim(),
+    };
+
+    const updated = [newTemplate, ...customTemplates];
+    setCustomTemplates(updated);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('hubvet_custom_prescription_templates', JSON.stringify(updated));
+    }
+    success(`Modelo "${title.trim()}" salvo com sucesso!`);
+  };
+
+  const handleDeleteCustomTemplate = (id: string) => {
+    const updated = customTemplates.filter((t) => t.id !== id);
+    setCustomTemplates(updated);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('hubvet_custom_prescription_templates', JSON.stringify(updated));
+    }
+    success('Modelo removido.');
+  };
 
   const filteredCatalog = useMemo(() => {
     const q = catalogSearchTerm.toLowerCase().trim();
@@ -517,6 +669,9 @@ export function ConsultationForm({
       });
 
       if (result.success) {
+        if (draftKey && typeof window !== 'undefined') {
+          localStorage.removeItem(draftKey);
+        }
         setShowSuccess(true);
       } else {
         error(result.error);
@@ -541,23 +696,131 @@ export function ConsultationForm({
   }, [vacProtocol, vacCustomName, vacDoseStage, todayStr, vacCustomInterval]);
 
   if (showSuccess) {
+    const effectivePixKey =
+      pixKey ||
+      (typeof window !== 'undefined' ? localStorage.getItem('hubvet_pix_key') || '' : '');
+    const effectivePixType =
+      pixKeyType ||
+      (typeof window !== 'undefined'
+        ? localStorage.getItem('hubvet_pix_key_type') || 'CPF'
+        : 'CPF');
+
+    const whatsappSummaryUrl = buildWhatsAppConsultationSummaryUrl({
+      phone: tutorPhone,
+      tutorName: tutorName,
+      patientName: patientName,
+      vetName: vetName || 'Dra. Gabriela Soares',
+      notes: notes,
+      prescriptionText: prescriptionText,
+      totalValue: totalValue,
+      pixKey: effectivePixKey,
+      pixKeyType: effectivePixType,
+    });
+
+    const whatsappPixUrl =
+      effectivePixKey && totalValue > 0
+        ? buildWhatsAppPixBillingUrl({
+            phone: tutorPhone,
+            tutorName: tutorName,
+            patientName: patientName,
+            totalValue: totalValue,
+            pixKey: effectivePixKey,
+            pixKeyType: effectivePixType,
+          })
+        : null;
+
     return (
-      <Card className="flex flex-col items-center justify-center gap-8 py-14 text-center w-full max-w-2xl mx-auto animate-in zoom-in-95 duration-500">
-        <div className="text-6xl animate-bounce">✅</div>
-        <div className="flex flex-col gap-2">
-          <h2 className="text-3xl font-black text-foreground tracking-tight">
+      <Card className="flex flex-col items-center justify-center gap-6 py-10 text-center w-full max-w-2xl mx-auto animate-in zoom-in-95 duration-500">
+        <div className="text-5xl animate-bounce">✅</div>
+        <div className="flex flex-col gap-1.5 px-4">
+          <h2 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
             Atendimento Finalizado!
           </h2>
-          <p className="text-foreground/50 font-medium text-sm max-w-md mx-auto">
-            O prontuário, prescrições e protocolos vacinais foram salvos com sucesso. Gere abaixo os documentos oficiais em PDF no papel timbrado:
+          <p className="text-foreground/60 font-medium text-xs sm:text-sm max-w-md mx-auto">
+            O prontuário do(a) <strong className="text-foreground">{patientName}</strong> foi registrado com sucesso.
           </p>
         </div>
 
-        <div className="flex flex-col gap-3.5 w-full max-w-md px-4">
+        {/* Card de Cobrança / PIX */}
+        {totalValue > 0 && (
+          <div className="w-full max-w-md p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex flex-col gap-3 text-left">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                Valor Total do Atendimento
+              </span>
+              <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">
+                R$ {totalValue.toFixed(2)}
+              </span>
+            </div>
+
+            {effectivePixKey ? (
+              <div className="flex flex-col gap-2 pt-2 border-t border-emerald-500/15">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-foreground/60 font-medium">
+                    Chave PIX ({effectivePixType}):
+                  </span>
+                  <span className="font-mono font-bold text-foreground">
+                    {effectivePixKey}
+                  </span>
+                </div>
+                <div className="flex gap-2 mt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(effectivePixKey);
+                      success('Chave PIX copiada para a área de transferência!');
+                    }}
+                    className="flex-1 py-2 px-3 rounded-xl bg-card border border-border hover:border-emerald-500 text-foreground text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-sm"
+                  >
+                    📋 Copiar Chave PIX
+                  </button>
+                  {whatsappPixUrl && (
+                    <a
+                      href={whatsappPixUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="py-2 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
+                    >
+                      📱 Cobrar PIX
+                    </a>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between text-xs text-foreground/60 pt-1 border-t border-emerald-500/15">
+                <span>Configure sua chave PIX no perfil para cobrança rápida.</span>
+                <button
+                  type="button"
+                  onClick={() => router.push('/perfil')}
+                  className="text-primary font-bold hover:underline shrink-0 ml-2"
+                >
+                  Configurar
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Ações de Comunicação e Documentos */}
+        <div className="flex flex-col gap-3 w-full max-w-md px-4">
+          {whatsappSummaryUrl && (
+            <a
+              href={whatsappSummaryUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full py-3.5 rounded-xl bg-[#25D366] hover:bg-[#20ba5a] text-white text-xs sm:text-sm font-black shadow-sm flex items-center justify-center gap-2.5 transition-all active:scale-95"
+            >
+              <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.006c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.662.591 1.221.774 1.394.86.174.086.275.073.376-.044.101-.116.433-.506.549-.68.116-.173.231-.145.39-.086s1.011.477 1.184.564.289.13.332.202c.045.072.045.419-.099.824zm-3.423-14.416c-6.627 0-12 5.373-12 12 0 2.124.554 4.119 1.523 5.861l-1.616 5.908 6.06-1.59c1.674.912 3.593 1.421 5.633 1.421 6.627 0 12-5.373 12-12s-5.373-12-12-12z" />
+              </svg>
+              📱 Enviar Resumo no WhatsApp do Tutor
+            </a>
+          )}
+
           <Button
             variant="primary"
             onClick={handleDownloadRelatorioPDF}
-            className="w-full py-4 text-base font-black shadow-sm flex items-center justify-center gap-3"
+            className="w-full py-3.5 text-xs sm:text-sm font-black shadow-sm flex items-center justify-center gap-2"
           >
             📄 Baixar Relatório de Atendimento (PDF)
           </Button>
@@ -565,7 +828,7 @@ export function ConsultationForm({
           <Button
             variant="primary"
             onClick={handleDownloadReceituarioPDF}
-            className="w-full py-4 text-base font-black bg-secondary! hover:bg-secondary/90! text-white shadow-sm flex items-center justify-center gap-3"
+            className="w-full py-3.5 text-xs sm:text-sm font-black bg-secondary! hover:bg-secondary/90! text-white shadow-sm flex items-center justify-center gap-2"
           >
             💊 Baixar Receituário Veterinário (PDF)
             {prescriptions.length > 0 && (
@@ -578,7 +841,7 @@ export function ConsultationForm({
           <Button
             variant="secondary"
             onClick={() => router.push('/')}
-            className="w-full py-3.5 text-sm font-bold flex items-center justify-center gap-2 mt-2"
+            className="w-full py-3 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 mt-1"
           >
             Voltar ao Início
           </Button>
@@ -634,6 +897,25 @@ export function ConsultationForm({
           </div>
         )}
       </div>
+
+      {/* Alerta de Rascunho Recuperado */}
+      {hasRestoredDraft && (
+        <div className="p-3.5 rounded-2xl bg-primary/10 border border-primary/25 flex items-center justify-between gap-3 animate-in fade-in">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-base shrink-0">📝</span>
+            <span className="text-xs font-bold text-foreground/85 truncate sm:overflow-visible">
+              Rascunho não finalizado restaurado automaticamente deste dispositivo.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleDiscardDraft}
+            className="text-[11px] font-black text-error hover:underline px-2.5 py-1 rounded-lg bg-error/10 hover:bg-error/20 transition-colors shrink-0"
+          >
+            Descartar Rascunho
+          </button>
+        </div>
+      )}
 
       {!patientId && (
         <div className="p-3 bg-error/10 text-error rounded-xl text-sm font-bold text-center">
@@ -801,6 +1083,13 @@ export function ConsultationForm({
           <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
+              onClick={() => setShowTemplatesModal((prev) => !prev)}
+              className="text-xs font-black text-amber-700 dark:text-amber-300 bg-amber-500/15 border border-amber-500/30 px-3 py-1.5 rounded-xl hover:bg-amber-500/25 transition-colors shrink-0 flex items-center gap-1.5"
+            >
+              📋 {showTemplatesModal ? 'Fechar Modelos' : 'Modelos Prontos'}
+            </button>
+            <button
+              type="button"
               onClick={() => setShowCatalogPicker((prev) => !prev)}
               className="text-xs font-black text-primary bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-xl hover:bg-primary/20 transition-colors shrink-0 flex items-center gap-1.5"
             >
@@ -824,6 +1113,85 @@ export function ConsultationForm({
             </button>
           </div>
         </div>
+
+        {/* Painel de Modelos Clínicos de Prescrição */}
+        {showTemplatesModal && (
+          <div className="p-4 rounded-2xl bg-card border border-amber-500/30 shadow-sm flex flex-col gap-3 animate-in fade-in">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border pb-2.5">
+              <div>
+                <span className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                  📋 Modelos Clínicos de Prescrição ({allTemplates.length})
+                </span>
+                <p className="text-[11px] text-foreground/50">
+                  Clique para inserir no receituário ou salve o texto atual como modelo
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleSaveCurrentAsTemplate}
+                className="text-xs font-bold text-primary bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-xl hover:bg-primary/20 transition-all shrink-0 flex items-center gap-1"
+              >
+                ⭐ Salvar Receita Atual como Modelo
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-72 overflow-y-auto pr-1">
+              {allTemplates.map((template) => {
+                const isCustom = template.id.startsWith('custom-');
+                return (
+                  <div
+                    key={template.id}
+                    className="p-3 rounded-xl bg-foreground/[0.02] hover:bg-foreground/[0.04] border border-border flex flex-col justify-between gap-2 transition-all"
+                  >
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-bold text-foreground">
+                          {template.title}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-foreground/10 text-foreground/70">
+                            {template.category}
+                          </span>
+                          {isCustom && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCustomTemplate(template.id)}
+                              className="text-[10px] text-error hover:text-error/80 px-1 font-bold"
+                              title="Excluir este modelo personalizado"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-foreground/50 line-clamp-1">
+                        {template.description}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 pt-1 border-t border-border/50">
+                      <button
+                        type="button"
+                        onClick={() => handleApplyTemplate(template, 'append')}
+                        className="flex-1 py-1.5 px-2 rounded-lg bg-primary text-white text-[11px] font-bold hover:bg-primary/90 transition-all text-center"
+                      >
+                        + Inserir no Fim
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyTemplate(template, 'replace')}
+                        className="py-1.5 px-2 rounded-lg bg-card border border-border text-foreground/70 hover:text-foreground text-[11px] font-semibold transition-all"
+                        title="Substituir todo o texto da receita por este modelo"
+                      >
+                        Substituir
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Seletor rápido do catálogo de medicamentos */}
         {showCatalogPicker && (

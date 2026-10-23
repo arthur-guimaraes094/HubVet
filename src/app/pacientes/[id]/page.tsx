@@ -588,6 +588,8 @@ export default async function PatientHistoryPage({
                               vetName,
                               vetCrmv,
                             }}
+                            tutorPhone={patient.tutors?.phone}
+                            totalValue={Number(consult.base_fee) || undefined}
                           />
                         </>
                       )}

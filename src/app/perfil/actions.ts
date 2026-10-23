@@ -12,6 +12,8 @@ const profileSchema = z.object({
   baseCep: z.string().optional(),
   baseAddress: z.string().optional(),
   kmRate: z.number().optional(),
+  pixKey: z.string().optional(),
+  pixKeyType: z.string().optional(),
 })
 
 export async function updateProfile(
@@ -31,6 +33,8 @@ export async function updateProfile(
   const baseAddress = (formData.get('baseAddress') as string) || ''
   const rawKmRate = (formData.get('kmRate') as string) || '2.5'
   const kmRate = parseFloat(rawKmRate.replace(',', '.')) || 2.5
+  const pixKey = (formData.get('pixKey') as string) || ''
+  const pixKeyType = (formData.get('pixKeyType') as string) || 'CPF'
 
   const result = profileSchema.safeParse({
     fullName,
@@ -39,6 +43,8 @@ export async function updateProfile(
     baseCep,
     baseAddress,
     kmRate,
+    pixKey,
+    pixKeyType,
   })
   if (!result.success) {
     return {
@@ -89,6 +95,8 @@ export async function updateProfile(
     base_cep: result.data.baseCep || null,
     base_address: result.data.baseAddress || null,
     km_rate: result.data.kmRate ?? 2.5,
+    pix_key: result.data.pixKey || null,
+    pix_key_type: result.data.pixKeyType || 'CPF',
     ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
   }
 

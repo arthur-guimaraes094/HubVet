@@ -36,6 +36,8 @@ export default async function PerfilPage() {
       (p?.base_address as string) ||
       'Rua das Embarcações, 171, Nova Parnamirim, Parnamirim - RN',
     km_rate: typeof p?.km_rate === 'number' ? p.km_rate : 2.5,
+    pix_key: (p?.pix_key as string) || '',
+    pix_key_type: (p?.pix_key_type as string) || 'CPF',
   }
 
   return (
