@@ -1,28 +1,46 @@
 {
   "version": 1,
   "skills": {
+    "accessibility": {
+      "source": "addyosmani/web-quality-skills",
+      "sourceType": "github",
+      "skillPath": "skills/accessibility/SKILL.md",
+      "computedHash": "612f913bcb03f0787b103c848cd7664b676a9aaf31f25d3270cc69cf5caaab95"
+    },
     "algorithmic-art": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\algorithmic-art",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\algorithmic-art",
       "sourceType": "local",
       "computedHash": "987b24aa98171a0d3690420173b2cdb6eaafd57981ed716b5d50371affa82ea3"
     },
+    "antislop-ui": {
+      "source": "miqdadbadjuber/anti-slop",
+      "sourceType": "github",
+      "skillPath": "skills/antislop-ui/SKILL.md",
+      "computedHash": "4cb1cb91997ca9849438d1bb1a5194626e1255a1eaec59301fef174a3dee9c90"
+    },
+    "apple-design": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/apple-design/SKILL.md",
+      "computedHash": "0190417d092a0df447b000154e39733ea6d97efad6d3bec8a6ce3845aeb88914"
+    },
     "awwwards-animations": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\awwwards-animations",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\awwwards-animations",
       "sourceType": "local",
       "computedHash": "10574282bd24f42072059efa58cfce6ff3a80347505eb191af55544426fe4c3a"
     },
     "brainstorming": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\brainstorming",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\brainstorming",
       "sourceType": "local",
       "computedHash": "f483c304fcde060211ffae00f49bb728536e7e7613c99db45b5b924d9fc17243"
     },
     "brand-guidelines": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\brand-guidelines",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\brand-guidelines",
       "sourceType": "local",
       "computedHash": "c82f0b24cdcc7e2693a963d30c810558b7bb89ed84508b2328228d21256ef865"
     },
     "canvas-design": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\canvas-design",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\canvas-design",
       "sourceType": "local",
       "computedHash": "4e8bbc31d3b159efdd32d31a63ba8cd5a44d84911e924c1f2c709c50cbcdd0ec"
     },
@@ -33,32 +51,44 @@
       "computedHash": "03e0eaaa9bf13ba1e7ffa387f5893de6f324c0868c627001f179395a8feaa7c9"
     },
     "design-md": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\design-md",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\design-md",
       "sourceType": "local",
       "computedHash": "44af3e6e89a42a765d9cebf943f1e2ff3cdf43d1958341eb43fb7b74116f6691"
     },
+    "design-taste-frontend": {
+      "source": "leonxlnx/taste-skill",
+      "sourceType": "github",
+      "skillPath": "skills/taste-skill/SKILL.md",
+      "computedHash": "69021ac7e671c0c0d85d65b570003cef360b1c296323fa28c042884e146478ca"
+    },
     "dispatching-parallel-agents": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\dispatching-parallel-agents",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\dispatching-parallel-agents",
       "sourceType": "local",
       "computedHash": "e21044ae7496fc285f1df9ff3fb518a3a20bea6f5216c1f59f4987e12c769a0a"
     },
     "doc-coauthoring": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\doc-coauthoring",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\doc-coauthoring",
       "sourceType": "local",
       "computedHash": "62cd7744438ee2aecc986c520bb603988a78ff6aaaf70a471bf4584fe0b78dae"
     },
     "docx": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\docx",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\docx",
       "sourceType": "local",
       "computedHash": "150be87ff7b18f273ad07da303adb1cf2ca21cc3e76db7a2cf0373405178a278"
     },
+    "emil-design-eng": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/emil-design-eng/SKILL.md",
+      "computedHash": "51f2537e04d15911b41d78e2de24c36a0e26d41beae15e82a954fe5496a5eda9"
+    },
     "enhance-prompt": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\enhance-prompt",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\enhance-prompt",
       "sourceType": "local",
       "computedHash": "28c47bcbc0e8d81f48fbbbe41d227efe4018a32c5d4674b0d052a70d215072d3"
     },
     "executing-plans": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\executing-plans",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\executing-plans",
       "sourceType": "local",
       "computedHash": "b41c919caf1bb07fbacb0e29899ac513f9eb11cd4dd695975ad352c2c03cc4d7"
     },
@@ -69,7 +99,7 @@
       "computedHash": "9e1c8b3103f92fa8092568a44fe64858de7c5c9dc65ce4bea8f168080e889cfd"
     },
     "finishing-a-development-branch": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\finishing-a-development-branch",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\finishing-a-development-branch",
       "sourceType": "local",
       "computedHash": "932d23af11a3eb2b758f5b1d9aec7b6d28ddd26658328414f87f34dff7179d19"
     },
@@ -80,107 +110,143 @@
       "computedHash": "516bd2154eb843a8240e43d5b285229129853114ad7075a5e141e1c08e408c84"
     },
     "gsap-frameworks": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\gsap-frameworks",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\gsap-frameworks",
       "sourceType": "local",
       "computedHash": "08b3917649997d53f94a9831b5db21afafafc89ee3a9a020d2471c69c336bdd6"
     },
+    "impeccable": {
+      "source": "pbakaus/impeccable",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/impeccable/SKILL.md",
+      "computedHash": "285eb6262b087638b0deea81d2c2a238639354ae2917a839a130f7a36bdc545b"
+    },
     "internal-comms": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\internal-comms",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\internal-comms",
       "sourceType": "local",
       "computedHash": "cf3dba93fd569d7380505db211f89a467869c1a2ef301941148d06f33ed17332"
     },
     "mcp-builder": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\mcp-builder",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\mcp-builder",
       "sourceType": "local",
       "computedHash": "6498a736a8dc5c645047c8a875b8ea7417e2ad97146f005200e50d20a9337ada"
     },
+    "next-dev-loop": {
+      "source": "vercel/next.js",
+      "sourceType": "github",
+      "skillPath": "skills/next-dev-loop/SKILL.md",
+      "computedHash": "8ea79dc762e3915e411a33ab3ec74ee25fdce52bc458be4dbfc43cf9616542da"
+    },
+    "no-ai-slop": {
+      "source": "petergyang/no-ai-slop",
+      "sourceType": "github",
+      "skillPath": "skills/no-ai-slop/SKILL.md",
+      "computedHash": "77d287e3c8e09874e144ee35f6fb0ee1adcf609012c7c3273e9c8fe2054ce5af"
+    },
     "pdf": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\pdf",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\pdf",
       "sourceType": "local",
       "computedHash": "37226d4220d844377e6b2a386c51a011df4cd130855ff0b80bcc22f9c28abd57"
     },
+    "playwright-best-practices": {
+      "source": "currents-dev/playwright-best-practices-skill",
+      "sourceType": "github",
+      "skillPath": "playwright-best-practices/SKILL.md",
+      "computedHash": "7eb144f734450fee649dc1d209114775ddda07cbf45be84fe969d3d4f3971dce"
+    },
     "pptx": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\pptx",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\pptx",
       "sourceType": "local",
       "computedHash": "2275e4d8dba1790d52f6619b3e2fed04edc948beef545a2ad18e4a1be644426d"
     },
     "react:components": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\react-components",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\react-components",
       "sourceType": "local",
       "computedHash": "558c6619e28aaf6222828591e531bfc83c2f4fbb2fda3d02300d92b2ca9fa709"
     },
     "receiving-code-review": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\receiving-code-review",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\receiving-code-review",
       "sourceType": "local",
       "computedHash": "2760c85d4f4117b0006e7ba755f4bbd61f8f4c185f347999763c97f507274e30"
     },
     "remotion": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\remotion",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\remotion",
       "sourceType": "local",
       "computedHash": "e117a6fd18d8bef4774034300c1d0b3db71e39c94d935227b03793f8ee1f6e49"
     },
     "requesting-code-review": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\requesting-code-review",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\requesting-code-review",
       "sourceType": "local",
       "computedHash": "874f3786b05007a8b4a60452a4cd89b9917c645d34b6b1e40ea05037d12f0e67"
     },
+    "security-and-hardening": {
+      "source": "addyosmani/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/security-and-hardening/SKILL.md",
+      "computedHash": "32a1243d6eb45fd342c1f4e9f9ee5f1651a1e9fdccb86dcbbbee5d6f455ed362"
+    },
     "seo": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\seo",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\seo",
       "sourceType": "local",
       "computedHash": "68dddc754062d85a25a29ccd063854907a7faa9fffea57efa0d8c24497e5dad2"
     },
+    "setup-pre-commit": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/misc/setup-pre-commit/SKILL.md",
+      "computedHash": "7fc7b680161a5cb834b165e36efc2378ff63a1f80df0a9efd18448d366bea98a"
+    },
     "shadcn-ui": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\shadcn-ui",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\shadcn-ui",
       "sourceType": "local",
       "computedHash": "119a14a004bd30fa99d386df599bd0db8d057cca146f7ee08349daed48b2ea55"
     },
     "skill-creator": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\skill-creator",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\skill-creator",
       "sourceType": "local",
       "computedHash": "7e3c9cd74e9e2b4828527a857170e86310f2dab5ea8030a9043df2c7e6c88857"
     },
     "slack-gif-creator": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\slack-gif-creator",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\slack-gif-creator",
       "sourceType": "local",
       "computedHash": "a36e1ceb3f07eb37bdc259f1bfb18e48cc0e809b2e1651cb2369286cd66b2107"
     },
     "stitch-loop": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\stitch-loop",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\stitch-loop",
       "sourceType": "local",
       "computedHash": "cf47da05045ce0c11f1a8b21dc4ef9bbfed0122d68548a48786cb1608257d574"
     },
     "stitch::code-to-design": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\stitch-code-to-design",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\stitch-code-to-design",
       "sourceType": "local",
       "computedHash": "11efe5e52248bb1f623e2a797fd8561b05ef2b2457ebd8cd1c664f7c20340d18"
     },
     "stitch::extract-design-md": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\stitch-extract-design-md",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\stitch-extract-design-md",
       "sourceType": "local",
       "computedHash": "1c53df54291fb64eb19477110defb369565a408d4ea7a5477e1130168ec90af8"
     },
     "stitch::extract-static-html": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\stitch-extract-static-html",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\stitch-extract-static-html",
       "sourceType": "local",
       "computedHash": "6ddd90a8d1360d765a228749c3b4001b0c9631190cb8571fa6678707ae847454"
     },
     "stitch::generate-design": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\stitch-generate-design",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\stitch-generate-design",
       "sourceType": "local",
       "computedHash": "b854eb1747fbd02220bb7323590030fa644b8de126f8f6311749905ea09d7ae9"
     },
     "stitch::manage-design-system": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\stitch-manage-design-system",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\stitch-manage-design-system",
       "sourceType": "local",
       "computedHash": "655efb1a19c77f3d24d1e7777e0a66d377472f541d6f6f161d4412de0c33ad2a"
     },
     "stitch::upload-to-stitch": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\stitch-upload-to-stitch",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\stitch-upload-to-stitch",
       "sourceType": "local",
       "computedHash": "48cccbf989aa624632bb3007e46415ef628f5c511a7047deeb0b217454847f83"
     },
     "subagent-driven-development": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\subagent-driven-development",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\subagent-driven-development",
       "sourceType": "local",
       "computedHash": "b38be2f3a092d758127f6d47e77c2493885aebf38aae359e4c786df2c343b837"
     },
@@ -197,27 +263,27 @@
       "computedHash": "8e41c7417894e6f394614ee7ca3ee5322b1e58d890255d441f42dea98732597f"
     },
     "systematic-debugging": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\systematic-debugging",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\systematic-debugging",
       "sourceType": "local",
       "computedHash": "7246fdd3a795fc3daff0af72044ca99bf836e4e6a46844742858786fdfb86488"
     },
     "taste-design": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\taste-design",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\taste-design",
       "sourceType": "local",
       "computedHash": "3772ea408777070865890e10d693118baa1e1de14ee5bacdf6ab46fdea7359bb"
     },
     "template-skill": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\template-skill",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\template-skill",
       "sourceType": "local",
       "computedHash": "daf176f2cd0030d321982d3e813fd1a794a0b4744c5a92d2931a37001bb40fb9"
     },
     "test-driven-development": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\test-driven-development",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\test-driven-development",
       "sourceType": "local",
       "computedHash": "126f1ebf6ccd414f42544f6e83d8cc5adb089e1108eaffb7c400701e37eecd9f"
     },
     "theme-factory": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\theme-factory",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\theme-factory",
       "sourceType": "local",
       "computedHash": "e9ec1fe85faa729e9f3d1731cd7e4e485f98c099ccc7c1c0d198f473aa4b654a"
     },
@@ -228,12 +294,12 @@
       "computedHash": "6337038fe1fe6bbe1b9f252ab678ee575859190bab6f0f246f4061824eb40875"
     },
     "using-git-worktrees": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\using-git-worktrees",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\using-git-worktrees",
       "sourceType": "local",
       "computedHash": "bd10bc57c23040630b17c877a9bc7b4be40c35161a2e2f110d770d78e3b0a4ff"
     },
     "using-superpowers": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\using-superpowers",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\using-superpowers",
       "sourceType": "local",
       "computedHash": "de10fd3ff46d797acc92b9df6b3ea456a5cd1d095b73c90bc921e83cce4c5bb9"
     },
@@ -250,7 +316,7 @@
       "computedHash": "575757e3e25761c8c562d6e395d29f0b76c98b1273c0bd72d88e6ab1bc9c7d42"
     },
     "vercel-optimize": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\vercel-optimize",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\vercel-optimize",
       "sourceType": "local",
       "computedHash": "8079c0b48eb16e178c69302bb7faf3d9eff42d946fc0d79fc990d89ab6ed6bcb"
     },
@@ -273,12 +339,12 @@
       "computedHash": "c8952fc9127fa0564d0cb71dccb4215a5608ac933b5831104f09173a97a46f85"
     },
     "verification-before-completion": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\verification-before-completion",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\verification-before-completion",
       "sourceType": "local",
       "computedHash": "9b446f0c7fe1cfb560b1d34439523b1a76d5f177290007b2c053a1c749a4a8ba"
     },
     "web-artifacts-builder": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\web-artifacts-builder",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\web-artifacts-builder",
       "sourceType": "local",
       "computedHash": "fdddbe9bb720ea1aea9292ee513ec10b2a8f4912e2c343bdc246ab3febd7c9b3"
     },
@@ -289,22 +355,22 @@
       "computedHash": "f3bc47f890f42a44db1007ab390709ec368e4b8c089baee6b0007182236ac474"
     },
     "webapp-testing": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\webapp-testing",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\webapp-testing",
       "sourceType": "local",
       "computedHash": "3f14af7f5690695209c22fbf8c8d133769a86d64892602c09bb13f135e14e857"
     },
     "writing-plans": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\writing-plans",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\writing-plans",
       "sourceType": "local",
       "computedHash": "2b986445454a025ca2c3839f8a2024747e8cce0517948437232cd113d2719060"
     },
     "writing-skills": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\writing-skills",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\writing-skills",
       "sourceType": "local",
       "computedHash": "b0e3065034610df41b9119445b5fd052042752bb3e598ca66aea2403a7c7685e"
     },
     "xlsx": {
-      "source": "C:\\Users\\Arthur Soares\\.agents\\skills\\xlsx",
+      "source": "./C:\\Users\\Arthur Soares\\.agents\\skills\\xlsx",
       "sourceType": "local",
       "computedHash": "cb7fba2177d0d35d14b3244272b25d1b05246e99b3468a087fe06c84193dbd20"
     }
