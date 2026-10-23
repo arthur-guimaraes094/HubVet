@@ -1,4 +1,4 @@
-import QRCode from 'qrcode';
+import { qrcodegen } from './qrcodegen';
 
 interface PixPayloadParams {
   key: string;
@@ -84,20 +84,36 @@ export function generatePixPayload({
 }
 
 /**
- * Gera um Data URL (base64 image/png) com o QR Code a partir do payload PIX.
+ * Gera o SVG vetorial do QR Code PIX (compatível 100% com o leitor de qualquer app bancário).
+ * Utiliza o gerador QR Code puro em TypeScript (zero dependências externas).
+ */
+export function generatePixQrCodeSvg(pixPayload: string, border: number = 2): string {
+  if (!pixPayload) return '';
+  const qr = qrcodegen.QrCode.encodeText(pixPayload, qrcodegen.QrCode.Ecc.MEDIUM);
+  const parts: string[] = [];
+  for (let y = 0; y < qr.size; y++) {
+    for (let x = 0; x < qr.size; x++) {
+      if (qr.getModule(x, y)) {
+        parts.push(`M${x + border},${y + border}h1v1h-1z`);
+      }
+    }
+  }
+  const viewSize = qr.size + border * 2;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${viewSize} ${viewSize}" stroke="none" shape-rendering="crispEdges">
+  <rect width="100%" height="100%" fill="#ffffff"/>
+  <path d="${parts.join(' ')}" fill="#000000"/>
+</svg>`;
+}
+
+/**
+ * Gera um Data URL (image/svg+xml) com o QR Code a partir do payload PIX.
  */
 export async function generatePixQrCodeDataUrl(
   pixPayload: string,
   options?: { width?: number; margin?: number }
 ): Promise<string> {
   if (!pixPayload) return '';
-  return QRCode.toDataURL(pixPayload, {
-    width: options?.width || 260,
-    margin: options?.margin ?? 1,
-    color: {
-      dark: '#000000',
-      light: '#ffffff',
-    },
-    errorCorrectionLevel: 'M',
-  });
+  const margin = options?.margin ?? 2;
+  const svg = generatePixQrCodeSvg(pixPayload, margin);
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
