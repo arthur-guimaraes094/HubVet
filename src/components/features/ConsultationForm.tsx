@@ -100,15 +100,24 @@ export function ConsultationForm({
   const [consultationType, setConsultationType] = useState<'Home' | 'Hospital'>(initialType);
 
   // Endereço e Custo de Deslocamento (Consultas a Domicílio)
+  const safeInitialFee =
+    initialTravelFee && initialTravelFee > 0 && initialTravelFee <= 500
+      ? initialTravelFee
+      : undefined;
+  const safeInitialDistance =
+    initialTravelDistanceKm && initialTravelDistanceKm > 0 && initialTravelDistanceKm <= 220
+      ? initialTravelDistanceKm
+      : null;
+
   const [address, setAddress] = useState<string>(tutorAddress || '');
   const [travelDistanceKm, setTravelDistanceKm] = useState<number | null>(
-    initialTravelDistanceKm ?? null
+    safeInitialDistance
   );
   const [travelFee, setTravelFee] = useState<string>(
-    initialTravelFee && initialTravelFee > 0 ? String(initialTravelFee) : ''
+    safeInitialFee ? String(safeInitialFee) : ''
   );
   const [includeTravelFee, setIncludeTravelFee] = useState<boolean>(
-    Boolean(initialTravelFee && initialTravelFee > 0)
+    Boolean(safeInitialFee)
   );
   const [calculatingTravel, setCalculatingTravel] = useState(false);
 
@@ -323,10 +332,11 @@ export function ConsultationForm({
     return acc + (inventoryItem ? inventoryItem.salePrice * item.quantity : 0);
   }, 0);
 
-  const parsedTravelFee =
+  const rawParsedTravelFee =
     consultationType === 'Home' && includeTravelFee && travelFee
       ? parseFloat(travelFee.replace(',', '.')) || 0
       : 0;
+  const parsedTravelFee = Math.min(500, Math.max(0, rawParsedTravelFee));
 
   const totalValue = itemsTotalValue + parsedTravelFee;
 

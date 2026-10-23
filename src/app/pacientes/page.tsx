@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { NewPatientForm } from '@/components/features/NewPatientForm';
 import { PatientSearchList } from '@/components/features/PatientSearchList';
+import { enrichPatientsListWithFallbackMeta } from '@/core/utils/patient-fallback-storage';
 import Link from 'next/link';
 import { Metadata } from 'next';
 
@@ -35,7 +36,10 @@ export default async function PacientesPage({
     query = query.eq('tutor_id', tutorId);
   }
 
-  const { data: patients, error } = await query.order('created_at', { ascending: false });
+  const { data: rawPatients, error } = await query.order('created_at', { ascending: false });
+  const patients = rawPatients
+    ? await enrichPatientsListWithFallbackMeta(supabase, rawPatients)
+    : [];
 
   return (
     <main className="flex-1 flex flex-col p-8 gap-12 w-full max-w-5xl mx-auto">

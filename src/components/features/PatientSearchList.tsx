@@ -270,6 +270,7 @@ export function PatientSearchList({ initialPatients }: PatientSearchListProps) {
                           alt={patient.name}
                           fill
                           sizes="80px"
+                          unoptimized
                           className="object-cover"
                         />
                       </div>

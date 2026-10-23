@@ -5,10 +5,10 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
-import { updatePatient } from '@/app/pacientes/actions';
+import { updatePatient, uploadPetPhotoAction } from '@/app/pacientes/actions';
 import { useToast } from '@/components/ui/Toast';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/infrastructure/database/client';
+import { compressPetPhoto } from '@/core/utils/image-compress';
 import {
   calculateYearsAndMonths,
   estimateBirthDateFromAge,
@@ -104,32 +104,23 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      error('A foto deve ter no máximo 5MB');
+    if (file.size > 15 * 1024 * 1024) {
+      error('A foto deve ter no máximo 15MB');
       return;
     }
 
     setUploadingPhoto(true);
     try {
-      const supabase = createClient();
-      const fileExt = file.name.split('.').pop() || 'jpg';
-      const fileName = `pet-${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+      const { blob, dataUrl } = await compressPetPhoto(file, 400, 0.82);
+      setPatientPhotoUrl(dataUrl);
 
-      let bucketUsed = 'patients';
-      let uploadRes = await supabase.storage.from('patients').upload(fileName, file);
+      const formData = new FormData();
+      formData.append('photo', new File([blob], 'pet-photo.jpg', { type: 'image/jpeg' }));
 
-      if (uploadRes.error) {
-        bucketUsed = 'consultations';
-        uploadRes = await supabase.storage.from('consultations').upload(fileName, file);
+      const uploadRes = await uploadPetPhotoAction(formData);
+      if (uploadRes.success && uploadRes.data?.publicUrl) {
+        setPatientPhotoUrl(uploadRes.data.publicUrl);
       }
-
-      if (uploadRes.error) throw uploadRes.error;
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from(bucketUsed).getPublicUrl(fileName);
-
-      setPatientPhotoUrl(publicUrl);
       success('Foto atualizada!');
     } catch (err) {
       console.error(err);
@@ -219,6 +210,7 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
                   alt={patientName}
                   fill
                   sizes="80px"
+                  unoptimized
                   className="object-cover"
                 />
               ) : (

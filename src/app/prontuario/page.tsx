@@ -4,6 +4,7 @@ import { createClient } from '@/infrastructure/database/server';
 import Link from 'next/link';
 import { ViewTransition } from "react";
 import { formatFullAddress } from '@/core/utils/cep';
+import { enrichPatientWithFallbackMeta } from '@/core/utils/patient-fallback-storage';
 
 export const revalidate = 0;
 
@@ -78,7 +79,7 @@ export default async function ProntuarioPage({
       .select('*, tutors(*)')
       .eq('id', targetId)
       .single();
-    patientData = data;
+    patientData = data ? await enrichPatientWithFallbackMeta(supabase, data) : null;
   }
 
   const tutorObj = Array.isArray(patientData?.tutors)

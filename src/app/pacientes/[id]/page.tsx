@@ -8,6 +8,7 @@ import Image from 'next/image';
 import { translateSpecies } from '@/core/utils/translations';
 import { formatPatientAge, formatFertilityStatus } from '@/core/utils/age';
 import { buildGoogleMapsUrl } from '@/core/utils/cep';
+import { enrichPatientWithFallbackMeta } from '@/core/utils/patient-fallback-storage';
 import {
   VaccinationSection,
   type PatientVaccinationRecord,
@@ -38,11 +39,15 @@ export default async function PatientHistoryPage({
   const supabase = await createClient();
 
   // 1. Buscar dados do paciente e tutor
-  const { data: patient, error: patientError } = await supabase
+  const { data: rawPatient, error: patientError } = await supabase
     .from('patients')
     .select('*, tutors(name, phone, address)')
     .eq('id', id)
     .single();
+
+  const patient = rawPatient
+    ? await enrichPatientWithFallbackMeta(supabase, rawPatient)
+    : null;
 
   if (patientError || !patient) {
     return (
@@ -123,6 +128,7 @@ export default async function PatientHistoryPage({
                   alt={patient.name}
                   fill
                   sizes="96px"
+                  unoptimized
                   className="object-cover"
                 />
               </div>

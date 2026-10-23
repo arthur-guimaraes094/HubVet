@@ -9,6 +9,56 @@ import {
   calculateVaccineSchedule,
   type VaccineProtocolCode,
 } from '@/core/use-cases/vaccine-protocols'
+import { savePatientExtendedMeta } from '@/core/utils/patient-fallback-storage'
+
+export async function uploadPetPhotoAction(
+  formData: FormData
+): Promise<ActionResponse<{ publicUrl: string }>> {
+  try {
+    const supabase = await createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return { success: false, error: 'Não autenticado' }
+
+    const file = formData.get('photo') as File | null
+    if (!file || file.size === 0) {
+      return { success: false, error: 'Nenhum arquivo enviado' }
+    }
+
+    const fileExt = file.name.split('.').pop() || 'jpg'
+    const fileName = `${user.id}-pet-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${fileExt}`
+
+    const bucketsToTry = ['patients', 'avatars', 'consultations']
+    let usedBucket = 'consultations'
+    let uploadSucceeded = false
+
+    for (const bucket of bucketsToTry) {
+      const { error } = await supabase.storage.from(bucket).upload(fileName, file, {
+        upsert: true,
+        contentType: file.type || 'image/jpeg',
+      })
+      if (!error) {
+        usedBucket = bucket
+        uploadSucceeded = true
+        break
+      }
+    }
+
+    if (!uploadSucceeded) {
+      return { success: false, error: 'Não foi possível salvar a foto no Storage' }
+    }
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from(usedBucket).getPublicUrl(fileName)
+
+    return { success: true, data: { publicUrl } }
+  } catch (err) {
+    console.error('Upload pet photo error:', err)
+    return { success: false, error: 'Erro ao fazer upload da foto' }
+  }
+}
 
 const patientSchema = z.object({
   tutorId: z.string().optional(),
@@ -145,20 +195,39 @@ export async function addPatientAndTutor(rawData: unknown): Promise<ActionRespon
       clinical_observations: data.clinicalObservations || null,
     }
 
-    let { error: patientError } = await supabase.from('patients').insert(fullPatientPayload)
+    let { data: createdPatient, error: patientError } = await supabase
+      .from('patients')
+      .insert(fullPatientPayload)
+      .select('id')
+      .single()
 
     // Fallback caso a migration das novas colunas em patients ainda não tenha sido executada
     if (patientError && (patientError.code === '42703' || patientError.code === 'PGRST204')) {
-      const fallbackPatient = await supabase.from('patients').insert({
-        tutor_id: tutorId,
-        name: data.patientName,
-        species: data.patientSpecies,
-        weight_kg: data.patientWeight,
-        breed: data.patientBreed || null,
-        color: data.patientColor || null,
-        birth_date: data.patientBirthDate || null,
-      })
+      const fallbackPatient = await supabase
+        .from('patients')
+        .insert({
+          tutor_id: tutorId,
+          name: data.patientName,
+          species: data.patientSpecies,
+          weight_kg: data.patientWeight,
+          breed: data.patientBreed || null,
+          color: data.patientColor || null,
+          birth_date: data.patientBirthDate || null,
+        })
+        .select('id')
+        .single()
+      createdPatient = fallbackPatient.data
       patientError = fallbackPatient.error
+
+      if (!patientError && createdPatient?.id) {
+        await savePatientExtendedMeta(supabase, createdPatient.id, {
+          photo_url: data.patientPhotoUrl || null,
+          is_birth_date_estimated: data.isBirthDateEstimated ?? false,
+          fertility_status: data.fertilityStatus || null,
+          fertility_notes: data.fertilityNotes || null,
+          clinical_observations: data.clinicalObservations || null,
+        })
+      }
     }
 
     if (patientError) {
@@ -436,6 +505,16 @@ export async function updatePatient(
         })
         .eq('id', patientId)
       error = fallback.error
+
+      if (!error) {
+        await savePatientExtendedMeta(supabase, patientId, {
+          photo_url: data.photo_url ?? null,
+          is_birth_date_estimated: data.is_birth_date_estimated ?? false,
+          fertility_status: data.fertility_status ?? null,
+          fertility_notes: data.fertility_notes ?? null,
+          clinical_observations: data.clinical_observations ?? null,
+        })
+      }
     }
 
     if (error) throw error
