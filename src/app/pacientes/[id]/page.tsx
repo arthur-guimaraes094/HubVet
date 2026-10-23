@@ -403,9 +403,17 @@ export default async function PatientHistoryPage({
             <div className="flex flex-col gap-8 relative before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-0.5 before:bg-foreground/10">
               {consultations.map((consult) => {
                 const isScheduled = consult.status === 'Scheduled';
-                const prescriptions = Array.isArray(consult.prescriptions)
-                  ? (consult.prescriptions as unknown as PrescriptionItem[])
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const rawPrescriptions = consult.prescriptions as any;
+                const prescriptions: PrescriptionItem[] = Array.isArray(rawPrescriptions)
+                  ? (rawPrescriptions as PrescriptionItem[])
+                  : Array.isArray(rawPrescriptions?.items)
+                  ? (rawPrescriptions.items as PrescriptionItem[])
                   : [];
+                const prescriptionText: string =
+                  typeof rawPrescriptions === 'string'
+                    ? rawPrescriptions
+                    : rawPrescriptions?.text || '';
 
                 return (
                   <div key={consult.id} className="relative pl-12">
@@ -478,27 +486,34 @@ export default async function PatientHistoryPage({
                             </p>
                           </div>
 
-                          {prescriptions.length > 0 && (
+                          {(prescriptionText || prescriptions.length > 0) && (
                             <div className="space-y-2">
                               <span className="text-xs font-bold text-foreground/50 uppercase tracking-wider">
                                 Receituário Prescrito
                               </span>
-                              <div className="flex flex-col gap-1.5">
-                                {prescriptions.map((rx) => (
-                                  <div
-                                    key={rx.id}
-                                    className="p-2.5 rounded-xl bg-primary/5 border border-primary/10 text-xs"
-                                  >
-                                    <span className="font-black text-foreground">
-                                      {rx.medicationName}{' '}
-                                      {rx.concentration ? `(${rx.concentration})` : ''}
-                                    </span>{' '}
-                                    <span className="text-foreground/60">
-                                      • {rx.route} • {rx.dosage} • {rx.frequency} • {rx.duration}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
+                              {prescriptionText && (
+                                <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/10 text-xs font-mono whitespace-pre-wrap leading-relaxed text-foreground/90">
+                                  {prescriptionText}
+                                </div>
+                              )}
+                              {prescriptions.length > 0 && (
+                                <div className="flex flex-col gap-1.5 mt-1">
+                                  {prescriptions.map((rx) => (
+                                    <div
+                                      key={rx.id}
+                                      className="p-2.5 rounded-xl bg-primary/5 border border-primary/10 text-xs"
+                                    >
+                                      <span className="font-black text-foreground">
+                                        {rx.medicationName}{' '}
+                                        {rx.concentration ? `(${rx.concentration})` : ''}
+                                      </span>{' '}
+                                      <span className="text-foreground/60">
+                                        • {rx.route} • {rx.dosage} • {rx.frequency} • {rx.duration}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           )}
 
@@ -569,6 +584,7 @@ export default async function PatientHistoryPage({
                                   quantity: ci.quantity,
                                 })),
                               prescriptions,
+                              prescriptionText: prescriptionText || undefined,
                               vetName,
                               vetCrmv,
                             }}

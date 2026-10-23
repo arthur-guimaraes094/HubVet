@@ -57,6 +57,7 @@ export default async function ProntuarioPage({
     travel_fee?: number | null;
     clinical_notes: string | null;
     weight_kg: number | null;
+    prescriptions?: unknown;
   } | null = null;
 
   if (consultationId) {
@@ -99,6 +100,11 @@ export default async function ProntuarioPage({
       })
     : undefined;
 
+  const initialPrescriptionText =
+    typeof scheduledConsultation?.prescriptions === 'string'
+      ? scheduledConsultation.prescriptions
+      : (scheduledConsultation?.prescriptions as { text?: string })?.text || undefined;
+
   return (
     <ViewTransition enter="fade-in" default="none">
       <main className="flex-1 flex flex-col p-4 sm:p-8 gap-6 w-full max-w-4xl mx-auto">
@@ -132,6 +138,7 @@ export default async function ProntuarioPage({
           initialTravelFee={scheduledConsultation?.travel_fee ?? undefined}
           initialTravelDistanceKm={scheduledConsultation?.travel_distance_km ?? undefined}
           initialNotes={scheduledConsultation?.clinical_notes || undefined}
+          initialPrescriptionText={initialPrescriptionText}
           vetName={vetName}
           vetCrmv={vetCrmv}
         />

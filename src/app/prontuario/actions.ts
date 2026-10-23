@@ -36,6 +36,7 @@ const prontuarioSchema = z.object({
     unitCost: z.number(),
     price: z.number()
   })).optional().default([]),
+  prescriptionText: z.string().optional().default(''),
   prescriptions: z.array(prescriptionItemSchema).optional().default([]),
   vaccinations: z.array(vaccinationAppliedSchema).optional().default([]),
   consultationId: z.string().optional(),
@@ -75,9 +76,13 @@ export async function salvarProntuario(rawData: unknown): Promise<ActionResponse
       address: data.address || null,
     }
 
+    const prescriptionsPayload = data.prescriptionText?.trim()
+      ? { text: data.prescriptionText.trim(), items: data.prescriptions || [] }
+      : data.prescriptions || []
+
     const extendedPayload = {
       ...basePayload,
-      prescriptions: data.prescriptions || [],
+      prescriptions: prescriptionsPayload,
       travel_distance_km: data.travelDistanceKm ?? null,
       travel_fee: data.travelFee ?? 0,
     }

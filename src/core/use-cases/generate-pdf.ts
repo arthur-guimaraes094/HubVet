@@ -25,6 +25,7 @@ export interface VetDocumentData {
   fertilityNotes?: string | null;
   clinicalObservations?: string | null;
   notes: string;
+  prescriptionText?: string | null;
   date: string;
   items?: { name: string; quantity: number }[];
   prescriptions?: PrescriptionItem[];
@@ -202,9 +203,67 @@ export async function gerarPDFReceituario(data: VetDocumentData) {
   doc.line(65, currentY + 2, 145, currentY + 2);
   currentY += 10;
 
-  const hasPrescriptions = data.prescriptions && data.prescriptions.length > 0;
+  const hasFreeText = Boolean(data.prescriptionText?.trim());
+  const hasStructured = Boolean(data.prescriptions && data.prescriptions.length > 0);
+  const hasPrescriptions = hasFreeText || hasStructured;
 
-  if (hasPrescriptions) {
+  if (hasFreeText) {
+    const rawLines = data.prescriptionText!.split('\n');
+
+    for (const rawLine of rawLines) {
+      const line = rawLine.trim();
+      if (!line) {
+        currentY += 3.5;
+        continue;
+      }
+
+      if (currentY > 232) {
+        addNewStationeryPage();
+        currentY = 105;
+      }
+
+      // Se for cabeçalho de seção (ex: "USO ORAL:", "USO TÓPICO:", "RECOMENDAÇÕES:")
+      const isHeader =
+        /^(uso\s+[a-zà-ú\s]+|recomendações|orientações|posologia)/i.test(line) ||
+        (line === line.toUpperCase() && line.length > 3 && !/^\d/.test(line));
+
+      if (isHeader) {
+        currentY += 2;
+        if (currentY > 230) {
+          addNewStationeryPage();
+          currentY = 105;
+        }
+        doc.setFillColor(245, 216, 216);
+        doc.roundedRect(25, currentY - 4, 160, 6.5, 2, 2, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9.5);
+        doc.setTextColor(115, 31, 40);
+        doc.text(line.replace(/:$/, ''), 29, currentY + 0.5);
+        currentY += 8;
+        continue;
+      }
+
+      // Se for item numerado ou com marcador (ex: "1. Dipirona..." ou "• Maxicam...")
+      const isNumberedItem = /^\s*(\d+[\.\)]|•|-|\*)\s+/.test(line);
+
+      if (isNumberedItem) {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10.5);
+        doc.setTextColor(40, 25, 28);
+        const splitLine = doc.splitTextToSize(line, 155);
+        doc.text(splitLine, 27, currentY);
+        currentY += splitLine.length * 5.2 + 1;
+      } else {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(60, 45, 48);
+        const splitLine = doc.splitTextToSize(line, 152);
+        doc.text(splitLine, 32, currentY);
+        currentY += splitLine.length * 4.9;
+      }
+    }
+    currentY += 3;
+  } else if (hasStructured) {
     // Agrupar prescrições por via de administração (Ex: USO ORAL, USO TÓPICO)
     const grouped = data.prescriptions!.reduce((acc, item) => {
       const routeKey = (item.route || 'USO GERAL').toUpperCase();
@@ -444,7 +503,37 @@ export async function gerarPDFRelatorioAtendimento(data: VetDocumentData) {
   }
 
   // 3. Resumo de Prescrições Domiciliares (se houver)
-  if (data.prescriptions && data.prescriptions.length > 0) {
+  if (data.prescriptionText?.trim()) {
+    if (currentY > 220) {
+      addNewStationeryPage();
+      currentY = 105;
+    }
+
+    doc.setFillColor(245, 216, 216);
+    doc.roundedRect(25, currentY - 4, 160, 6.5, 2, 2, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9.5);
+    doc.setTextColor(115, 31, 40);
+    doc.text('RESUMO DE PRESCRIÇÃO DOMICILIAR', 29, currentY + 0.5);
+    currentY += 7.5;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9.5);
+    doc.setTextColor(45, 30, 32);
+
+    const rxLines = data.prescriptionText.split('\n');
+    for (const rawL of rxLines) {
+      const l = rawL.trim();
+      if (!l) continue;
+      if (currentY > 238) {
+        addNewStationeryPage();
+        currentY = 105;
+      }
+      const splitL = doc.splitTextToSize(l, 155);
+      doc.text(splitL, 28, currentY);
+      currentY += splitL.length * 4.8;
+    }
+  } else if (data.prescriptions && data.prescriptions.length > 0) {
     if (currentY > 220) {
       addNewStationeryPage();
       currentY = 105;
