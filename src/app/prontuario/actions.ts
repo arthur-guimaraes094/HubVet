@@ -219,13 +219,14 @@ export async function salvarProntuario(rawData: unknown): Promise<ActionResponse
     )
 
     // 3. Salvar transações financeiras em paralelo
+    const totalServiceIncome = (data.baseFee || 0) + (data.travelFee && data.travelFee > 0 ? data.travelFee : 0)
     const transactionPromises = [
       supabase.from('transactions').insert({
         profile_id: profileId,
         consultation_id: consultationId,
         type: 'Income',
         category: 'Service',
-        amount: data.baseFee,
+        amount: totalServiceIncome,
         date: new Date().toISOString()
       })
     ]
@@ -246,12 +247,13 @@ export async function salvarProntuario(rawData: unknown): Promise<ActionResponse
     await Promise.all(transactionPromises)
 
     // 4. Criar a Fatura (Invoice) para o Cliente
-    if (data.baseFee > 0) {
+    const effectiveInvoiceTotal = (data.baseFee || 0) + (data.travelFee && data.travelFee > 0 ? data.travelFee : 0)
+    if (effectiveInvoiceTotal > 0) {
       const { data: invoice, error: invoiceError } = await supabase
         .from('invoices')
         .insert({
           patient_id: data.patientId,
-          total_amount: data.baseFee,
+          total_amount: effectiveInvoiceTotal,
           status: 'pending',
         })
         .select('id')

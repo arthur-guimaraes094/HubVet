@@ -50,7 +50,7 @@ export function AutocompleteInput({
       {label && (
         <label
           htmlFor={inputId}
-          className="text-[10px] font-black text-foreground/30 uppercase tracking-[0.2em] pl-4"
+          className="text-[11px] font-bold text-foreground/70 uppercase tracking-wider pl-1"
         >
           {label}
         </label>
@@ -69,13 +69,14 @@ export function AutocompleteInput({
           required={required}
           disabled={disabled}
           autoComplete="off"
-          className={`w-full bg-card rounded-xl px-4 py-3 pr-9 shadow-sm outline-none focus:ring-2 focus:ring-primary/40 text-foreground font-medium placeholder:text-foreground/40 transition-all border border-border appearance-none min-w-0 ${className}`}
+          className={`w-full bg-card rounded-xl px-4 py-3 pr-9 shadow-sm outline-none focus:ring-2 focus:ring-primary/40 text-foreground font-medium placeholder:text-foreground/40 transition-colors border border-border appearance-none min-w-0 ${className}`}
         />
         <button
           type="button"
           tabIndex={-1}
+          aria-label="Abrir sugestões"
           onClick={() => !disabled && setIsOpen((prev) => !prev)}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/30 hover:text-foreground/60 transition-colors"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground/80 transition-colors"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />

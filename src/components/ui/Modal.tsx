@@ -46,25 +46,43 @@ export function Modal({
     return () => { document.body.style.overflow = 'unset'; };
   }, [isOpen, shouldRender]);
 
-  const handleClose = () => {
+  const handleClose = React.useCallback(() => {
     setIsExiting(true);
     setTimeout(() => {
       onClose();
     }, 250);
-  };
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, handleClose]);
 
   if (!shouldRender) return null;
 
   return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/20 backdrop-blur-sm ${isExiting ? 'animate-fade-out' : 'animate-fade-in'}`}>
+    <div 
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/20 backdrop-blur-sm ${isExiting ? 'animate-fade-out' : 'animate-fade-in'}`}
+    >
       <div className="absolute inset-0" onClick={handleClose}></div>
       <Card className={`relative w-full ${maxWidth} shadow-xl border border-border overflow-hidden p-8 ${isExiting ? 'animate-slide-out' : 'animate-slide-in'}`}>
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-xl font-extrabold text-primary">{title}</h3>
           {showCloseButton && (
             <button 
+              type="button"
               onClick={handleClose}
-              className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-foreground/40 hover:text-error hover:bg-error/10 transition-colors active:scale-95"
+              aria-label="Fechar"
+              className="w-10 h-10 rounded-full bg-foreground/5 flex items-center justify-center text-foreground/60 hover:text-error hover:bg-error/10 transition-colors active:scale-95"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
