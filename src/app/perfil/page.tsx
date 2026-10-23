@@ -2,13 +2,14 @@ import { createClient } from '@/infrastructure/database/server'
 import { redirect } from 'next/navigation'
 import { ProfileForm } from '@/components/features/ProfileForm'
 import Link from 'next/link'
-import { ViewTransition } from "react";
+import { ViewTransition } from 'react'
 
 export default async function PerfilPage() {
   const supabase = await createClient()
 
-  // O proxy já garante autenticação — getSession() valida JWT localmente
-  const { data: { session } } = await supabase.auth.getSession()
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
 
   if (!session?.user) {
     redirect('/login')
@@ -16,19 +17,25 @@ export default async function PerfilPage() {
 
   const user = session.user
 
-  // Pegar perfil do banco
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name, crmv, phone, avatar_url')
+    .select('*')
     .eq('id', user.id)
     .single()
 
+  const p = profile as Record<string, unknown> | null
+
   const initialData = {
     email: user.email || '',
-    full_name: profile?.full_name || '',
-    crmv: profile?.crmv || '',
-    phone: profile?.phone || '',
-    avatar_url: profile?.avatar_url || '',
+    full_name: (p?.full_name as string) || 'Dra. Gabriela Soares',
+    crmv: (p?.crmv as string) || '',
+    phone: (p?.phone as string) || '(84) 98636-5455',
+    avatar_url: (p?.avatar_url as string) || '',
+    base_cep: (p?.base_cep as string) || '59152-250',
+    base_address:
+      (p?.base_address as string) ||
+      'Rua das Embarcações, 171, Nova Parnamirim, Parnamirim - RN',
+    km_rate: typeof p?.km_rate === 'number' ? p.km_rate : 2.5,
   }
 
   return (

@@ -69,8 +69,11 @@ export type Database = {
           id: string
           images: string[] | null
           patient_id: string
+          prescriptions: Json | null
           profile_id: string
           status: string
+          travel_distance_km: number | null
+          travel_fee: number | null
           type: string
           weight_kg: number | null
         }
@@ -83,8 +86,11 @@ export type Database = {
           id?: string
           images?: string[] | null
           patient_id: string
+          prescriptions?: Json | null
           profile_id: string
           status?: string
+          travel_distance_km?: number | null
+          travel_fee?: number | null
           type: string
           weight_kg?: number | null
         }
@@ -97,8 +103,11 @@ export type Database = {
           id?: string
           images?: string[] | null
           patient_id?: string
+          prescriptions?: Json | null
           profile_id?: string
           status?: string
+          travel_distance_km?: number | null
+          travel_fee?: number | null
           type?: string
           weight_kg?: number | null
         }
@@ -236,14 +245,101 @@ export type Database = {
           },
         ]
       }
+      patient_vaccinations: {
+        Row: {
+          applied_date: string
+          batch_number: string | null
+          completed_by_vaccination_id: string | null
+          consultation_id: string | null
+          created_at: string
+          dose_number: number
+          id: string
+          is_annual_booster: boolean
+          next_dose_label: string
+          next_due_date: string
+          notes: string | null
+          notified_at: string | null
+          patient_id: string
+          profile_id: string
+          protocol_code: string
+          total_initial_doses: number
+          vaccine_name: string
+        }
+        Insert: {
+          applied_date: string
+          batch_number?: string | null
+          completed_by_vaccination_id?: string | null
+          consultation_id?: string | null
+          created_at?: string
+          dose_number?: number
+          id?: string
+          is_annual_booster?: boolean
+          next_dose_label: string
+          next_due_date: string
+          notes?: string | null
+          notified_at?: string | null
+          patient_id: string
+          profile_id: string
+          protocol_code: string
+          total_initial_doses?: number
+          vaccine_name: string
+        }
+        Update: {
+          applied_date?: string
+          batch_number?: string | null
+          completed_by_vaccination_id?: string | null
+          consultation_id?: string | null
+          created_at?: string
+          dose_number?: number
+          id?: string
+          is_annual_booster?: boolean
+          next_dose_label?: string
+          next_due_date?: string
+          notes?: string | null
+          notified_at?: string | null
+          patient_id?: string
+          profile_id?: string
+          protocol_code?: string
+          total_initial_doses?: number
+          vaccine_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_vaccinations_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_vaccinations_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_vaccinations_consultation_id_fkey"
+            columns: ["consultation_id"]
+            isOneToOne: false
+            referencedRelation: "consultations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       patients: {
         Row: {
           birth_date: string | null
           breed: string | null
+          clinical_observations: string | null
           color: string | null
           created_at: string
+          fertility_notes: string | null
+          fertility_status: string | null
           id: string
+          is_birth_date_estimated: boolean | null
           name: string
+          photo_url: string | null
           species: string
           tutor_id: string
           weight_kg: number | null
@@ -251,10 +347,15 @@ export type Database = {
         Insert: {
           birth_date?: string | null
           breed?: string | null
+          clinical_observations?: string | null
           color?: string | null
           created_at?: string
+          fertility_notes?: string | null
+          fertility_status?: string | null
           id?: string
+          is_birth_date_estimated?: boolean | null
           name: string
+          photo_url?: string | null
           species: string
           tutor_id: string
           weight_kg?: number | null
@@ -262,10 +363,15 @@ export type Database = {
         Update: {
           birth_date?: string | null
           breed?: string | null
+          clinical_observations?: string | null
           color?: string | null
           created_at?: string
+          fertility_notes?: string | null
+          fertility_status?: string | null
           id?: string
+          is_birth_date_estimated?: boolean | null
           name?: string
+          photo_url?: string | null
           species?: string
           tutor_id?: string
           weight_kg?: number | null
@@ -283,26 +389,41 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          base_address: string | null
+          base_cep: string | null
+          base_lat: number | null
+          base_lng: number | null
           created_at: string
           crmv: string | null
           full_name: string | null
           id: string
+          km_rate: number | null
           phone: string | null
         }
         Insert: {
           avatar_url?: string | null
+          base_address?: string | null
+          base_cep?: string | null
+          base_lat?: number | null
+          base_lng?: number | null
           created_at?: string
           crmv?: string | null
           full_name?: string | null
           id: string
+          km_rate?: number | null
           phone?: string | null
         }
         Update: {
           avatar_url?: string | null
+          base_address?: string | null
+          base_cep?: string | null
+          base_lat?: number | null
+          base_lng?: number | null
           created_at?: string
           crmv?: string | null
           full_name?: string | null
           id?: string
+          km_rate?: number | null
           phone?: string | null
         }
         Relationships: []
@@ -396,30 +517,57 @@ export type Database = {
       tutors: {
         Row: {
           address: string | null
+          cep: string | null
+          city: string | null
+          complement: string | null
           cpf: string | null
           created_at: string
           id: string
+          lat: number | null
+          lng: number | null
           name: string
+          neighborhood: string | null
+          number: string | null
           phone: string | null
           profile_id: string
+          state: string | null
+          street: string | null
         }
         Insert: {
           address?: string | null
+          cep?: string | null
+          city?: string | null
+          complement?: string | null
           cpf?: string | null
           created_at?: string
           id?: string
+          lat?: number | null
+          lng?: number | null
           name: string
+          neighborhood?: string | null
+          number?: string | null
           phone?: string | null
           profile_id: string
+          state?: string | null
+          street?: string | null
         }
         Update: {
           address?: string | null
+          cep?: string | null
+          city?: string | null
+          complement?: string | null
           cpf?: string | null
           created_at?: string
           id?: string
+          lat?: number | null
+          lng?: number | null
           name?: string
+          neighborhood?: string | null
+          number?: string | null
           phone?: string | null
           profile_id?: string
+          state?: string | null
+          street?: string | null
         }
         Relationships: [
           {

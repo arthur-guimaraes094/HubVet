@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useState, useId } from 'react';
+import React, { useState, useId, useMemo } from 'react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { addInventoryItem, updateInventoryItem, deleteInventoryItem } from '@/app/estoque/actions';
+import { VET_SUPPLIES_CATALOG } from '@/core/data/vet-supplies-catalog';
 import { useToast } from '@/components/ui/Toast';
 import { Modal } from '@/components/ui/Modal';
 
@@ -31,6 +33,22 @@ export function InventoryItemForm({ itemToEdit, onClose }: InventoryItemFormProp
   const [type, setType] = useState(itemToEdit?.type || 'Medication');
   const [concentration, setConcentration] = useState(itemToEdit?.concentration || '');
   const [salePrice, setSalePrice] = useState(itemToEdit?.salePrice?.toString() || '');
+
+  const catalogOptions = useMemo(
+    () => Array.from(new Set(VET_SUPPLIES_CATALOG.map((c) => c.name))),
+    []
+  );
+
+  const handleNameChange = (val: string) => {
+    setName(val);
+    const match = VET_SUPPLIES_CATALOG.find(
+      (c) => c.name.toLowerCase() === val.toLowerCase()
+    );
+    if (match) {
+      if (match.concentration) setConcentration(match.concentration);
+      setType(match.category);
+    }
+  };
 
   // If itemToEdit is provided, the form is open by default as a modal edit
   const isEdit = !!itemToEdit;
@@ -156,12 +174,13 @@ export function InventoryItemForm({ itemToEdit, onClose }: InventoryItemFormProp
           )}
 
           <form onSubmit={handleSave} className="flex flex-col gap-6 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
-            <Input 
-              label="Nome do Item" 
-              placeholder="Ex: Vacina V10, Dexametasona..." 
-              value={name} 
-              onChange={e => setName(e.target.value)} 
-              required 
+            <AutocompleteInput
+              label="Nome do Item (Catálogo de Vacinas e Insumos)"
+              placeholder="Ex: Vacina V10 Vanguard, Antirrábica, Maxicam..."
+              value={name}
+              onChange={handleNameChange}
+              options={catalogOptions}
+              required
             />
 
             <Input 

@@ -7,9 +7,14 @@ import { LocalDate } from '@/components/ui/LocalDate';
 import Link from 'next/link';
 import { ScheduleConsultationForm } from './ScheduleConsultationForm';
 import { getConsultationDetails, cancelarConsulta } from '@/app/agenda/actions';
-import { gerarPDFReceituario } from '@/core/use-cases/generate-pdf';
+import {
+  gerarPDFReceituario,
+  gerarPDFRelatorioAtendimento,
+  type PrescriptionItem,
+} from '@/core/use-cases/generate-pdf';
 import { useToast } from '@/components/ui/Toast';
 import { translateSpecies } from '@/core/utils/translations';
+import { buildGoogleMapsUrl } from '@/core/utils/cep';
 import { Edit2, Trash2, MoreVertical } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 
@@ -19,12 +24,16 @@ export interface Consultation {
   type: string;
   address: string | null;
   status: string;
+  travel_distance_km?: number | null;
+  travel_fee?: number | null;
   patients: {
     id: string;
     name: string;
     species: string;
     tutors: {
       name: string;
+      address?: string | null;
+      phone?: string | null;
     } | null;
   } | null;
 }
@@ -34,7 +43,9 @@ export interface Patient {
   name: string;
   species: string;
   tutors: {
+    name?: string;
     address: string | null;
+    phone?: string | null;
   } | null;
 }
 
@@ -69,17 +80,20 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
     if (window.navigator.vibrate) window.navigator.vibrate(50);
   }, []);
 
-  const handleStartPress = useCallback((e: React.MouseEvent | React.TouchEvent, consult: Consultation) => {
-    if (consult.status === 'Completed') return;
+  const handleStartPress = useCallback(
+    (e: React.MouseEvent | React.TouchEvent, consult: Consultation) => {
+      if (consult.status === 'Completed') return;
 
-    const x = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
-    const y = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
-    
-    setPressingConsultationId(consult.id);
-    longPressTimer.current = setTimeout(() => {
-      triggerMenu(x, y, consult);
-    }, 500);
-  }, [triggerMenu]);
+      const x = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+      const y = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+
+      setPressingConsultationId(consult.id);
+      longPressTimer.current = setTimeout(() => {
+        triggerMenu(x, y, consult);
+      }, 500);
+    },
+    [triggerMenu]
+  );
 
   const handleEndPress = useCallback(() => {
     setPressingConsultationId(null);
@@ -107,7 +121,7 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
         success('Consulta cancelada com sucesso.');
         setConsultationToDelete(null);
         setMenuConsultation(null);
-        window.location.reload(); 
+        window.location.reload();
       } else {
         error(result.error);
       }
@@ -144,7 +158,10 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
       start.setDate(currentDate.getDate() - currentDate.getDay());
       const end = new Date(start);
       end.setDate(start.getDate() + 6);
-      return `${start.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - ${end.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`;
+      return `${start.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+      })} - ${end.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`;
     } else if (view === 'month') {
       return currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
     } else {
@@ -163,74 +180,94 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
       const day = start.getDay();
       start.setDate(start.getDate() - day);
       start.setHours(0, 0, 0, 0);
-      
+
       end.setDate(start.getDate() + 6);
       end.setHours(23, 59, 59, 999);
     } else if (view === 'month') {
       start.setDate(1);
       start.setHours(0, 0, 0, 0);
-      
+
       end.setMonth(start.getMonth() + 1);
       end.setDate(0);
       end.setHours(23, 59, 59, 999);
     } else if (view === 'year') {
       start.setMonth(0, 1);
       start.setHours(0, 0, 0, 0);
-      
+
       end.setMonth(11, 31);
       end.setHours(23, 59, 59, 999);
     }
 
-    return initialConsultations.filter(consult => {
+    return initialConsultations.filter((consult) => {
       const consultDate = new Date(consult.date);
       return consultDate >= start && consultDate <= end;
     });
   }, [view, currentDate, initialConsultations]);
 
-  const handleDownloadPDF = async (id: string) => {
-    setDownloadingPdf(id);
+  const handleDownloadPDF = async (id: string, docType: 'receita' | 'relatorio') => {
+    setDownloadingPdf(`${id}-${docType}`);
     try {
       const data = await getConsultationDetails(id);
-      
-      gerarPDFReceituario({
+      const prescriptions = Array.isArray(data.prescriptions)
+        ? (data.prescriptions as unknown as PrescriptionItem[])
+        : [];
+
+      const docPayload = {
         tutorName: data.patients?.tutors?.name || 'Não Informado',
         patientName: data.patients?.name || 'Não Informado',
-        species: translateSpecies(data.patients?.species || ''),
+        species: data.patients?.species || '',
         breed: data.patients?.breed || '',
         color: data.patients?.color || '',
         weight: data.weight_kg?.toString() || '',
+        birthDate: data.patients?.birth_date || null,
+        fertilityStatus: data.patients?.fertility_status || null,
+        fertilityNotes: data.patients?.fertility_notes || null,
+        clinicalObservations: data.patients?.clinical_observations || null,
         notes: data.clinical_notes || '',
         items: (data.consultation_items || [])
           .filter((ci: { inventory: { type: string } | null }) => ci.inventory?.type !== 'Consultation')
-          .map((ci: { inventory: { name: string } | null, quantity: number }) => ({
+          .map((ci: { inventory: { name: string } | null; quantity: number }) => ({
             name: ci.inventory?.name || 'Item',
-            quantity: ci.quantity
+            quantity: ci.quantity,
           })),
-        date: data.date
-      });
-      success('PDF gerado com sucesso!');
+        prescriptions,
+        date: data.date,
+        vetName: data.profiles?.full_name || 'Dra. Gabriela Soares',
+        vetCrmv: data.profiles?.crmv || '',
+      };
+
+      if (docType === 'relatorio') {
+        await gerarPDFRelatorioAtendimento(docPayload);
+        success('Relatório de Atendimento gerado com sucesso!');
+      } else {
+        await gerarPDFReceituario(docPayload);
+        success('Receituário gerado com sucesso!');
+      }
     } catch (err) {
       console.error(err);
-      error('Erro ao gerar PDF do prontuário');
+      error('Erro ao gerar PDF');
     } finally {
       setDownloadingPdf(null);
     }
   };
 
-  // Render Functions (instead of components inside render)
   const renderDayView = () => (
     <div className="grid grid-cols-1 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {filteredConsultations.map((consult) => {
         const isCompleted = consult.status === 'Completed';
-        
+        const effectiveAddress =
+          consult.address?.trim() || consult.patients?.tutors?.address?.trim() || null;
+
         return (
-          <Card 
-            key={consult.id} 
+          <Card
+            key={consult.id}
             className={`relative flex flex-col sm:flex-row justify-between items-center gap-6 border-l-8 overflow-hidden border border-border transition-all duration-300 ${
-              isCompleted 
-                ? 'border-emerald-500/50 bg-emerald-500/3 cursor-default' 
+              isCompleted
+                ? 'border-emerald-500/50 bg-emerald-500/3 cursor-default'
                 : `border-primary shadow-lg shadow-primary/5 cursor-pointer hover:shadow-sm active:scale-[0.98] ${
-                    pressingConsultationId === consult.id ? 'bg-primary/5 scale-[0.98] border-primary/40' : ''
+                    pressingConsultationId === consult.id
+                      ? 'bg-primary/5 scale-[0.98] border-primary/40'
+                      : ''
                   }`
             }`}
             onMouseDown={(e) => handleStartPress(e, consult)}
@@ -258,10 +295,16 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
               </button>
             )}
             <div className="flex items-center gap-4 sm:gap-6 w-full min-w-0 pointer-events-none">
-              <div className={`flex flex-col items-center justify-center min-w-[80px] p-3 rounded-2xl bg-card shadow-sm border border-border shrink-0 ${
-                isCompleted ? 'bg-emerald-500/10 border-emerald-500/20' : ''
-              }`}>
-                <span className={`text-[10px] font-black uppercase ${isCompleted ? 'text-emerald-500' : 'text-primary'}`}>
+              <div
+                className={`flex flex-col items-center justify-center min-w-[80px] p-3 rounded-2xl bg-card shadow-sm border border-border shrink-0 ${
+                  isCompleted ? 'bg-emerald-500/10 border-emerald-500/20' : ''
+                }`}
+              >
+                <span
+                  className={`text-[10px] font-black uppercase ${
+                    isCompleted ? 'text-emerald-500' : 'text-primary'
+                  }`}
+                >
                   <LocalDate date={consult.date} format="date" />
                 </span>
                 <span className="text-xl font-black text-foreground">
@@ -271,7 +314,9 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
 
               <div className="flex flex-col min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-xl font-extrabold text-foreground truncate">{consult.patients?.name}</h3>
+                  <h3 className="text-xl font-extrabold text-foreground truncate">
+                    {consult.patients?.name}
+                  </h3>
                   {isCompleted && (
                     <span className="flex items-center gap-1 text-[9px] font-black bg-emerald-500/20 text-emerald-500 px-2 py-0.5 rounded-full uppercase tracking-widest">
                       ✓ Realizada
@@ -279,57 +324,82 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
                   )}
                 </div>
                 <span className="text-sm font-bold text-foreground/60 truncate">
-                  {consult.patients?.species} • Tutor: {consult.patients?.tutors?.name}
+                  {translateSpecies(consult.patients?.species || '')} • Tutor:{' '}
+                  {consult.patients?.tutors?.name}
                 </span>
                 <div className="mt-3 bg-foreground/10 p-3 rounded-2xl flex flex-col gap-2 border border-foreground/5">
                   <div className="flex flex-wrap gap-2">
-                    <span className={`w-fit text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${
-                      consult.type === 'Home' 
-                        ? 'bg-orange-500/20 text-orange-500 border-orange-500/30' 
-                        : 'bg-primary/20 text-primary border-primary/30'
-                    }`}>
+                    <span
+                      className={`w-fit text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${
+                        consult.type === 'Home'
+                          ? 'bg-orange-500/20 text-orange-500 border-orange-500/30'
+                          : 'bg-primary/20 text-primary border-primary/30'
+                      }`}
+                    >
                       {consult.type === 'Home' ? '🏠 Domicílio' : '🏥 Hospital'}
                     </span>
-                    {isCompleted && (
-                      <span className="w-fit text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-600 border border-emerald-500/30">
-                        Histórico Disponível
+                    {consult.travel_fee && Number(consult.travel_fee) > 0 ? (
+                      <span className="w-fit text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-600 border border-emerald-500/30">
+                        🚗 Deslocamento: R$ {Number(consult.travel_fee).toFixed(2)}
                       </span>
-                    )}
+                    ) : null}
                   </div>
-                  {consult.address && (
-                    <span className="text-xs text-foreground/60 font-medium italic truncate w-full flex items-center gap-1.5 px-1">
-                      <span className="text-primary/60">📍</span> {consult.address}
+                  {effectiveAddress && (
+                    <span className="text-xs text-foreground/70 font-medium truncate w-full flex items-center gap-1.5 px-1">
+                      <span className="text-primary">📍</span> {effectiveAddress}
                     </span>
                   )}
                 </div>
               </div>
             </div>
 
-            <div className="flex flex-wrap sm:flex-row gap-3 w-full sm:w-auto mt-2 sm:mt-0" onClick={(e) => e.stopPropagation()}>
-              {isCompleted ? (
-                <Button 
-                  variant="info" 
-                  onClick={() => handleDownloadPDF(consult.id)}
-                  disabled={downloadingPdf === consult.id}
-                  className="w-full px-8! py-2! text-sm shadow-sm flex items-center justify-center gap-2"
+            <div
+              className="flex flex-wrap sm:flex-col gap-2 w-full sm:w-auto mt-2 sm:mt-0 shrink-0"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {consult.type === 'Home' && effectiveAddress && (
+                <a
+                  href={buildGoogleMapsUrl(effectiveAddress)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full px-4 py-2 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 text-orange-600 border border-orange-500/30 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors"
                 >
-                  {downloadingPdf === consult.id ? (
-                    <>
-                      <div className="w-3 h-3 border-2 border-emerald-500/30 border-t-emerald-600 rounded-full animate-spin" />
-                      Gerando...
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      Baixar PDF
-                    </>
-                  )}
-                </Button>
+                  🗺️ Abrir no Mapa
+                </a>
+              )}
+
+              {isCompleted ? (
+                <div className="flex flex-wrap gap-2 w-full">
+                  <Button
+                    variant="secondary"
+                    onClick={() => handleDownloadPDF(consult.id, 'relatorio')}
+                    disabled={downloadingPdf === `${consult.id}-relatorio`}
+                    className="flex-1 px-4! py-2! text-xs shadow-sm flex items-center justify-center gap-1.5"
+                  >
+                    {downloadingPdf === `${consult.id}-relatorio`
+                      ? 'Gerando...'
+                      : '📄 Relatório'}
+                  </Button>
+                  <Button
+                    variant="info"
+                    onClick={() => handleDownloadPDF(consult.id, 'receita')}
+                    disabled={downloadingPdf === `${consult.id}-receita`}
+                    className="flex-1 px-4! py-2! text-xs shadow-sm flex items-center justify-center gap-1.5"
+                  >
+                    {downloadingPdf === `${consult.id}-receita`
+                      ? 'Gerando...'
+                      : '💊 Receita'}
+                  </Button>
+                </div>
               ) : (
-                <Link href={`/prontuario?id=${consult.patients?.id}&type=Paciente&consultationId=${consult.id}&returnTo=agenda`} className="flex-1 sm:flex-none">
-                  <Button variant="primary" className="w-full px-8! py-2! text-sm shadow-sm border border-border">
+                <Link
+                  href={`/prontuario?id=${consult.patients?.id}&type=Paciente&consultationId=${consult.id}&returnTo=agenda`}
+                  className="flex-1 sm:flex-none"
+                >
+                  <Button
+                    variant="primary"
+                    className="w-full px-8! py-2! text-sm shadow-sm border border-border"
+                  >
                     Atender
                   </Button>
                 </Link>
@@ -349,9 +419,13 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
     for (let i = 0; i < 7; i++) {
       const day = new Date(start);
       day.setDate(start.getDate() + i);
-      const dayConsults = filteredConsultations.filter(c => {
+      const dayConsults = filteredConsultations.filter((c) => {
         const d = new Date(c.date);
-        return d.getDate() === day.getDate() && d.getMonth() === day.getMonth() && d.getFullYear() === day.getFullYear();
+        return (
+          d.getDate() === day.getDate() &&
+          d.getMonth() === day.getMonth() &&
+          d.getFullYear() === day.getFullYear()
+        );
       });
 
       days.push({ date: day, consultations: dayConsults });
@@ -360,33 +434,52 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
     return (
       <div className="grid grid-cols-1 md:grid-cols-7 gap-4 animate-in fade-in duration-500">
         {days.map((d, i) => (
-          <Card 
-            key={i} 
-            onClick={() => { setCurrentDate(d.date); setView('day'); }}
+          <Card
+            key={i}
+            onClick={() => {
+              setCurrentDate(d.date);
+              setView('day');
+            }}
             className={`p-4 flex flex-col items-center gap-3 transition-all cursor-pointer hover:shadow-sm border border-border ${
-              d.date.toDateString() === new Date().toDateString() ? 'border-2 border-primary/30' : ''
+              d.date.toDateString() === new Date().toDateString()
+                ? 'border-2 border-primary/30'
+                : ''
             }`}
           >
             <div className="text-center">
               <span className="text-[10px] font-black text-foreground/40 uppercase tracking-widest">
                 {d.date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}
               </span>
-              <div className={`text-xl font-black ${d.date.toDateString() === new Date().toDateString() ? 'text-primary' : 'text-foreground'}`}>
+              <div
+                className={`text-xl font-black ${
+                  d.date.toDateString() === new Date().toDateString()
+                    ? 'text-primary'
+                    : 'text-foreground'
+                }`}
+              >
                 {d.date.getDate()}
               </div>
             </div>
 
             <div className="flex flex-col gap-2 w-full">
               {d.consultations.length > 0 ? (
-                d.consultations.slice(0, 3).map(c => {
+                d.consultations.slice(0, 3).map((c) => {
                   const isComp = c.status === 'Completed';
                   return (
-                    <div key={c.id} className={`text-[10px] font-black p-2 rounded-lg truncate border ${
-                      isComp 
-                        ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' 
-                        : 'bg-primary/5 text-primary border-primary/10'
-                    }`}>
-                      {isComp ? '✓ ' : ''}{new Date(c.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} • {c.patients?.name}
+                    <div
+                      key={c.id}
+                      className={`text-[10px] font-black p-2 rounded-lg truncate border ${
+                        isComp
+                          ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
+                          : 'bg-primary/5 text-primary border-primary/10'
+                      }`}
+                    >
+                      {isComp ? '✓ ' : ''}
+                      {new Date(c.date).toLocaleTimeString('pt-BR', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}{' '}
+                      • {c.patients?.name}
                     </div>
                   );
                 })
@@ -396,7 +489,9 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
                 </div>
               )}
               {d.consultations.length > 3 && (
-                <div className="text-[9px] text-center font-black text-foreground/30">+ {d.consultations.length - 3} mais</div>
+                <div className="text-[9px] text-center font-black text-foreground/30">
+                  + {d.consultations.length - 3} mais
+                </div>
               )}
             </div>
           </Card>
@@ -412,17 +507,17 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
     const daysInMonth = endOfMonth.getDate();
 
     const calendarDays = [];
-    // Previous month filler
     for (let i = startDay - 1; i >= 0; i--) {
       const d = new Date(startOfMonth);
       d.setDate(d.getDate() - i - 1);
       calendarDays.push({ date: d, currentMonth: false });
     }
-    // Current month
     for (let i = 1; i <= daysInMonth; i++) {
-      calendarDays.push({ date: new Date(currentDate.getFullYear(), currentDate.getMonth(), i), currentMonth: true });
+      calendarDays.push({
+        date: new Date(currentDate.getFullYear(), currentDate.getMonth(), i),
+        currentMonth: true,
+      });
     }
-    // Next month filler
     const remaining = 42 - calendarDays.length;
     for (let i = 1; i <= remaining; i++) {
       const d = new Date(endOfMonth);
@@ -433,38 +528,66 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
     return (
       <div className="flex flex-col gap-4 animate-in fade-in duration-500">
         <div className="grid grid-cols-7 gap-2 text-center px-4">
-          {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
-            <span key={d} className="text-[10px] font-black text-foreground/30 uppercase tracking-widest">{d}</span>
+          {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((d) => (
+            <span
+              key={d}
+              className="text-[10px] font-black text-foreground/30 uppercase tracking-widest"
+            >
+              {d}
+            </span>
           ))}
         </div>
         <div className="grid grid-cols-7 gap-2">
           {calendarDays.map((d, i) => {
-            const consults = filteredConsultations.filter(c => {
+            const consults = filteredConsultations.filter((c) => {
               const dc = new Date(c.date);
-              return dc.getDate() === d.date.getDate() && dc.getMonth() === d.date.getMonth() && dc.getFullYear() === d.date.getFullYear();
+              return (
+                dc.getDate() === d.date.getDate() &&
+                dc.getMonth() === d.date.getMonth() &&
+                dc.getFullYear() === d.date.getFullYear()
+              );
             });
             const isToday = d.date.toDateString() === new Date().toDateString();
 
             return (
               <button
                 key={i}
-                onClick={() => { setCurrentDate(d.date); setView('day'); }}
+                onClick={() => {
+                  setCurrentDate(d.date);
+                  setView('day');
+                }}
                 className={`aspect-square p-1 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group ${
                   d.currentMonth ? 'hover:shadow-sm border border-border' : 'opacity-20'
-                } ${isToday ? 'bg-primary/5 border border-primary/20' : 'bg-foreground/5 shadow-inner border border-border'}`}
+                } ${
+                  isToday
+                    ? 'bg-primary/5 border border-primary/20'
+                    : 'bg-foreground/5 shadow-inner border border-border'
+                }`}
               >
-                <span className={`text-xs font-black ${isToday ? 'text-primary' : d.currentMonth ? 'text-foreground' : 'text-foreground/40'}`}>
+                <span
+                  className={`text-xs font-black ${
+                    isToday
+                      ? 'text-primary'
+                      : d.currentMonth
+                      ? 'text-foreground'
+                      : 'text-foreground/40'
+                  }`}
+                >
                   {d.date.getDate()}
                 </span>
                 {consults.length > 0 && (
                   <div className="flex gap-0.5 flex-wrap justify-center max-w-[80%]">
                     {consults.slice(0, 3).map((c, idx) => (
-                      <div 
-                        key={idx} 
-                        className={`w-1.5 h-1.5 rounded-full ${c.status === 'Completed' ? 'bg-emerald-500' : 'bg-primary animate-pulse'}`} 
+                      <div
+                        key={idx}
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          c.status === 'Completed' ? 'bg-emerald-500' : 'bg-primary animate-pulse'
+                        }`}
                       />
                     ))}
-                    {consults.length > 3 && <div className="text-[8px] font-black text-primary">+</div>}
+                    {consults.length > 3 && (
+                      <div className="text-[8px] font-black text-primary">+</div>
+                    )}
                   </div>
                 )}
               </button>
@@ -476,26 +599,38 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
   };
 
   const renderYearView = () => {
-    const months = Array.from({ length: 12 }, (_, i) => new Date(currentDate.getFullYear(), i, 1));
-    
+    const months = Array.from(
+      { length: 12 },
+      (_, i) => new Date(currentDate.getFullYear(), i, 1)
+    );
+
     return (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6 animate-in fade-in duration-500">
         {months.map((m, i) => {
-          const count = initialConsultations.filter(c => {
+          const count = initialConsultations.filter((c) => {
             const d = new Date(c.date);
             return d.getMonth() === m.getMonth() && d.getFullYear() === m.getFullYear();
           }).length;
 
           return (
-            <Card 
-              key={i} 
-              onClick={() => { setCurrentDate(m); setView('month'); }}
+            <Card
+              key={i}
+              onClick={() => {
+                setCurrentDate(m);
+                setView('month');
+              }}
               className="p-6 flex flex-col items-center gap-4 cursor-pointer hover:shadow-sm border border-border group transition-all"
             >
-              <div className="text-sm font-black text-primary uppercase tracking-[0.2em]">{m.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}</div>
+              <div className="text-sm font-black text-primary uppercase tracking-[0.2em]">
+                {m.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}
+              </div>
               <div className="flex flex-col items-center bg-foreground/5 shadow-inner border border-border p-4 rounded-3xl w-full">
-                <span className="text-3xl font-black text-foreground group-hover:scale-110 transition-transform">{count}</span>
-                <span className="text-[9px] font-bold text-foreground/40 uppercase tracking-widest mt-1">Consultas</span>
+                <span className="text-3xl font-black text-foreground group-hover:scale-110 transition-transform">
+                  {count}
+                </span>
+                <span className="text-[9px] font-bold text-foreground/40 uppercase tracking-widest mt-1">
+                  Consultas
+                </span>
               </div>
             </Card>
           );
@@ -507,9 +642,9 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
   return (
     <div className="flex flex-col gap-8 w-full max-w-4xl mx-auto">
       {editingConsultation && (
-        <ScheduleConsultationForm 
+        <ScheduleConsultationForm
           key={editingConsultation.id}
-          patients={patients} 
+          patients={patients}
           itemToEdit={editingConsultation}
           isOpenControlled={!!editingConsultation}
           onClose={() => setEditingConsultation(null)}
@@ -522,11 +657,13 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
           <div className="flex flex-col">
             <h1 className="text-3xl font-extrabold text-foreground">Agenda</h1>
           </div>
-          
+
           <div className="flex flex-wrap items-center gap-3">
             <ScheduleConsultationForm patients={patients} />
             <Link href="/">
-              <Button variant="secondary" className="px-4! py-2! text-sm">Voltar</Button>
+              <Button variant="secondary" className="px-4! py-2! text-sm">
+                Voltar
+              </Button>
             </Link>
           </div>
         </div>
@@ -539,7 +676,9 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
                 key={v}
                 onClick={() => setView(v)}
                 className={`flex-1 md:flex-none px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${
-                  view === v ? 'bg-primary text-white shadow-sm border border-border' : 'text-foreground/40 hover:text-foreground'
+                  view === v
+                    ? 'bg-primary text-white shadow-sm border border-border'
+                    : 'text-foreground/40 hover:text-foreground'
                 }`}
               >
                 {v === 'day' ? 'Dia' : v === 'week' ? 'Semana' : v === 'month' ? 'Mês' : 'Ano'}
@@ -548,30 +687,51 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
           </div>
 
           <div className="flex items-center gap-2 ml-auto w-full md:w-auto">
-            <Button type="button" variant="secondary" onClick={handlePrevious} className="w-10 h-10 p-0! rounded-full! shadow-sm border border-border shrink-0 flex items-center justify-center">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handlePrevious}
+              className="w-10 h-10 p-0! rounded-full! shadow-sm border border-border shrink-0 flex items-center justify-center"
+            >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="3"
+                  d="M15 19l-7-7 7-7"
+                />
               </svg>
             </Button>
-            <Button 
+            <Button
               type="button"
-              variant="secondary" 
-              onClick={() => setCurrentDate(new Date())} 
+              variant="secondary"
+              onClick={() => setCurrentDate(new Date())}
               className="text-[10px] font-black uppercase tracking-widest px-4 flex-1 md:flex-none min-w-[120px]"
             >
               {(() => {
                 const today = new Date();
-                const isToday = view === 'day' && 
-                  currentDate.getDate() === today.getDate() && 
-                  currentDate.getMonth() === today.getMonth() && 
+                const isToday =
+                  view === 'day' &&
+                  currentDate.getDate() === today.getDate() &&
+                  currentDate.getMonth() === today.getMonth() &&
                   currentDate.getFullYear() === today.getFullYear();
-                
+
                 return isToday ? 'Hoje' : getViewTitle();
               })()}
             </Button>
-            <Button type="button" variant="secondary" onClick={handleNext} className="w-10 h-10 p-0! rounded-full! shadow-sm border border-border shrink-0 flex items-center justify-center">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleNext}
+              className="w-10 h-10 p-0! rounded-full! shadow-sm border border-border shrink-0 flex items-center justify-center"
+            >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="3"
+                  d="M9 5l7 7-7 7"
+                />
               </svg>
             </Button>
           </div>
@@ -582,8 +742,12 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
       <div className="flex flex-col gap-6">
         {filteredConsultations.length === 0 && view === 'day' ? (
           <Card className="text-center py-20 flex flex-col items-center gap-4 bg-background/40">
-            <div className="w-20 h-20 bg-foreground/5 rounded-full flex items-center justify-center text-4xl opacity-30">📅</div>
-            <p className="text-foreground/40 font-bold text-lg italic">Nenhuma consulta encontrada para este dia.</p>
+            <div className="w-20 h-20 bg-foreground/5 rounded-full flex items-center justify-center text-4xl opacity-30">
+              📅
+            </div>
+            <p className="text-foreground/40 font-bold text-lg italic">
+              Nenhuma consulta encontrada para este dia.
+            </p>
           </Card>
         ) : (
           <>
@@ -594,21 +758,31 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
           </>
         )}
       </div>
+
       {/* iOS Style Context Menu Overlay */}
       {menuConsultation && menuPosition && (
         <div className="fixed inset-0 z-100">
-          {/* Backdrop Blur */}
-          <div 
-            className={`absolute inset-0 bg-black/5 backdrop-blur-[1px] ${isMenuClosing ? 'animate-fade-out' : 'animate-fade-in'}`}
+          <div
+            className={`absolute inset-0 bg-black/5 backdrop-blur-[1px] ${
+              isMenuClosing ? 'animate-fade-out' : 'animate-fade-in'
+            }`}
             onClick={handleCloseMenu}
-            onContextMenu={(e) => { e.preventDefault(); handleCloseMenu(); }}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              handleCloseMenu();
+            }}
           />
-          
-          {/* Menu Content */}
-          <div 
-            style={{ 
-              top: Math.min(menuPosition.y, typeof window !== 'undefined' ? window.innerHeight - 150 : menuPosition.y),
-              left: Math.min(menuPosition.x, typeof window !== 'undefined' ? window.innerWidth - 220 : menuPosition.x)
+
+          <div
+            style={{
+              top: Math.min(
+                menuPosition.y,
+                typeof window !== 'undefined' ? window.innerHeight - 150 : menuPosition.y
+              ),
+              left: Math.min(
+                menuPosition.x,
+                typeof window !== 'undefined' ? window.innerWidth - 220 : menuPosition.x
+              ),
             }}
             className={`absolute w-full max-w-[200px] bg-card/90 backdrop-blur-2xl rounded-2xl shadow-2xl shadow-black/20 overflow-hidden border border-border z-101 ${
               isMenuClosing ? 'animate-ios-pop-out' : 'animate-ios-pop'
@@ -626,7 +800,7 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
                 <Edit2 className="w-4 h-4 opacity-40" />
                 <span className="font-bold text-sm">Editar Consulta</span>
               </button>
-              
+
               <button
                 onClick={() => {
                   setConsultationToDelete(menuConsultation);
@@ -650,18 +824,21 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
         showCloseButton={false}
       >
         <div className="flex flex-col items-center gap-6 py-4">
-          <div className="text-6xl animate-bounce">
-            ⚠️
-          </div>
-          
+          <div className="text-6xl animate-bounce">⚠️</div>
+
           <div className="text-center space-y-4">
             <p className="text-foreground/60 font-medium text-lg leading-relaxed">
-              Você está prestes a cancelar a consulta de <span className="text-foreground font-black italic">&quot;{consultationToDelete?.patients?.name}&quot;</span>.
+              Você está prestes a cancelar a consulta de{' '}
+              <span className="text-foreground font-black italic">
+                &quot;{consultationToDelete?.patients?.name}&quot;
+              </span>
+              .
             </p>
-            
+
             <div className="bg-error/5 border-2 border-error/20 p-5 rounded-2xl">
               <p className="text-error text-sm font-black leading-tight uppercase tracking-wide">
-                Esta ação removerá o agendamento da sua agenda. Você poderá agendá-lo novamente depois se desejar.
+                Esta ação removerá o agendamento da sua agenda. Você poderá agendá-lo novamente
+                depois se desejar.
               </p>
             </div>
           </div>
