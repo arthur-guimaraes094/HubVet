@@ -29,6 +29,7 @@ export function buildWhatsAppConsultationSummaryUrl(params: {
   totalValue?: number | null;
   pixKey?: string | null;
   pixKeyType?: string | null;
+  pixCopiaECola?: string | null;
 }): string {
   const {
     phone,
@@ -40,6 +41,7 @@ export function buildWhatsAppConsultationSummaryUrl(params: {
     totalValue,
     pixKey,
     pixKeyType,
+    pixCopiaECola,
   } = params;
 
   if (!phone) return '';
@@ -60,6 +62,9 @@ export function buildWhatsAppConsultationSummaryUrl(params: {
     let financeText = `💰 *Valor Total do Atendimento:* R$ ${totalValue.toFixed(2)}`;
     if (pixKey && pixKey.trim()) {
       financeText += `\n*Chave PIX (${pixKeyType || 'PIX'}):* \`${pixKey.trim()}\``;
+      if (pixCopiaECola) {
+        financeText += `\n\n*Código PIX Copia e Cola:*\n\`${pixCopiaECola}\``;
+      }
     }
     sections.push(financeText);
   }
@@ -102,14 +107,29 @@ export function buildWhatsAppPixBillingUrl(params: {
   totalValue: number;
   pixKey: string;
   pixKeyType?: string | null;
+  pixCopiaECola?: string | null;
 }): string {
-  const { phone, tutorName = 'Tutor(a)', patientName = 'Paciente', totalValue, pixKey, pixKeyType } = params;
+  const {
+    phone,
+    tutorName = 'Tutor(a)',
+    patientName = 'Paciente',
+    totalValue,
+    pixKey,
+    pixKeyType,
+    pixCopiaECola,
+  } = params;
 
   if (!phone) return '';
 
-  const text = `Olá, *${tutorName}*! Seguem os dados para acerto da consulta do(a) *${patientName}*:\n\n💰 *Valor:* R$ ${totalValue.toFixed(
+  let text = `Olá, *${tutorName}*! Seguem os dados para acerto da consulta do(a) *${patientName}*:\n\n💰 *Valor:* R$ ${totalValue.toFixed(
     2
-  )}\n🔑 *Chave PIX (${pixKeyType || 'PIX'}):* \`${pixKey.trim()}\`\n\nMuito obrigada pela confiança no cuidado do seu pet! ❤️`;
+  )}\n🔑 *Chave PIX (${pixKeyType || 'PIX'}):* \`${pixKey.trim()}\``;
+
+  if (pixCopiaECola) {
+    text += `\n\n📋 *Código PIX Copia e Cola:*\n\`${pixCopiaECola}\``;
+  }
+
+  text += `\n\nMuito obrigada pela confiança no cuidado do seu pet! ❤️`;
 
   return buildWhatsAppUrl(phone, text);
 }

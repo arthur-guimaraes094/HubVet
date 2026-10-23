@@ -25,6 +25,7 @@ import {
   buildWhatsAppConsultationSummaryUrl,
   buildWhatsAppPixBillingUrl,
 } from '@/core/utils/whatsapp';
+import { generatePixPayload, generatePixQrCodeDataUrl } from '@/core/utils/pix';
 import { buildGoogleMapsUrl } from '@/core/utils/cep';
 import { formatPatientAge, formatFertilityStatus } from '@/core/utils/age';
 import { translateSpecies } from '@/core/utils/translations';
@@ -695,16 +696,47 @@ export function ConsultationForm({
     });
   }, [vacProtocol, vacCustomName, vacDoseStage, todayStr, vacCustomInterval]);
 
-  if (showSuccess) {
-    const effectivePixKey =
-      pixKey ||
-      (typeof window !== 'undefined' ? localStorage.getItem('hubvet_pix_key') || '' : '');
-    const effectivePixType =
-      pixKeyType ||
-      (typeof window !== 'undefined'
-        ? localStorage.getItem('hubvet_pix_key_type') || 'CPF'
-        : 'CPF');
+  // PIX e QR Code para tela de sucesso
+  const [pixQrCodeUrl, setPixQrCodeUrl] = useState<string>('');
 
+  const effectivePixKey =
+    pixKey ||
+    (typeof window !== 'undefined' ? localStorage.getItem('hubvet_pix_key') || '' : '');
+  const effectivePixType =
+    pixKeyType ||
+    (typeof window !== 'undefined'
+      ? localStorage.getItem('hubvet_pix_key_type') || 'CPF'
+      : 'CPF');
+
+  const pixPayload = useMemo(() => {
+    if (!effectivePixKey || totalValue <= 0) return '';
+    return generatePixPayload({
+      key: effectivePixKey,
+      name: vetName || 'Dra Gabriela Soares',
+      city: 'Natal',
+      amount: totalValue,
+    });
+  }, [effectivePixKey, totalValue, vetName]);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (pixPayload) {
+      generatePixQrCodeDataUrl(pixPayload, { width: 220, margin: 1 })
+        .then((url) => {
+          if (isMounted) setPixQrCodeUrl(url);
+        })
+        .catch((err) => console.warn('Erro ao gerar QR Code PIX:', err));
+    } else {
+      Promise.resolve().then(() => {
+        if (isMounted) setPixQrCodeUrl('');
+      });
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [pixPayload]);
+
+  if (showSuccess) {
     const whatsappSummaryUrl = buildWhatsAppConsultationSummaryUrl({
       phone: tutorPhone,
       tutorName: tutorName,
@@ -715,6 +747,7 @@ export function ConsultationForm({
       totalValue: totalValue,
       pixKey: effectivePixKey,
       pixKeyType: effectivePixType,
+      pixCopiaECola: pixPayload || null,
     });
 
     const whatsappPixUrl =
@@ -726,6 +759,7 @@ export function ConsultationForm({
             totalValue: totalValue,
             pixKey: effectivePixKey,
             pixKeyType: effectivePixType,
+            pixCopiaECola: pixPayload || null,
           })
         : null;
 
@@ -754,7 +788,7 @@ export function ConsultationForm({
             </div>
 
             {effectivePixKey ? (
-              <div className="flex flex-col gap-2 pt-2 border-t border-emerald-500/15">
+              <div className="flex flex-col gap-3 pt-2 border-t border-emerald-500/15">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-foreground/60 font-medium">
                     Chave PIX ({effectivePixType}):
@@ -763,23 +797,54 @@ export function ConsultationForm({
                     {effectivePixKey}
                   </span>
                 </div>
-                <div className="flex gap-2 mt-1">
+
+                {/* QR Code Oficial Banco Central (EMVCo) */}
+                {pixQrCodeUrl && (
+                  <div className="flex flex-col items-center justify-center py-3 px-4 bg-white rounded-2xl shadow-sm border border-emerald-500/25 my-1">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={pixQrCodeUrl}
+                      alt="QR Code PIX Banco Central"
+                      className="w-48 h-48 rounded-lg object-contain"
+                    />
+                    <span className="text-[11px] font-black uppercase tracking-wider text-neutral-800 mt-2">
+                      Aponte a câmera do banco para pagar
+                    </span>
+                    <span className="text-xs font-extrabold text-emerald-700">
+                      R$ {totalValue.toFixed(2)}
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex flex-col sm:flex-row gap-2 mt-1">
+                  {pixPayload && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(pixPayload);
+                        success('Código PIX Copia e Cola copiado!');
+                      }}
+                      className="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-sm"
+                    >
+                      📋 PIX Copia e Cola
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => {
                       navigator.clipboard.writeText(effectivePixKey);
-                      success('Chave PIX copiada para a área de transferência!');
+                      success('Chave PIX copiada!');
                     }}
-                    className="flex-1 py-2 px-3 rounded-xl bg-card border border-border hover:border-emerald-500 text-foreground text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-sm"
+                    className="py-2 px-3 rounded-xl bg-card border border-border hover:border-emerald-500 text-foreground text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-sm"
                   >
-                    📋 Copiar Chave PIX
+                    🔑 Chave
                   </button>
                   {whatsappPixUrl && (
                     <a
                       href={whatsappPixUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="py-2 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
+                      className="py-2 px-3.5 rounded-xl bg-[#25D366] hover:bg-[#20ba5a] text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
                     >
                       📱 Cobrar PIX
                     </a>
