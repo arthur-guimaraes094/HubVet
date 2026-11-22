@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useId, useEffect } from 'react';
+import React, { useState, useId, useEffect, useRef } from 'react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -35,6 +35,9 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
   const [loading, setLoading] = useState(false);
   const speciesSelectId = useId();
   const fertilitySelectId = useId();
+  const tutorSearchInputId = useId();
+  const tutorListboxId = useId();
+  const clinicalObsId = useId();
 
   // Tutor
   const [tutors, setTutors] = useState<Tutor[]>([]);
@@ -84,6 +87,19 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
   // Searchable Tutor
   const [tutorSearch, setTutorSearch] = useState(initialTutorName || '');
   const [isTutorListOpen, setIsTutorListOpen] = useState(false);
+  const [activeTutorIndex, setActiveTutorIndex] = useState(-1);
+  const tutorComboRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (tutorComboRef.current && !tutorComboRef.current.contains(event.target as Node)) {
+        setIsTutorListOpen(false);
+        setActiveTutorIndex(-1);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -228,10 +244,20 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
     t.name.toLowerCase().includes(tutorSearch.toLowerCase())
   );
 
+  const showTutorListbox =
+    isTutorListOpen && (tutorSearch.trim().length > 0 || filteredTutors.length > 0);
+  const clampedActiveTutorIndex =
+    activeTutorIndex >= 0 && activeTutorIndex < filteredTutors.length ? activeTutorIndex : -1;
+  const activeTutorOptionId =
+    clampedActiveTutorIndex >= 0
+      ? `${tutorListboxId}-option-${filteredTutors[clampedActiveTutorIndex].id}`
+      : undefined;
+
   const handleSelectTutor = (tutor: Tutor) => {
     setSelectedTutorId(tutor.id);
     setTutorSearch(tutor.name);
     setIsTutorListOpen(false);
+    setActiveTutorIndex(-1);
   };
 
   const computedBirthDate = React.useMemo(() => {
@@ -359,7 +385,7 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
         showCloseButton={false}
         maxWidth="max-w-lg"
       >
-        <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] opacity-60 -mt-6 mb-6">
+        <p className="text-[11px] font-black text-primary uppercase tracking-[0.2em] -mt-4 mb-5">
           Tutor e Paciente
         </p>
 
@@ -369,29 +395,37 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
         >
           {/* Dados do Tutor */}
           <div className="flex flex-col gap-5 p-5 bg-foreground/2 rounded-3xl border border-foreground/5">
-            <div className="flex justify-between items-center px-1">
-              <span className="text-[10px] font-black text-foreground/40 uppercase tracking-[0.2em]">
+            <div className="flex justify-between items-center gap-2 px-1 flex-wrap">
+              <span className="text-[11px] font-black text-muted-foreground uppercase tracking-[0.15em]">
                 Responsável (Tutor)
               </span>
-              <div className="flex bg-background shadow-inner border border-border p-0.5 rounded-full scale-90">
+              <div
+                role="radiogroup"
+                aria-label="Tipo de cadastro de tutor"
+                className="flex bg-background shadow-inner border border-border-strong p-0.5 rounded-full gap-0.5"
+              >
                 <button
                   type="button"
+                  role="radio"
+                  aria-checked={tutorSelectionMode === 'new'}
                   onClick={() => setTutorSelectionMode('new')}
-                  className={`p-1.5 px-3 rounded-full transition-all text-[8px] font-black uppercase tracking-widest ${
+                  className={`min-h-[36px] py-1.5 px-3.5 rounded-full transition-all text-[11px] font-black uppercase tracking-wider ${
                     tutorSelectionMode === 'new'
-                      ? 'bg-primary text-white shadow-sm'
-                      : 'text-foreground/40'
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-foreground/80 hover:text-foreground'
                   }`}
                 >
                   Novo
                 </button>
                 <button
                   type="button"
+                  role="radio"
+                  aria-checked={tutorSelectionMode === 'existing'}
                   onClick={() => setTutorSelectionMode('existing')}
-                  className={`p-1.5 px-3 rounded-full transition-all text-[8px] font-black uppercase tracking-widest ${
+                  className={`min-h-[36px] py-1.5 px-3.5 rounded-full transition-all text-[11px] font-black uppercase tracking-wider ${
                     tutorSelectionMode === 'existing'
-                      ? 'bg-primary text-white shadow-sm'
-                      : 'text-foreground/40'
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-foreground/80 hover:text-foreground'
                   }`}
                 >
                   Existente
@@ -403,6 +437,7 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
               <div className="flex flex-col gap-4">
                 <Input
                   label="Nome Completo *"
+                  autoComplete="name"
                   placeholder="Ex: João da Silva"
                   value={tutorName}
                   onChange={(e) => setTutorName(e.target.value)}
@@ -411,6 +446,7 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
                 <div className="grid grid-cols-2 gap-3">
                   <Input
                     label="CPF"
+                    inputMode="numeric"
                     placeholder="000.000.000-00"
                     value={tutorCpf}
                     onChange={handleCpfChange}
@@ -418,6 +454,9 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
                   />
                   <Input
                     label="WhatsApp"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
                     placeholder="(84) 99999-9999"
                     value={tutorPhone}
                     onChange={handlePhoneChange}
@@ -427,12 +466,12 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
 
                 {/* Endereço Completo do Tutor */}
                 <div className="pt-2 border-t border-foreground/5 flex flex-col gap-3">
-                  <div className="flex items-center justify-between px-2">
-                    <span className="text-[9px] font-black text-primary uppercase tracking-[0.2em]">
-                      📍 Endereço Residencial (Para Consulta Domiciliar)
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-[11px] font-black text-primary uppercase tracking-[0.15em]">
+                      <span aria-hidden="true">📍</span> Endereço Residencial (Consulta Domiciliar)
                     </span>
                     {loadingCep && (
-                      <span className="text-[9px] font-bold text-primary animate-pulse">
+                      <span role="status" aria-live="polite" className="text-[11px] font-bold text-primary animate-pulse">
                         Buscando CEP...
                       </span>
                     )}
@@ -441,6 +480,8 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
                   <div className="grid grid-cols-3 gap-3">
                     <Input
                       label="CEP"
+                      inputMode="numeric"
+                      autoComplete="postal-code"
                       placeholder="00000-000"
                       value={tutorCep}
                       onChange={handleCepChange}
@@ -449,6 +490,7 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
                     <div className="col-span-2">
                       <Input
                         label="Rua / Logradouro"
+                        autoComplete="street-address"
                         placeholder="Ex: Rua das Embarcações"
                         value={tutorStreet}
                         onChange={(e) => setTutorStreet(e.target.value)}
@@ -501,57 +543,128 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col gap-2 relative">
-                <span className="text-[10px] font-black text-foreground/30 uppercase tracking-[0.2em] pl-4">
-                  Pesquisar Tutor
-                </span>
+              <div
+                ref={tutorComboRef}
+                onBlur={(e) => {
+                  if (!tutorComboRef.current?.contains(e.relatedTarget as Node)) {
+                    setIsTutorListOpen(false);
+                    setActiveTutorIndex(-1);
+                  }
+                }}
+                className="flex flex-col gap-2 relative"
+              >
+                <label
+                  htmlFor={tutorSearchInputId}
+                  className="text-[11px] font-bold text-foreground/75 uppercase tracking-wider pl-1"
+                >
+                  Pesquisar Tutor *
+                </label>
                 <div className="relative">
                   <input
+                    id={tutorSearchInputId}
                     type="text"
+                    role="combobox"
+                    aria-autocomplete="list"
+                    aria-expanded={showTutorListbox}
+                    aria-controls={tutorListboxId}
+                    aria-activedescendant={showTutorListbox ? activeTutorOptionId : undefined}
+                    autoComplete="off"
                     placeholder="Digite o nome do tutor..."
                     value={tutorSearch}
                     onChange={(e) => {
                       setTutorSearch(e.target.value);
                       setSelectedTutorId('');
                       setIsTutorListOpen(true);
+                      setActiveTutorIndex(-1);
                     }}
                     onFocus={() => setIsTutorListOpen(true)}
-                    className="w-full bg-background rounded-2xl px-6 py-4 shadow-inner border border-foreground/3 outline-none focus:ring-2 focus:ring-primary/40 text-foreground font-medium transition-all"
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        if (!isTutorListOpen) {
+                          setIsTutorListOpen(true);
+                          setActiveTutorIndex(filteredTutors.length > 0 ? 0 : -1);
+                        } else if (filteredTutors.length > 0) {
+                          setActiveTutorIndex((prev) =>
+                            prev + 1 < filteredTutors.length ? prev + 1 : 0
+                          );
+                        }
+                      } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        if (!isTutorListOpen) {
+                          setIsTutorListOpen(true);
+                          setActiveTutorIndex(
+                            filteredTutors.length > 0 ? filteredTutors.length - 1 : -1
+                          );
+                        } else if (filteredTutors.length > 0) {
+                          setActiveTutorIndex((prev) =>
+                            prev > 0 ? prev - 1 : filteredTutors.length - 1
+                          );
+                        }
+                      } else if (
+                        e.key === 'Enter' &&
+                        showTutorListbox &&
+                        clampedActiveTutorIndex >= 0
+                      ) {
+                        e.preventDefault();
+                        const chosen = filteredTutors[clampedActiveTutorIndex];
+                        if (chosen) handleSelectTutor(chosen);
+                      } else if (e.key === 'Escape' && isTutorListOpen) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsTutorListOpen(false);
+                        setActiveTutorIndex(-1);
+                      }
+                    }}
+                    className="w-full bg-background rounded-2xl px-5 py-3.5 shadow-inner border border-border-strong outline-none focus-visible:ring-2 focus-visible:ring-primary text-foreground placeholder:text-muted-foreground font-medium transition-all"
                     required={tutorSelectionMode === 'existing'}
                   />
-                  {isTutorListOpen && tutorSearch && (
-                    <div className="absolute top-full left-0 right-0 z-20 mt-2 bg-background border border-border rounded-2xl shadow-xl max-h-60 overflow-y-auto p-2 animate-in fade-in slide-in-from-top-2">
+                  {showTutorListbox && (
+                    <ul
+                      id={tutorListboxId}
+                      role="listbox"
+                      aria-label="Tutores cadastrados"
+                      className="absolute top-full left-0 right-0 z-20 mt-2 bg-card border border-border-strong rounded-2xl shadow-xl max-h-60 overflow-y-auto p-2 animate-in fade-in slide-in-from-top-2"
+                    >
                       {filteredTutors.length > 0 ? (
-                        filteredTutors.map((t) => (
-                          <button
-                            key={t.id}
-                            type="button"
-                            onClick={() => handleSelectTutor(t)}
-                            className="w-full text-left px-4 py-3 rounded-xl hover:bg-primary/10 hover:text-primary transition-all font-medium text-sm flex items-center justify-between"
-                          >
-                            <div className="flex flex-col">
-                              <span>{t.name}</span>
-                              {t.address && (
-                                <span className="text-[10px] text-foreground/40 truncate max-w-[240px]">
-                                  📍 {t.address}
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-[10px] opacity-40">Selecionar</span>
-                          </button>
-                        ))
+                        filteredTutors.map((t, index) => {
+                          const isActive = index === clampedActiveTutorIndex;
+                          const isSelected = t.id === selectedTutorId;
+                          return (
+                            <li
+                              key={t.id}
+                              id={`${tutorListboxId}-option-${t.id}`}
+                              role="option"
+                              aria-selected={isSelected}
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => handleSelectTutor(t)}
+                              onMouseEnter={() => setActiveTutorIndex(index)}
+                              className={`w-full text-left px-4 py-3 rounded-xl cursor-pointer transition-colors font-medium text-sm flex items-center justify-between ${
+                                isActive || isSelected
+                                  ? 'bg-primary/15 text-primary font-bold'
+                                  : 'hover:bg-primary/10 hover:text-primary text-foreground'
+                              }`}
+                            >
+                              <div className="flex flex-col min-w-0">
+                                <span>{t.name}</span>
+                                {t.address && (
+                                  <span className="text-xs text-muted-foreground truncate max-w-[240px]">
+                                    <span aria-hidden="true">📍</span> {t.address}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-xs text-muted-foreground shrink-0 ml-2">
+                                {isSelected ? 'Selecionado' : 'Selecionar'}
+                              </span>
+                            </li>
+                          );
+                        })
                       ) : (
-                        <div className="p-4 text-center text-sm text-foreground/40 italic">
+                        <li className="p-4 text-center text-sm text-muted-foreground italic">
                           Nenhum tutor encontrado
-                        </div>
+                        </li>
                       )}
-                    </div>
-                  )}
-                  {isTutorListOpen && (
-                    <div
-                      className="fixed inset-0 z-10"
-                      onClick={() => setIsTutorListOpen(false)}
-                    />
+                    </ul>
                   )}
                 </div>
               </div>
@@ -560,35 +673,38 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
 
           {/* Dados do Paciente */}
           <div className="flex flex-col gap-5 p-5 bg-foreground/2 rounded-3xl border border-foreground/5">
-            <span className="text-[10px] font-black text-foreground/40 uppercase tracking-[0.2em] pl-1">
+            <span className="text-[11px] font-black text-muted-foreground uppercase tracking-[0.2em] pl-1">
               Informações do Pet
             </span>
 
             {/* Foto do Pet */}
             <div className="flex items-center gap-4 px-1">
-              <label className="relative w-20 h-20 rounded-full bg-card border-2 border-dashed border-primary/30 hover:border-primary flex items-center justify-center cursor-pointer overflow-hidden shrink-0 group transition-all shadow-sm">
+              <label className="relative w-20 h-20 rounded-full bg-card border-2 border-dashed border-primary/40 hover:border-primary flex items-center justify-center cursor-pointer overflow-hidden shrink-0 group transition-all shadow-sm focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2">
                 {photoPreviewUrl ? (
                   <Image
                     src={photoPreviewUrl}
-                    alt="Foto do Pet"
+                    alt={patientName ? `Foto de ${patientName}` : 'Foto do paciente'}
                     fill
                     sizes="80px"
                     unoptimized
                     className="object-cover"
                   />
                 ) : (
-                  <div className="flex flex-col items-center justify-center text-center p-1">
+                  <div aria-hidden="true" className="flex flex-col items-center justify-center text-center p-1">
                     <span className="text-2xl">📷</span>
-                    <span className="text-[8px] font-black text-primary uppercase tracking-tighter">
+                    <span className="text-[9px] font-black text-primary uppercase tracking-tighter">
                       {uploadingPhoto ? 'Enviando...' : 'Foto'}
                     </span>
                   </div>
                 )}
+                <span className="sr-only">
+                  {uploadingPhoto ? 'Enviando foto do paciente...' : 'Adicionar foto do paciente'}
+                </span>
                 <input
                   type="file"
                   accept="image/*"
                   onChange={handlePhotoUpload}
-                  className="hidden"
+                  className="sr-only"
                   disabled={uploadingPhoto}
                 />
               </label>
@@ -608,7 +724,7 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
               <div className="flex flex-col gap-2">
                 <label
                   htmlFor={speciesSelectId}
-                  className="text-[10px] font-black text-foreground/30 uppercase tracking-[0.2em] pl-4"
+                  className="text-[11px] font-bold text-foreground/75 uppercase tracking-wider pl-1"
                 >
                   Espécie *
                 </label>
@@ -617,8 +733,8 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
                   value={patientSpecies}
                   onChange={(e) => setPatientSpecies(e.target.value)}
                   required
-                  className={`w-full bg-card rounded-xl px-4 py-3 shadow-sm outline-none focus:ring-2 focus:ring-primary/40 font-medium transition-all border border-border appearance-none ${
-                    !patientSpecies ? 'text-foreground/40' : 'text-foreground'
+                  className={`w-full bg-card rounded-xl px-4 py-3 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-primary font-medium transition-all border border-border-strong appearance-none ${
+                    !patientSpecies ? 'text-muted-foreground' : 'text-foreground'
                   }`}
                 >
                   <option value="">Selecione...</option>
@@ -637,6 +753,7 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
               <Input
                 label="Peso (kg) *"
                 type="number"
+                inputMode="decimal"
                 step="0.01"
                 placeholder="0.0"
                 value={patientWeight}
@@ -665,22 +782,24 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
 
             {/* Idade do Paciente */}
             <div className="flex flex-col gap-3 pt-2 border-t border-foreground/5">
-              <div className="flex items-center justify-between px-1">
-                <span className="text-[11px] font-bold text-foreground/70 uppercase tracking-wider">
-                  🎂 Idade do Paciente
+              <div className="flex items-center justify-between gap-2 px-1 flex-wrap">
+                <span className="text-[11px] font-bold text-foreground/75 uppercase tracking-wider">
+                  <span aria-hidden="true">🎂</span> Idade do Paciente
                 </span>
                 <div 
                   role="radiogroup" 
                   aria-label="Formato da idade"
-                  className="flex bg-foreground/5 border border-border/70 p-0.5 rounded-xl gap-0.5"
+                  className="flex bg-foreground/5 border border-border-strong p-0.5 rounded-xl gap-0.5"
                 >
                   <button
                     type="button"
                     role="radio"
                     aria-checked={ageMode === 'approx'}
                     onClick={() => setAgeMode('approx')}
-                    className={`py-1 px-3 rounded-lg text-xs font-bold transition-[transform,background-color,color] duration-150 active:scale-[0.97] ${
-                      ageMode === 'approx' ? 'bg-primary text-white shadow-sm' : 'text-foreground/70 hover:text-foreground'
+                    className={`min-h-[32px] py-1.5 px-3 rounded-lg text-xs font-bold transition-[transform,background-color,color] duration-150 active:scale-[0.97] ${
+                      ageMode === 'approx'
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'text-foreground/80 hover:text-foreground'
                     }`}
                   >
                     Anos / Meses
@@ -690,8 +809,10 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
                     role="radio"
                     aria-checked={ageMode === 'exact'}
                     onClick={() => setAgeMode('exact')}
-                    className={`py-1 px-3 rounded-lg text-xs font-bold transition-[transform,background-color,color] duration-150 active:scale-[0.97] ${
-                      ageMode === 'exact' ? 'bg-primary text-white shadow-sm' : 'text-foreground/70 hover:text-foreground'
+                    className={`min-h-[32px] py-1.5 px-3 rounded-lg text-xs font-bold transition-[transform,background-color,color] duration-150 active:scale-[0.97] ${
+                      ageMode === 'exact'
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'text-foreground/80 hover:text-foreground'
                     }`}
                   >
                     Data de Nasc.
@@ -704,6 +825,7 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
                   <Input
                     label="Anos"
                     type="number"
+                    inputMode="numeric"
                     min="0"
                     max="35"
                     placeholder="Ex: 2"
@@ -713,6 +835,7 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
                   <Input
                     label="Meses"
                     type="number"
+                    inputMode="numeric"
                     min="0"
                     max="11"
                     placeholder="Ex: 4"
@@ -729,7 +852,7 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
                 />
               )}
               {computedBirthDate && (
-                <span className="text-[10px] font-bold text-primary pl-3">
+                <span className="text-xs font-bold text-primary pl-1">
                   Idade registrada: {formatPatientAge(computedBirthDate)}
                 </span>
               )}
@@ -741,7 +864,7 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
                 <div className="flex flex-col gap-2">
                   <label
                     htmlFor={fertilitySelectId}
-                    className="text-[10px] font-black text-foreground/30 uppercase tracking-[0.2em] pl-4"
+                    className="text-[11px] font-bold text-foreground/75 uppercase tracking-wider pl-1"
                   >
                     Fertilidade / Reprodução
                   </label>
@@ -749,7 +872,7 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
                     id={fertilitySelectId}
                     value={fertilityStatus}
                     onChange={(e) => setFertilityStatus(e.target.value)}
-                    className="w-full bg-card rounded-xl px-4 py-3 shadow-sm outline-none focus:ring-2 focus:ring-primary/40 font-medium transition-all border border-border appearance-none text-foreground"
+                    className="w-full bg-card rounded-xl px-4 py-3 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-primary font-medium transition-all border border-border-strong appearance-none text-foreground"
                   >
                     <option value="">Não informado</option>
                     <option value="Neutered">Castrado(a)</option>
@@ -768,14 +891,18 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
 
             {/* Observações do Pet (Alergias, etc.) */}
             <div className="flex flex-col gap-2 pt-2 border-t border-foreground/5">
-              <label className="text-[10px] font-black text-error/80 uppercase tracking-[0.2em] pl-4">
-                ⚠️ Alergias e Observações Importantes
+              <label
+                htmlFor={clinicalObsId}
+                className="text-[11px] font-black text-red-700 dark:text-red-300 uppercase tracking-[0.15em] pl-1"
+              >
+                <span aria-hidden="true">⚠️</span> Alergias e Observações Importantes
               </label>
               <textarea
+                id={clinicalObsId}
                 value={clinicalObservations}
                 onChange={(e) => setClinicalObservations(e.target.value)}
                 placeholder="Ex: Alérgico a Dipirona, cardiopata, temperamento arisco..."
-                className="w-full bg-card rounded-xl px-4 py-3 shadow-sm outline-none focus:ring-2 focus:ring-primary/40 text-foreground font-medium placeholder:text-foreground/40 transition-all border border-border min-h-[72px] resize-y text-sm"
+                className="w-full bg-card rounded-xl px-4 py-3 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-primary text-foreground font-medium placeholder:text-muted-foreground transition-all border border-border-strong min-h-[72px] resize-y text-sm"
               />
             </div>
           </div>

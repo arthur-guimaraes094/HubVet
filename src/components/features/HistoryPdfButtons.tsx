@@ -29,6 +29,7 @@ export function HistoryPdfButtons({
         vetName: docData.vetName,
         notes: docData.notes,
         prescriptionText: docData.prescriptionText,
+        prescriptions: docData.prescriptions,
         totalValue: totalValue,
       })
     : null;
@@ -39,17 +40,17 @@ export function HistoryPdfButtons({
         type="button"
         variant="secondary"
         onClick={() => gerarPDFRelatorioAtendimento(docData)}
-        className="px-3! py-1.5! text-[10px] font-black uppercase tracking-wider"
+        className="min-h-[44px] px-3.5! py-2! text-xs font-bold uppercase tracking-wider gap-1.5"
       >
-        📄 Relatório (PDF)
+        <span aria-hidden="true">📄</span> Relatório (PDF)
       </Button>
       <Button
         type="button"
         variant="primary"
         onClick={() => gerarPDFReceituario(docData)}
-        className="px-3! py-1.5! text-[10px] font-black uppercase tracking-wider"
+        className="min-h-[44px] px-3.5! py-2! text-xs font-bold uppercase tracking-wider gap-1.5"
       >
-        💊 Receita (PDF)
+        <span aria-hidden="true">💊</span> Receita (PDF)
       </Button>
 
       {whatsappUrl && (
@@ -57,9 +58,10 @@ export function HistoryPdfButtons({
           href={whatsappUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="px-3 py-1.5 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#1ea952] border border-[#25D366]/30 text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-colors ml-auto sm:ml-0"
+          className="min-h-[44px] px-3.5 py-2 rounded-xl bg-[#15803D] hover:bg-[#166534] text-white text-xs font-bold uppercase tracking-wider inline-flex items-center justify-center gap-1.5 transition-colors ml-auto sm:ml-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
         >
-          📱 WhatsApp
+          <span aria-hidden="true">📱</span> WhatsApp
+          <span className="sr-only"> (abre em nova aba)</span>
         </a>
       )}
     </div>

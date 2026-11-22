@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { calculateDose } from '@/core/use-cases/calculateDose';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
@@ -20,6 +20,7 @@ function parsePositiveDecimal(raw: string): number | null {
 }
 
 export function DoseCalculator() {
+  const errorId = useId();
   const [weight, setWeight] = useState<string>('');
   const [dose, setDose] = useState<string>('');
   const [concentration, setConcentration] = useState<string>('');
@@ -78,6 +79,7 @@ export function DoseCalculator() {
           }}
           placeholder="Ex: 5,2"
           aria-invalid={Boolean(errorMessage)}
+          aria-describedby={errorMessage ? errorId : undefined}
         />
 
         <Input
@@ -91,6 +93,7 @@ export function DoseCalculator() {
           }}
           placeholder="Ex: 2,0"
           aria-invalid={Boolean(errorMessage)}
+          aria-describedby={errorMessage ? errorId : undefined}
         />
 
         <Input
@@ -104,10 +107,12 @@ export function DoseCalculator() {
           }}
           placeholder="Ex: 10"
           aria-invalid={Boolean(errorMessage)}
+          aria-describedby={errorMessage ? errorId : undefined}
         />
 
         {errorMessage && (
           <div
+            id={errorId}
             role="alert"
             className="p-3 rounded-xl bg-error/10 border border-error/30 text-sm font-bold text-red-700 dark:text-red-300"
           >
@@ -120,19 +125,30 @@ export function DoseCalculator() {
         </Button>
       </form>
 
-      {result !== null && !errorMessage && (
-        <div className="mt-4 p-4 rounded-xl bg-success/10 border border-success/30 shadow-inner flex flex-col items-center justify-center gap-1">
-          <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300">
-            Volume a Administrar
-          </span>
-          <span className="text-4xl font-extrabold text-emerald-700 dark:text-emerald-300 mt-1">
-            {result.volumeMl} ml
-          </span>
-          <span className="text-sm font-bold text-emerald-700/90 dark:text-emerald-300/90 mt-1">
-            Dose total: {result.totalMg} mg
-          </span>
-        </div>
-      )}
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className={
+          result !== null && !errorMessage
+            ? 'mt-4 p-4 rounded-xl bg-success/10 border border-success/30 shadow-inner flex flex-col items-center justify-center gap-1'
+            : 'sr-only'
+        }
+      >
+        {result !== null && !errorMessage && (
+          <>
+            <span className="text-sm font-bold text-emerald-800 dark:text-emerald-300">
+              Volume a Administrar
+            </span>
+            <span className="text-4xl font-extrabold text-emerald-800 dark:text-emerald-300 mt-1">
+              {result.volumeMl} ml
+            </span>
+            <span className="text-sm font-bold text-emerald-800 dark:text-emerald-200 mt-1">
+              Dose total: {result.totalMg} mg
+            </span>
+          </>
+        )}
+      </div>
     </Card>
   );
 }

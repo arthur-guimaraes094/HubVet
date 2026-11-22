@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useId, useMemo, useState } from 'react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -49,6 +49,9 @@ export function ConsultationPrescriptionSection({
   onNotifySuccess,
   onNotifyError,
 }: ConsultationPrescriptionSectionProps) {
+  const catalogSearchId = useId();
+  const prescriptionTextareaId = useId();
+  const routeSelectId = useId();
   const [showCatalogPicker, setShowCatalogPicker] = useState(false);
   const [catalogSearchTerm, setCatalogSearchTerm] = useState('');
   const [showRxForm, setShowRxForm] = useState(false);
@@ -268,15 +271,15 @@ export function ConsultationPrescriptionSection({
       <div className="flex flex-col gap-3 p-4 sm:p-5 rounded-2xl bg-foreground/[0.02] border border-border">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h4 className="font-extrabold text-foreground text-base flex items-center gap-2">
-              💊 Receituário Veterinário (Texto Livre)
+            <h3 className="font-extrabold text-foreground text-base flex items-center gap-2">
+              <span aria-hidden="true">💊</span> Receituário Veterinário (Texto Livre)
               {prescriptionText.trim().length > 0 && (
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-black">
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-xs font-black">
                   Preenchido
                 </span>
               )}
-            </h4>
-            <p className="text-xs text-foreground/50 font-medium mt-0.5">
+            </h3>
+            <p className="text-xs text-muted-foreground font-medium mt-0.5">
               Digite livremente os medicamentos, doses e orientações. Sai formatado no papel timbrado oficial.
             </p>
           </div>
@@ -284,16 +287,18 @@ export function ConsultationPrescriptionSection({
             <button
               type="button"
               onClick={() => setShowTemplatesModal((prev) => !prev)}
-              className="text-xs font-black text-amber-700 dark:text-amber-300 bg-amber-500/15 border border-amber-500/30 px-3 py-1.5 rounded-xl hover:bg-amber-500/25 transition-colors shrink-0 flex items-center gap-1.5"
+              aria-expanded={showTemplatesModal}
+              className="min-h-[36px] text-xs font-black text-amber-800 dark:text-amber-200 bg-amber-500/15 border border-amber-500/30 px-3 py-1.5 rounded-xl hover:bg-amber-500/25 transition-colors shrink-0 flex items-center gap-1.5"
             >
-              📋 {showTemplatesModal ? 'Fechar Modelos' : 'Modelos Prontos'}
+              <span aria-hidden="true">📋</span> {showTemplatesModal ? 'Fechar Modelos' : 'Modelos Prontos'}
             </button>
             <button
               type="button"
               onClick={() => setShowCatalogPicker((prev) => !prev)}
-              className="text-xs font-black text-primary bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-xl hover:bg-primary/20 transition-colors shrink-0 flex items-center gap-1.5"
+              aria-expanded={showCatalogPicker}
+              className="min-h-[36px] text-xs font-black text-primary bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-xl hover:bg-primary/20 transition-colors shrink-0 flex items-center gap-1.5"
             >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg aria-hidden="true" className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -306,7 +311,8 @@ export function ConsultationPrescriptionSection({
             <button
               type="button"
               onClick={() => setShowRxForm((prev) => !prev)}
-              className="text-xs font-bold text-foreground/60 hover:text-foreground bg-foreground/5 px-2.5 py-1.5 rounded-xl transition-colors shrink-0"
+              aria-expanded={showRxForm}
+              className="min-h-[36px] text-xs font-bold text-foreground/80 hover:text-foreground bg-foreground/5 px-3 py-1.5 rounded-xl transition-colors shrink-0"
               title="Alternar para formulário estruturado detalhado"
             >
               {showRxForm ? 'Ocultar Estruturado' : 'Formulário Estruturado'}
@@ -319,19 +325,19 @@ export function ConsultationPrescriptionSection({
           <div className="p-4 rounded-2xl bg-card border border-amber-500/30 shadow-sm flex flex-col gap-3 animate-in fade-in">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border pb-2.5">
               <div>
-                <span className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                  📋 Modelos Clínicos de Prescrição ({allTemplates.length})
+                <span className="text-xs font-black text-amber-800 dark:text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <span aria-hidden="true">📋</span> Modelos Clínicos de Prescrição ({allTemplates.length})
                 </span>
-                <p className="text-[11px] text-foreground/50">
+                <p className="text-xs text-muted-foreground">
                   Clique para inserir no receituário ou salve o texto atual como modelo
                 </p>
               </div>
               <button
                 type="button"
                 onClick={handleOpenSaveTemplateModal}
-                className="text-xs font-bold text-primary bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-xl hover:bg-primary/20 transition-all shrink-0 flex items-center gap-1"
+                className="min-h-[36px] text-xs font-bold text-primary bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-xl hover:bg-primary/20 transition-all shrink-0 flex items-center gap-1"
               >
-                ⭐ Salvar Receita Atual como Modelo
+                <span aria-hidden="true">⭐</span> Salvar Receita Atual como Modelo
               </button>
             </div>
 
@@ -348,23 +354,24 @@ export function ConsultationPrescriptionSection({
                         <span className="text-xs font-bold text-foreground">
                           {template.title}
                         </span>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-foreground/10 text-foreground/70">
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-foreground/10 text-foreground/80">
                             {template.category}
                           </span>
                           {isCustom && (
                             <button
                               type="button"
                               onClick={() => handleDeleteCustomTemplate(template.id)}
-                              className="text-[10px] text-error hover:text-error/80 px-1 font-bold"
+                              aria-label={`Excluir modelo ${template.title}`}
+                              className="min-w-[44px] min-h-[44px] -my-2 -mr-2 flex items-center justify-center rounded-xl text-xs font-bold text-red-700 dark:text-red-300 hover:bg-error/10 transition-colors"
                               title="Excluir este modelo personalizado"
                             >
-                              ✕
+                              <span aria-hidden="true">✕</span>
                             </button>
                           )}
                         </div>
                       </div>
-                      <p className="text-[11px] text-foreground/50 line-clamp-1">
+                      <p className="text-xs text-muted-foreground line-clamp-1">
                         {template.description}
                       </p>
                     </div>
@@ -373,14 +380,14 @@ export function ConsultationPrescriptionSection({
                       <button
                         type="button"
                         onClick={() => handleApplyTemplate(template, 'append')}
-                        className="flex-1 py-1.5 px-2 rounded-lg bg-primary text-white text-[11px] font-bold hover:bg-primary/90 transition-all text-center"
+                        className="flex-1 min-h-[36px] py-1.5 px-2.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-all text-center"
                       >
                         + Inserir no Fim
                       </button>
                       <button
                         type="button"
                         onClick={() => handleApplyTemplate(template, 'replace')}
-                        className="py-1.5 px-2 rounded-lg bg-card border border-border text-foreground/70 hover:text-foreground text-[11px] font-semibold transition-all"
+                        className="min-h-[36px] py-1.5 px-2.5 rounded-lg bg-card border border-border-strong text-foreground/80 hover:text-foreground text-xs font-semibold transition-all"
                         title="Substituir todo o texto da receita por este modelo"
                       >
                         Substituir
@@ -396,21 +403,24 @@ export function ConsultationPrescriptionSection({
         {/* Seletor rápido do catálogo de medicamentos */}
         {showCatalogPicker && (
           <div className="p-3.5 rounded-2xl bg-card border border-primary/25 shadow-sm flex flex-col gap-2.5 animate-in fade-in">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-black text-primary uppercase tracking-wider">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <label
+                htmlFor={catalogSearchId}
+                className="text-xs font-black text-primary uppercase tracking-wider"
+              >
                 Catálogo Rápido de Medicamentos e Insumos
-              </span>
-              <span className="text-[11px] text-foreground/50">
+              </label>
+              <span className="text-xs text-muted-foreground">
                 Clique para inserir no texto da receita
               </span>
             </div>
             <input
+              id={catalogSearchId}
               type="text"
               value={catalogSearchTerm}
               onChange={(e) => setCatalogSearchTerm(e.target.value)}
               placeholder="Buscar medicamento (Ex: Dipirona, Meloxicam, Agemoxi, Prednisolona...)"
-              className="w-full bg-foreground/5 border border-border rounded-xl px-3 py-2 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-              autoFocus
+              className="w-full bg-foreground/5 border border-border-strong rounded-xl px-3.5 py-2.5 text-sm font-medium text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             />
             <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto pt-1">
               {filteredCatalog.map((item, idx) => (
@@ -418,25 +428,25 @@ export function ConsultationPrescriptionSection({
                   key={`${item.name}-${item.concentration || ''}-${idx}`}
                   type="button"
                   onClick={() => handleAppendCatalogItemToText(item)}
-                  className="group flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-foreground/5 hover:bg-primary hover:text-white border border-border hover:border-primary transition-all text-left"
+                  className="group min-h-[36px] flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-foreground/5 hover:bg-primary hover:text-primary-foreground border border-border-strong hover:border-primary transition-all text-left"
                 >
-                  <span className="text-xs font-black text-foreground group-hover:text-white">
+                  <span className="text-xs font-black text-foreground group-hover:text-primary-foreground">
                     {item.name}
                   </span>
                   {item.concentration && (
-                    <span className="text-[10px] font-bold text-foreground/60 group-hover:text-white/80">
+                    <span className="text-[11px] font-bold text-muted-foreground group-hover:text-primary-foreground/90">
                       ({item.concentration})
                     </span>
                   )}
                   {item.defaultRoute && (
-                    <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-foreground/10 group-hover:bg-white/20 text-foreground/70 group-hover:text-white">
+                    <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-foreground/10 group-hover:bg-primary-foreground/15 text-foreground/80 group-hover:text-primary-foreground">
                       {item.defaultRoute}
                     </span>
                   )}
                 </button>
               ))}
               {filteredCatalog.length === 0 && (
-                <p className="text-xs text-foreground/40 italic py-2">
+                <p className="text-xs text-muted-foreground italic py-2">
                   Nenhum medicamento encontrado para &quot;{catalogSearchTerm}&quot;.
                 </p>
               )}
@@ -446,7 +456,7 @@ export function ConsultationPrescriptionSection({
 
         {/* Atalhos rápidos para organizar a receita */}
         <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-          <span className="text-[10px] font-extrabold text-foreground/50 uppercase tracking-wider mr-0.5">
+          <span className="text-[11px] font-extrabold text-muted-foreground uppercase tracking-wider mr-0.5">
             Atalhos:
           </span>
           {[
@@ -461,7 +471,7 @@ export function ConsultationPrescriptionSection({
               key={tag}
               type="button"
               onClick={() => handleAppendTag(tag)}
-              className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-card border border-border hover:border-primary hover:text-primary transition-all text-foreground/75 active:scale-95"
+              className="min-h-[32px] text-xs font-bold px-2.5 py-1 rounded-lg bg-card border border-border-strong hover:border-primary hover:text-primary transition-all text-foreground/80 active:scale-95"
             >
               + {tag.replace(':', '')}
             </button>
@@ -469,19 +479,23 @@ export function ConsultationPrescriptionSection({
         </div>
 
         {/* Campo de Texto Livre para o Receituário */}
-        <div className="relative">
+        <div className="relative flex flex-col gap-1.5">
+          <label htmlFor={prescriptionTextareaId} className="sr-only">
+            Texto do receituário veterinário
+          </label>
           <textarea
+            id={prescriptionTextareaId}
             value={prescriptionText}
             onChange={(e) => onPrescriptionTextChange(e.target.value)}
             rows={8}
-            className="w-full bg-foreground/5 border border-border rounded-xl p-4 shadow-inner min-h-[180px] focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground resize-y text-sm font-sans leading-relaxed"
+            className="w-full bg-foreground/5 border border-border-strong rounded-xl p-4 shadow-inner min-h-[180px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary text-foreground placeholder:text-muted-foreground resize-y text-sm font-sans leading-relaxed"
             placeholder={`Escreva a receita livremente. Exemplo:\n\nUSO ORAL:\n1. Dipirona gotas (500mg/ml) ----------------- 1 frasco\n   Dar 12 gotas por via oral a cada 8 horas por 3 dias, se dor ou febre.\n\n2. Gaviz V 10mg (Omeprazol) ------------------ 1 caixa\n   Dar 1 comprimido pela manhã em jejum por 10 dias.\n\nRECOMENDAÇÕES GERAIS:\n- Manter água fresca e ração úmida à disposição.\n- Retorno em 7 dias para reavaliação.`}
           />
           {prescriptionText && (
             <button
               type="button"
               onClick={() => onPrescriptionTextChange('')}
-              className="absolute right-3 bottom-3 text-[10px] font-bold text-foreground/40 hover:text-error transition-colors px-2 py-1 rounded-md bg-background/80 backdrop-blur-sm border border-border"
+              className="absolute right-3 bottom-3 min-h-[32px] text-xs font-bold text-muted-foreground hover:text-error transition-colors px-2.5 py-1 rounded-md bg-background/90 backdrop-blur-sm border border-border-strong"
             >
               Limpar Texto
             </button>
@@ -514,13 +528,17 @@ export function ConsultationPrescriptionSection({
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-semibold text-foreground/85">
+                <label
+                  htmlFor={routeSelectId}
+                  className="text-sm font-semibold text-foreground/85"
+                >
                   Via de Administração
                 </label>
                 <select
+                  id={routeSelectId}
                   value={rxRoute}
                   onChange={(e) => setRxRoute(e.target.value)}
-                  className="w-full bg-card border border-border rounded-xl px-3.5 py-2.5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="w-full bg-card border border-border-strong rounded-xl px-3.5 py-3 text-sm font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
                   <option value="Uso Oral">Uso Oral</option>
                   <option value="Uso Tópico">Uso Tópico</option>
@@ -572,7 +590,7 @@ export function ConsultationPrescriptionSection({
 
         {prescriptions.length > 0 && (
           <div className="flex flex-col gap-2 mt-1">
-            <span className="text-[11px] font-bold text-foreground/50 uppercase tracking-wider">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
               Itens Estruturados Adicionados ({prescriptions.length})
             </span>
             {prescriptions.map((rx, idx) => (
@@ -586,7 +604,7 @@ export function ConsultationPrescriptionSection({
                       {idx + 1}. {rx.medicationName}
                     </span>
                     {rx.concentration && (
-                      <span className="text-[11px] font-bold text-foreground/60">
+                      <span className="text-xs font-bold text-muted-foreground">
                         ({rx.concentration})
                       </span>
                     )}
@@ -594,13 +612,13 @@ export function ConsultationPrescriptionSection({
                       {rx.route}
                     </span>
                   </div>
-                  <p className="text-xs text-foreground/75 font-medium">
+                  <p className="text-xs text-foreground/80 font-medium">
                     {[rx.dosage && `Dose: ${rx.dosage}`, rx.frequency, rx.duration]
                       .filter(Boolean)
                       .join(' • ')}
                   </p>
                   {rx.instructions && (
-                    <p className="text-[11px] text-foreground/50 italic">
+                    <p className="text-xs text-muted-foreground italic">
                       Obs: {rx.instructions}
                     </p>
                   )}
@@ -608,7 +626,8 @@ export function ConsultationPrescriptionSection({
                 <button
                   type="button"
                   onClick={() => handleRemovePrescription(rx.id)}
-                  className="text-xs font-bold text-error hover:underline px-2 py-1 shrink-0"
+                  aria-label={`Remover ${rx.medicationName} da receita`}
+                  className="min-h-[36px] px-3 py-1.5 rounded-lg bg-error/10 hover:bg-error/20 text-xs font-bold text-red-700 dark:text-red-300 transition-colors shrink-0"
                 >
                   Remover
                 </button>
@@ -623,10 +642,11 @@ export function ConsultationPrescriptionSection({
         isOpen={!!pendingReplaceTemplate}
         onClose={() => setPendingReplaceTemplate(null)}
         title="Substituir texto da receita?"
+        role="alertdialog"
         maxWidth="max-w-md"
       >
         <div className="flex flex-col gap-5">
-          <p className="text-sm text-foreground/75 leading-relaxed">
+          <p className="text-sm text-foreground/80 leading-relaxed">
             Deseja substituir o texto atual da receita pelo modelo{' '}
             <strong className="text-foreground">
               &quot;{pendingReplaceTemplate?.title}&quot;
@@ -670,7 +690,6 @@ export function ConsultationPrescriptionSection({
             onChange={(e) => setTemplateTitleInput(e.target.value)}
             placeholder="Ex: Minha Otite Padrão"
             required
-            autoFocus
           />
           <div className="flex gap-3">
             <Button

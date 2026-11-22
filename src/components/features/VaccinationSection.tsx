@@ -67,6 +67,7 @@ export function VaccinationSection({
   const { success, error } = useToast();
   const router = useRouter();
   const protocolSelectId = useId();
+  const stageGroupLabelId = useId();
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -201,7 +202,7 @@ export function VaccinationSection({
     if (isCompleted) {
       return {
         label: 'Ciclo Concluído',
-        className: 'bg-foreground/10 text-foreground/50 border-foreground/10',
+        className: 'bg-foreground/10 text-muted-foreground border-foreground/15',
         daysDiff: 999,
       };
     }
@@ -214,27 +215,27 @@ export function VaccinationSection({
     if (diffDays < 0) {
       return {
         label: `Atrasada há ${Math.abs(diffDays)} dia(s)`,
-        className: 'bg-error/15 text-error border-error/30',
+        className: 'bg-error/15 text-red-700 dark:text-red-300 border-error/30',
         daysDiff: diffDays,
       };
     }
     if (diffDays === 0) {
       return {
         label: 'Vence Hoje!',
-        className: 'bg-amber-500/20 text-amber-600 border-amber-500/40 animate-pulse',
+        className: 'bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-500/40',
         daysDiff: 0,
       };
     }
     if (diffDays <= 14) {
       return {
         label: `Vence em ${diffDays} dia(s)`,
-        className: 'bg-amber-500/15 text-amber-600 border-amber-500/30',
+        className: 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/30',
         daysDiff: diffDays,
       };
     }
     return {
       label: `Em dia • Próxima em ${diffDays}d`,
-      className: 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30',
+      className: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
       daysDiff: diffDays,
     };
   };
@@ -245,15 +246,15 @@ export function VaccinationSection({
   };
 
   return (
-    <Card className="p-6 flex flex-col gap-5 bg-background shadow-sm border border-border">
+    <Card className="p-5 sm:p-6 flex flex-col gap-5 bg-background shadow-sm border border-border">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <span className="text-2xl">💉</span>
+          <span className="text-2xl" aria-hidden="true">💉</span>
           <div>
-            <h3 className="text-base font-black text-foreground tracking-tight">
-              Carteira de Vacinação & Protocolos
-            </h3>
-            <p className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest">
+            <h2 className="text-base font-black text-foreground tracking-tight">
+              Carteira de Vacinação &amp; Protocolos
+            </h2>
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
               Controle automático de doses (21 dias / Anual)
             </p>
           </div>
@@ -269,11 +270,11 @@ export function VaccinationSection({
       </div>
 
       {vaccinations.length === 0 ? (
-        <div className="p-6 rounded-2xl bg-foreground/3 border border-dashed border-foreground/10 text-center flex flex-col items-center gap-2">
-          <p className="text-sm font-bold text-foreground/50">
+        <div className="p-6 rounded-2xl bg-foreground/3 border border-dashed border-border-strong text-center flex flex-col items-center gap-2">
+          <p className="text-sm font-bold text-muted-foreground">
             Nenhuma vacina registrada para {patientName}.
           </p>
-          <p className="text-xs text-foreground/40">
+          <p className="text-xs text-muted-foreground">
             Registre V10 Vanguard, V5 Felina, Antirrábica ou Gripe Oral para ativar os avisos programados.
           </p>
         </div>
@@ -293,7 +294,7 @@ export function VaccinationSection({
                 key={v.id}
                 className={`p-4 rounded-2xl border flex flex-col gap-3 transition-all ${
                   isCompleted
-                    ? 'bg-foreground/2 border-border opacity-60'
+                    ? 'bg-foreground/[0.03] border-border'
                     : 'bg-card border-border shadow-sm'
                 }`}
               >
@@ -301,11 +302,11 @@ export function VaccinationSection({
                   <div className="flex flex-col">
                     <span className="font-black text-sm text-foreground">{v.vaccine_name}</span>
                     <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                      <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                      <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary">
                         {doseBadge}
                       </span>
                       <span
-                        className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${status.className}`}
+                        className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${status.className}`}
                       >
                         {status.label}
                       </span>
@@ -315,16 +316,17 @@ export function VaccinationSection({
                   <button
                     type="button"
                     onClick={() => handleDelete(v.id)}
+                    aria-label={`Remover registro de ${v.vaccine_name}`}
                     title="Remover registro"
-                    className="text-foreground/20 hover:text-error transition-colors p-1"
+                    className="min-w-[44px] min-h-[44px] -mt-2 -mr-2 flex items-center justify-center rounded-xl text-muted-foreground hover:text-error hover:bg-error/10 transition-colors shrink-0"
                   >
-                    ✕
+                    <span aria-hidden="true">✕</span>
                   </button>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-xs bg-foreground/4 p-3 rounded-xl border border-foreground/5">
                   <div>
-                    <span className="text-[9px] font-black uppercase text-foreground/40 block">
+                    <span className="text-[10px] font-black uppercase text-muted-foreground block">
                       Aplicada em
                     </span>
                     <span className="font-bold text-foreground">
@@ -332,7 +334,7 @@ export function VaccinationSection({
                     </span>
                   </div>
                   <div>
-                    <span className="text-[9px] font-black uppercase text-foreground/40 block">
+                    <span className="text-[10px] font-black uppercase text-muted-foreground block">
                       Próxima ({v.next_dose_label})
                     </span>
                     <span className="font-black text-primary">
@@ -342,8 +344,8 @@ export function VaccinationSection({
                 </div>
 
                 {v.batch_number && (
-                  <span className="text-[10px] text-foreground/50 font-medium">
-                    Lote/Fabricante: <strong>{v.batch_number}</strong>
+                  <span className="text-xs text-muted-foreground font-medium">
+                    Lote/Fabricante: <strong className="text-foreground">{v.batch_number}</strong>
                   </span>
                 )}
 
@@ -363,9 +365,10 @@ export function VaccinationSection({
                       href={reminderUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-full py-2 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 border border-emerald-500/20 text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors"
+                      className="w-full min-h-[40px] py-2 px-3 rounded-xl bg-[#15803D] hover:bg-[#166534] text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors shadow-sm"
                     >
-                      📲 Avisar Tutor no WhatsApp
+                      <span aria-hidden="true">📲</span> Avisar Tutor no WhatsApp
+                      <span className="sr-only"> (abre em nova aba)</span>
                     </a>
                   );
                 })()}
@@ -382,7 +385,7 @@ export function VaccinationSection({
         showCloseButton={false}
         maxWidth="max-w-md"
       >
-        <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] opacity-60 -mt-6 mb-6">
+        <p className="text-[11px] font-black text-primary uppercase tracking-[0.2em] -mt-4 mb-5">
           {patientName}
         </p>
 
@@ -390,7 +393,7 @@ export function VaccinationSection({
           <div className="flex flex-col gap-2">
             <label
               htmlFor={protocolSelectId}
-              className="text-[10px] font-black text-foreground/30 uppercase tracking-[0.2em] pl-4"
+              className="text-[11px] font-bold text-foreground/75 uppercase tracking-wider pl-1"
             >
               Protocolo Vacinal *
             </label>
@@ -402,7 +405,7 @@ export function VaccinationSection({
                 setProtocolCode(code);
                 setDoseStage(getSuggestedStageForProtocol(code));
               }}
-              className="w-full bg-card rounded-xl px-4 py-3 shadow-sm outline-none focus:ring-2 focus:ring-primary/40 font-bold text-sm transition-all border border-border text-foreground"
+              className="w-full bg-card rounded-xl px-4 py-3 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-primary font-bold text-sm transition-all border border-border-strong text-foreground"
             >
               <option value="V10_VANGUARD">
                 🐶 V10 Vanguard (3 doses c/ 21 dias → Anual)
@@ -419,7 +422,7 @@ export function VaccinationSection({
               <option value="CUSTOM">➕ Outra Vacina (Personalizada)</option>
             </select>
             {protocolCode !== 'CUSTOM' && (
-              <span className="text-[11px] text-foreground/50 pl-2 italic">
+              <span className="text-xs text-muted-foreground pl-1 italic">
                 {VACCINE_PROTOCOLS[protocolCode].description}
               </span>
             )}
@@ -437,6 +440,7 @@ export function VaccinationSection({
               <Input
                 label="Intervalo Retorno (dias)"
                 type="number"
+                inputMode="numeric"
                 min={1}
                 max={3650}
                 value={customIntervalDays}
@@ -447,10 +451,13 @@ export function VaccinationSection({
 
           {isMultiDoseProtocol && (
             <div className="flex flex-col gap-2">
-              <span className="text-[10px] font-black text-foreground/30 uppercase tracking-[0.2em] pl-4">
+              <span
+                id={stageGroupLabelId}
+                className="text-[11px] font-bold text-foreground/75 uppercase tracking-wider pl-1"
+              >
                 Etapa do Protocolo Aplicada Hoje
               </span>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2" role="group" aria-labelledby={stageGroupLabelId}>
                 {[
                   { id: 'dose_1', label: '1ª Dose (+21 dias)' },
                   { id: 'dose_2', label: '2ª Dose (+21 dias)' },
@@ -460,13 +467,14 @@ export function VaccinationSection({
                   <button
                     key={stage.id}
                     type="button"
+                    aria-pressed={doseStage === stage.id}
                     onClick={() =>
                       setDoseStage(stage.id as 'dose_1' | 'dose_2' | 'dose_3' | 'annual')
                     }
-                    className={`py-2.5 px-3 rounded-xl text-xs font-black transition-all border ${
+                    className={`min-h-[40px] py-2.5 px-3 rounded-xl text-xs font-black transition-all border ${
                       doseStage === stage.id
-                        ? 'bg-primary text-white border-primary shadow-sm'
-                        : 'bg-card text-foreground/70 border-border hover:border-primary/30'
+                        ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                        : 'bg-card text-foreground/80 border-border-strong hover:border-primary/40'
                     }`}
                   >
                     {stage.label}
@@ -478,10 +486,13 @@ export function VaccinationSection({
 
           {isSingleAnnualProtocol && (
             <div className="flex flex-col gap-2">
-              <span className="text-[10px] font-black text-foreground/30 uppercase tracking-[0.2em] pl-4">
+              <span
+                id={stageGroupLabelId}
+                className="text-[11px] font-bold text-foreground/75 uppercase tracking-wider pl-1"
+              >
                 Etapa do Protocolo Aplicada Hoje
               </span>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2" role="group" aria-labelledby={stageGroupLabelId}>
                 {[
                   { id: 'dose_1', label: 'Dose Única (Inicial)' },
                   { id: 'annual', label: 'Reforço Anual (+1 ano)' },
@@ -489,11 +500,12 @@ export function VaccinationSection({
                   <button
                     key={stage.id}
                     type="button"
+                    aria-pressed={effectiveDoseStage === stage.id}
                     onClick={() => setDoseStage(stage.id as 'dose_1' | 'annual')}
-                    className={`py-2.5 px-3 rounded-xl text-xs font-black transition-all border ${
+                    className={`min-h-[40px] py-2.5 px-3 rounded-xl text-xs font-black transition-all border ${
                       effectiveDoseStage === stage.id
-                        ? 'bg-primary text-white border-primary shadow-sm'
-                        : 'bg-card text-foreground/70 border-border hover:border-primary/30'
+                        ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                        : 'bg-card text-foreground/80 border-border-strong hover:border-primary/40'
                     }`}
                   >
                     {stage.label}
@@ -520,8 +532,8 @@ export function VaccinationSection({
           </div>
 
           <div className="p-4 rounded-2xl bg-primary/8 border border-primary/20 flex flex-col gap-1">
-            <span className="text-[10px] font-black uppercase tracking-widest text-primary">
-              🔔 Aviso Programado Calculado Automaticamente
+            <span className="text-[11px] font-black uppercase tracking-widest text-primary">
+              <span aria-hidden="true">🔔</span> Aviso Programado Calculado Automaticamente
             </span>
             <span className="text-sm font-black text-foreground">
               Próxima etapa: {previewSchedule.nextDoseLabel}

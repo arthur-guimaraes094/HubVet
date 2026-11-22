@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useId } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -30,6 +30,7 @@ interface ProfileFormProps {
 export function ProfileForm({ initialData }: ProfileFormProps) {
   const router = useRouter();
   const { success, error } = useToast();
+  const pixKeyTypeId = useId();
 
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -188,23 +189,25 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
   };
 
   return (
-    <Card className="flex flex-col gap-8 w-full max-w-2xl mx-auto p-10">
+    <Card className="flex flex-col gap-8 w-full max-w-2xl mx-auto p-5 sm:p-8">
       <div className="flex flex-col gap-1">
-        <h3 className="text-3xl font-black text-foreground tracking-tighter">Meu Perfil</h3>
-        <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] opacity-60">
-          Configurações da Conta & Deslocamento
+        <h2 className="text-2xl sm:text-3xl font-black text-foreground tracking-tighter">
+          Dados Profissionais
+        </h2>
+        <p className="text-[11px] font-black text-primary uppercase tracking-[0.2em]">
+          Configurações da Conta &amp; Deslocamento
         </p>
       </div>
 
       <form onSubmit={handleSave} className="flex flex-col gap-8">
         {/* Avatar Upload */}
         <div className="flex items-center justify-center mb-4">
-          <label className="relative flex items-center justify-center w-32 h-32 bg-background rounded-full cursor-pointer overflow-hidden group shadow-sm border border-border hover:shadow-inner transition-all p-1.5">
+          <label className="relative flex items-center justify-center w-32 h-32 bg-background rounded-full cursor-pointer overflow-hidden group shadow-sm border border-border-strong hover:shadow-inner transition-all p-1.5 focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2">
             <div className="w-full h-full rounded-full overflow-hidden bg-foreground/5 flex items-center justify-center">
               {avatarPreview ? (
                 <Image
                   src={avatarPreview}
-                  alt="Avatar"
+                  alt={fullName ? `Foto de perfil de ${fullName}` : 'Foto de perfil profissional'}
                   width={128}
                   height={128}
                   unoptimized
@@ -212,20 +215,27 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
                   priority
                 />
               ) : (
-                <span className="text-4xl font-black text-foreground/20 group-hover:text-primary transition-colors tracking-tighter">
+                <span
+                  aria-hidden="true"
+                  className="text-4xl font-black text-muted-foreground group-hover:text-primary transition-colors tracking-tighter"
+                >
                   MV
                 </span>
               )}
             </div>
-            <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
+            >
               <span className="text-white text-[10px] font-black uppercase tracking-widest">
                 Alterar
               </span>
             </div>
+            <span className="sr-only">Alterar foto do perfil</span>
             <input
               type="file"
               accept="image/*"
-              className="hidden"
+              className="sr-only"
               onChange={handleAvatarChange}
             />
           </label>
@@ -235,6 +245,7 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
           <Input
             label="E-mail de Acesso"
             type="email"
+            autoComplete="email"
             value={initialData.email}
             disabled
             readOnly
@@ -243,6 +254,7 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
           <Input
             label="Nome Completo (Exibido no Receituário e Relatório)"
             type="text"
+            autoComplete="name"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
             placeholder="Ex: Dra. Gabriela Soares"
@@ -260,6 +272,8 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
             <Input
               label="WhatsApp Profissional"
               type="tel"
+              inputMode="tel"
+              autoComplete="tel"
               value={phone}
               onChange={handlePhoneChange}
               placeholder="(84) 98636-5455"
@@ -267,12 +281,12 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
           </div>
 
           <div className="p-5 rounded-3xl bg-foreground/3 border border-border flex flex-col gap-4 mt-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">
-                🚗 Parâmetros de Cálculo de Deslocamento Domiciliar
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-black text-primary uppercase tracking-[0.15em]">
+                <span aria-hidden="true">🚗</span> Parâmetros de Cálculo de Deslocamento Domiciliar
               </span>
               {loadingCep && (
-                <span className="text-[9px] font-bold text-primary animate-pulse">
+                <span role="status" aria-live="polite" className="text-[11px] font-bold text-primary animate-pulse">
                   Buscando CEP...
                 </span>
               )}
@@ -281,6 +295,8 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
                 label="CEP Base de Partida"
+                inputMode="numeric"
+                autoComplete="postal-code"
                 placeholder="59152-250"
                 value={baseCep}
                 onChange={handleBaseCepChange}
@@ -289,6 +305,7 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
               <Input
                 label="Valor Recomendado por Km (R$/km)"
                 type="number"
+                inputMode="decimal"
                 step="0.10"
                 placeholder="2.50"
                 value={kmRate}
@@ -298,11 +315,12 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
 
             <Input
               label="Endereço Base de Partida"
+              autoComplete="street-address"
               placeholder="Rua das Embarcações, 171, Nova Parnamirim"
               value={baseAddress}
               onChange={(e) => setBaseAddress(e.target.value)}
             />
-            <span className="text-[11px] text-foreground/50 italic px-1">
+            <span className="text-xs text-muted-foreground italic px-1">
               O sistema calcula automaticamente a distância de ida e volta até a residência do tutor e multiplica pela taxa de R$/km configurada acima.
             </span>
           </div>
@@ -310,20 +328,24 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
           {/* Dados de Pagamento (PIX) */}
           <div className="flex flex-col gap-4 p-5 rounded-2xl bg-foreground/[0.02] border border-border">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground/50">
-                💳 Dados de Pagamento (Cobrança PIX)
+              <span className="text-[11px] font-black uppercase tracking-[0.15em] text-muted-foreground">
+                <span aria-hidden="true">💳</span> Dados de Pagamento (Cobrança PIX)
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-semibold text-foreground/85">
+                <label
+                  htmlFor={pixKeyTypeId}
+                  className="text-sm font-semibold text-foreground/85"
+                >
                   Tipo de Chave
                 </label>
                 <select
+                  id={pixKeyTypeId}
                   value={pixKeyType}
                   onChange={(e) => setPixKeyType(e.target.value)}
-                  className="w-full bg-card border border-border rounded-xl px-3.5 py-2.5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="w-full bg-card border border-border-strong rounded-xl px-3.5 py-3 text-sm font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
                   <option value="CPF">CPF</option>
                   <option value="Telefone">Telefone Celular</option>
@@ -341,7 +363,7 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
                 />
               </div>
             </div>
-            <span className="text-[11px] text-foreground/50 italic px-1">
+            <span className="text-xs text-muted-foreground italic px-1">
               Esta chave será exibida na tela de finalização de consultas com botão de cópia rápida e opção de envio no WhatsApp do tutor.
             </span>
           </div>
@@ -349,7 +371,10 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
 
         <div className="pt-4 flex flex-col gap-4">
           {submitError && (
-            <div className="p-4 rounded-xl bg-error/10 border border-error/20 text-error text-sm font-bold text-center animate-in fade-in slide-in-from-bottom-2">
+            <div
+              role="alert"
+              className="p-4 rounded-xl bg-error/10 border border-error/30 text-red-700 dark:text-red-300 text-sm font-bold text-center animate-in fade-in slide-in-from-bottom-2"
+            >
               {submitError}
             </div>
           )}
@@ -366,7 +391,7 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
             variant="secondary"
             type="button"
             onClick={handleSignOut}
-            className="w-full py-4! text-error border-error/10 hover:bg-error/10"
+            className="w-full py-4! text-red-700! dark:text-red-300! border-error/30! hover:bg-error/10!"
           >
             Encerrar Sessão
           </Button>

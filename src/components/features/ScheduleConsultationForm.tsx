@@ -94,6 +94,7 @@ export function ScheduleConsultationForm({
   const isEdit = !!itemToEdit;
   const effectivelyOpen = isOpenControlled !== undefined ? isOpenControlled : isOpen;
   const patientSelectId = useId();
+  const typeLabelId = useId();
   const travelAbortRef = useRef<AbortController | null>(null);
 
   const initialEditAddress = itemToEdit
@@ -310,33 +311,40 @@ export function ScheduleConsultationForm({
           className="flex flex-col gap-5 max-h-[75vh] overflow-y-auto pr-2 custom-scrollbar"
         >
           <div className="flex flex-col gap-2">
-            <label
-              htmlFor={patientSelectId}
-              className="text-[10px] font-black text-foreground/30 uppercase tracking-[0.2em] pl-4"
-            >
-              Paciente
-            </label>
             {isEdit ? (
-              <div className="w-full bg-foreground/5 border border-border rounded-2xl px-5 py-4 text-foreground/40 font-black italic">
-                {itemToEdit?.patients?.name} (
-                {translateSpecies(itemToEdit?.patients?.species || '')})
-              </div>
+              <>
+                <span className="text-[11px] font-bold text-foreground/75 uppercase tracking-wider pl-1">
+                  Paciente
+                </span>
+                <div className="w-full bg-foreground/5 border border-border rounded-2xl px-5 py-4 text-foreground/80 font-black italic">
+                  {itemToEdit?.patients?.name} (
+                  {translateSpecies(itemToEdit?.patients?.species || '')})
+                </div>
+              </>
             ) : (
-              <select
-                id={patientSelectId}
-                value={formData.patientId}
-                onChange={(e) => handlePatientChange(e.target.value)}
-                className="w-full bg-card rounded-2xl shadow-inner border border-border p-4 focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground appearance-none"
-              >
-                <option className="bg-card text-foreground" value="">
-                  Selecione um paciente...
-                </option>
-                {patients.map((p) => (
-                  <option className="bg-card text-foreground" key={p.id} value={p.id}>
-                    {p.name} ({translateSpecies(p.species)})
+              <>
+                <label
+                  htmlFor={patientSelectId}
+                  className="text-[11px] font-bold text-foreground/75 uppercase tracking-wider pl-1"
+                >
+                  Paciente
+                </label>
+                <select
+                  id={patientSelectId}
+                  value={formData.patientId}
+                  onChange={(e) => handlePatientChange(e.target.value)}
+                  className="w-full bg-card rounded-2xl shadow-inner border border-border-strong p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary text-foreground appearance-none"
+                >
+                  <option className="bg-card text-foreground" value="">
+                    Selecione um paciente...
                   </option>
-                ))}
-              </select>
+                  {patients.map((p) => (
+                    <option className="bg-card text-foreground" key={p.id} value={p.id}>
+                      {p.name} ({translateSpecies(p.species)})
+                    </option>
+                  ))}
+                </select>
+              </>
             )}
           </div>
 
@@ -358,10 +366,13 @@ export function ScheduleConsultationForm({
           </div>
 
           <div className="flex flex-col gap-2">
-            <span className="text-[10px] font-black text-foreground/30 uppercase tracking-[0.2em] pl-4">
+            <span
+              id={typeLabelId}
+              className="text-[11px] font-bold text-foreground/75 uppercase tracking-wider pl-1"
+            >
               Tipo
             </span>
-            <div className="flex gap-4" role="group" aria-label="Tipo de Atendimento">
+            <div className="flex gap-4" role="group" aria-labelledby={typeLabelId}>
               {(['Home', 'Hospital'] as const).map((t) => (
                 <button
                   key={t}
@@ -387,13 +398,14 @@ export function ScheduleConsultationForm({
                     }
                   }}
                   aria-pressed={formData.type === t}
-                  className={`flex-1 py-3 rounded-xl font-bold transition-all ${
+                  className={`flex-1 min-h-[44px] py-3 rounded-xl font-bold transition-all ${
                     formData.type === t
-                      ? 'bg-primary text-white shadow-inner border border-border'
-                      : 'bg-background text-foreground shadow-sm border border-border hover:shadow-inner'
+                      ? 'bg-primary text-primary-foreground shadow-inner border border-primary'
+                      : 'bg-background text-foreground shadow-sm border border-border-strong hover:shadow-inner'
                   }`}
                 >
-                  {t === 'Home' ? '🏠 Domicílio' : '🏥 Hospital'}
+                  <span aria-hidden="true">{t === 'Home' ? '🏠' : '🏥'}</span>{' '}
+                  {t === 'Home' ? 'Domicílio' : 'Hospital'}
                 </button>
               ))}
             </div>
@@ -402,6 +414,7 @@ export function ScheduleConsultationForm({
           <div className="flex flex-col gap-2">
             <Input
               label="Localização / Residência do Tutor"
+              autoComplete="street-address"
               placeholder="Rua, número, bairro, CEP..."
               value={formData.address}
               onChange={(e) => {
@@ -429,20 +442,22 @@ export function ScheduleConsultationForm({
                   type="button"
                   onClick={() => calculateTravelForAddress(formData.address)}
                   disabled={calculatingTravel}
-                  className="text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary transition-colors"
+                  className="min-h-[36px] text-[11px] font-black uppercase tracking-wider px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary transition-colors inline-flex items-center gap-1.5"
                 >
+                  <span aria-hidden="true">🚗</span>
                   {calculatingTravel
                     ? 'Calculando rota...'
-                    : '🚗 Calcular Custo de Deslocamento'}
+                    : 'Calcular Custo de Deslocamento'}
                 </button>
 
                 <a
                   href={buildGoogleMapsUrl(formData.address)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-xl bg-foreground/8 hover:bg-foreground/15 text-foreground/80 transition-colors"
+                  className="min-h-[36px] text-[11px] font-black uppercase tracking-wider px-3 py-1.5 rounded-xl bg-foreground/8 hover:bg-foreground/15 text-foreground transition-colors inline-flex items-center gap-1.5"
                 >
-                  🗺️ Ver no Mapa
+                  <span aria-hidden="true">🗺️</span> Ver no Mapa
+                  <span className="sr-only"> (abre em nova aba)</span>
                 </a>
               </div>
             )}
@@ -451,16 +466,16 @@ export function ScheduleConsultationForm({
               travelEstimate &&
               (travelEstimate.recommendedFee > 0 || (travelEstimate.roundTripKm ?? 0) > 0) && (
                 <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex flex-col gap-1 animate-in fade-in">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700">
-                      🚗 Deslocamento Recomendado (Ida e Volta)
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                      <span aria-hidden="true">🚗</span> Deslocamento Recomendado (Ida e Volta)
                     </span>
-                    <span className="text-sm font-black text-emerald-700">
+                    <span className="text-sm font-black text-emerald-700 dark:text-emerald-300">
                       R$ {travelEstimate.recommendedFee.toFixed(2)}
                     </span>
                   </div>
                   {travelEstimate.roundTripKm !== null && travelEstimate.roundTripKm > 0 && (
-                    <span className="text-[11px] font-medium text-foreground/60">
+                    <span className="text-xs font-medium text-muted-foreground">
                       {travelEstimate.oneWayKm !== null
                         ? `Distância: ${travelEstimate.oneWayKm} km (ida) • `
                         : 'Distância: '}
@@ -475,7 +490,10 @@ export function ScheduleConsultationForm({
           </div>
 
           {submitError && (
-            <div className="p-3 rounded-xl bg-error/10 border border-error/20 text-error text-sm font-bold text-center animate-in fade-in slide-in-from-bottom-2">
+            <div
+              role="alert"
+              className="p-3 rounded-xl bg-error/10 border border-error/30 text-red-700 dark:text-red-300 text-sm font-bold text-center animate-in fade-in slide-in-from-bottom-2"
+            >
               {submitError}
             </div>
           )}

@@ -50,6 +50,7 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
   const [loading, setLoading] = useState(false);
   const speciesSelectId = useId();
   const fertilitySelectId = useId();
+  const clinicalObsId = useId();
 
   const initialAge = calculateYearsAndMonths(patient.birth_date);
 
@@ -248,7 +249,7 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
       showCloseButton={false}
       maxWidth="max-w-lg"
     >
-      <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] opacity-60 -mt-6 mb-6">
+      <p className="text-[11px] font-black text-primary uppercase tracking-[0.2em] -mt-4 mb-5">
         {patient.name}
       </p>
 
@@ -257,34 +258,39 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
         className="flex flex-col gap-6 max-h-[75vh] overflow-y-auto pr-2 custom-scrollbar"
       >
         <div className="flex flex-col gap-5 p-5 bg-foreground/2 rounded-3xl border border-foreground/5">
-          <span className="text-[10px] font-black text-foreground/40 uppercase tracking-[0.2em] pl-1">
+          <span className="text-[11px] font-black text-muted-foreground uppercase tracking-[0.2em] pl-1">
             Informações do Pet
           </span>
 
           <div className="flex items-center gap-4 px-1">
-            <label className="relative w-20 h-20 rounded-full bg-card border-2 border-dashed border-primary/30 hover:border-primary flex items-center justify-center cursor-pointer overflow-hidden shrink-0 group transition-all shadow-sm">
+            <label className="relative w-20 h-20 rounded-full bg-card border-2 border-dashed border-primary/40 hover:border-primary flex items-center justify-center cursor-pointer overflow-hidden shrink-0 group transition-all shadow-sm focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2">
               {photoPreviewUrl ? (
                 <Image
                   src={photoPreviewUrl}
-                  alt={patientName}
+                  alt={`Foto de ${patientName || 'paciente'}`}
                   fill
                   sizes="80px"
                   unoptimized
                   className="object-cover"
                 />
               ) : (
-                <div className="flex flex-col items-center justify-center text-center p-1">
+                <div aria-hidden="true" className="flex flex-col items-center justify-center text-center p-1">
                   <span className="text-2xl">📷</span>
-                  <span className="text-[8px] font-black text-primary uppercase tracking-tighter">
+                  <span className="text-[9px] font-black text-primary uppercase tracking-tighter">
                     {uploadingPhoto ? 'Enviando...' : 'Foto'}
                   </span>
                 </div>
               )}
+              <span className="sr-only">
+                {uploadingPhoto
+                  ? 'Enviando foto do paciente...'
+                  : `Alterar foto de ${patientName || 'paciente'}`}
+              </span>
               <input
                 type="file"
                 accept="image/*"
                 onChange={handlePhotoUpload}
-                className="hidden"
+                className="sr-only"
                 disabled={uploadingPhoto}
               />
             </label>
@@ -304,7 +310,7 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
             <div className="flex flex-col gap-2">
               <label
                 htmlFor={speciesSelectId}
-                className="text-[10px] font-black text-foreground/30 uppercase tracking-[0.2em] pl-4"
+                className="text-[11px] font-bold text-foreground/75 uppercase tracking-wider pl-1"
               >
                 Espécie *
               </label>
@@ -313,11 +319,11 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
                 value={patientSpecies}
                 onChange={(e) => setPatientSpecies(e.target.value)}
                 required
-                className={`w-full bg-card rounded-xl px-4 py-3 shadow-sm outline-none focus:ring-2 focus:ring-primary/40 font-medium transition-all border border-border appearance-none ${
-                  !patientSpecies ? 'text-foreground/40' : 'text-foreground'
+                className={`w-full bg-card rounded-xl px-4 py-3 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-primary font-medium transition-all border border-border-strong appearance-none ${
+                  !patientSpecies ? 'text-muted-foreground' : 'text-foreground'
                 }`}
               >
-                <option value=""></option>
+                <option value="">Selecione...</option>
                 <option value="Canine" className="text-foreground">
                   Cão (Canino)
                 </option>
@@ -333,6 +339,7 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
             <Input
               label="Peso (kg) *"
               type="number"
+              inputMode="decimal"
               step="0.01"
               placeholder="0.0"
               value={patientWeight}
@@ -344,7 +351,7 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
           <div className="grid grid-cols-2 gap-3">
             <AutocompleteInput
               label="Raça"
-              placeholder="Ex: SRD, Poodle..."
+              placeholder="Ex: SRD, Shih Tzu..."
               value={patientBreed}
               onChange={setPatientBreed}
               options={breedOptions}
@@ -360,22 +367,24 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
 
           {/* Idade */}
           <div className="flex flex-col gap-3 pt-2 border-t border-foreground/5">
-            <div className="flex items-center justify-between px-1">
-              <span className="text-[11px] font-bold text-foreground/70 uppercase tracking-wider">
-                🎂 Idade do Paciente
+            <div className="flex items-center justify-between gap-2 px-1 flex-wrap">
+              <span className="text-[11px] font-bold text-foreground/75 uppercase tracking-wider">
+                <span aria-hidden="true">🎂</span> Idade do Paciente
               </span>
               <div 
                 role="radiogroup" 
                 aria-label="Formato da idade"
-                className="flex bg-foreground/5 border border-border/70 p-0.5 rounded-xl gap-0.5"
+                className="flex bg-foreground/5 border border-border-strong p-0.5 rounded-xl gap-0.5"
               >
                 <button
                   type="button"
                   role="radio"
                   aria-checked={ageMode === 'approx'}
                   onClick={() => setAgeMode('approx')}
-                  className={`py-1 px-3 rounded-lg text-xs font-bold transition-[transform,background-color,color] duration-150 active:scale-[0.97] ${
-                    ageMode === 'approx' ? 'bg-primary text-white shadow-sm' : 'text-foreground/70 hover:text-foreground'
+                  className={`min-h-[32px] py-1.5 px-3 rounded-lg text-xs font-bold transition-[transform,background-color,color] duration-150 active:scale-[0.97] ${
+                    ageMode === 'approx'
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-foreground/80 hover:text-foreground'
                   }`}
                 >
                   Anos / Meses
@@ -385,8 +394,10 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
                   role="radio"
                   aria-checked={ageMode === 'exact'}
                   onClick={() => setAgeMode('exact')}
-                  className={`py-1 px-3 rounded-lg text-xs font-bold transition-[transform,background-color,color] duration-150 active:scale-[0.97] ${
-                    ageMode === 'exact' ? 'bg-primary text-white shadow-sm' : 'text-foreground/70 hover:text-foreground'
+                  className={`min-h-[32px] py-1.5 px-3 rounded-lg text-xs font-bold transition-[transform,background-color,color] duration-150 active:scale-[0.97] ${
+                    ageMode === 'exact'
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-foreground/80 hover:text-foreground'
                   }`}
                 >
                   Data de Nasc.
@@ -399,6 +410,7 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
                 <Input
                   label="Anos"
                   type="number"
+                  inputMode="numeric"
                   min="0"
                   max="35"
                   placeholder="Ex: 2"
@@ -408,6 +420,7 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
                 <Input
                   label="Meses"
                   type="number"
+                  inputMode="numeric"
                   min="0"
                   max="11"
                   placeholder="Ex: 4"
@@ -424,7 +437,7 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
               />
             )}
             {computedBirthDate && (
-              <span className="text-[10px] font-bold text-primary pl-3">
+              <span className="text-xs font-bold text-primary pl-1">
                 Idade registrada: {formatPatientAge(computedBirthDate)}
               </span>
             )}
@@ -436,7 +449,7 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
               <div className="flex flex-col gap-2">
                 <label
                   htmlFor={fertilitySelectId}
-                  className="text-[10px] font-black text-foreground/30 uppercase tracking-[0.2em] pl-4"
+                  className="text-[11px] font-bold text-foreground/75 uppercase tracking-wider pl-1"
                 >
                   Fertilidade / Reprodução
                 </label>
@@ -444,7 +457,7 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
                   id={fertilitySelectId}
                   value={fertilityStatus}
                   onChange={(e) => setFertilityStatus(e.target.value)}
-                  className="w-full bg-card rounded-xl px-4 py-3 shadow-sm outline-none focus:ring-2 focus:ring-primary/40 font-medium transition-all border border-border appearance-none text-foreground"
+                  className="w-full bg-card rounded-xl px-4 py-3 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-primary font-medium transition-all border border-border-strong appearance-none text-foreground"
                 >
                   <option value="">Não informado</option>
                   <option value="Neutered">Castrado(a)</option>
@@ -463,14 +476,18 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
 
           {/* Observações / Alergias */}
           <div className="flex flex-col gap-2 pt-2 border-t border-foreground/5">
-            <label className="text-[10px] font-black text-error/80 uppercase tracking-[0.2em] pl-4">
-              ⚠️ Alergias e Observações Importantes
+            <label
+              htmlFor={clinicalObsId}
+              className="text-[11px] font-black text-red-700 dark:text-red-300 uppercase tracking-[0.15em] pl-1"
+            >
+              <span aria-hidden="true">⚠️</span> Alergias e Observações Importantes
             </label>
             <textarea
+              id={clinicalObsId}
               value={clinicalObservations}
               onChange={(e) => setClinicalObservations(e.target.value)}
               placeholder="Ex: Alérgico a Dipirona, cardiopata, temperamento..."
-              className="w-full bg-card rounded-xl px-4 py-3 shadow-sm outline-none focus:ring-2 focus:ring-primary/40 text-foreground font-medium placeholder:text-foreground/40 transition-all border border-border min-h-[72px] resize-y text-sm"
+              className="w-full bg-card rounded-xl px-4 py-3 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-primary text-foreground font-medium placeholder:text-muted-foreground transition-all border border-border-strong min-h-[72px] resize-y text-sm"
             />
           </div>
         </div>

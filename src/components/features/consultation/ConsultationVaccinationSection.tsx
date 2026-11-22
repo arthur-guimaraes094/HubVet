@@ -97,24 +97,24 @@ export function ConsultationVaccinationSection({
 
   return (
     <div className="flex flex-col gap-3 p-4 rounded-2xl bg-foreground/[0.02] border border-border">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
-          <h4 className="font-extrabold text-foreground text-base flex items-center gap-2">
-            💉 Protocolo Vacinal Aplicado
+          <h3 className="font-extrabold text-foreground text-base flex items-center gap-2">
+            <span aria-hidden="true">💉</span> Protocolo Vacinal Aplicado
             {vaccinations.length > 0 && (
-              <span className="px-2 py-0.5 rounded-full bg-success/15 text-success text-xs font-black">
+              <span className="px-2 py-0.5 rounded-full bg-success/15 text-emerald-800 dark:text-emerald-300 text-xs font-black">
                 {vaccinations.length}
               </span>
             )}
-          </h4>
-          <p className="text-xs text-foreground/50 font-medium">
+          </h3>
+          <p className="text-xs text-muted-foreground font-medium">
             Agenda automaticamente o retorno (+21 dias para V10/V5 inicial ou +1 ano para reforço anual)
           </p>
         </div>
         <button
           type="button"
           onClick={() => setShowVacForm(!showVacForm)}
-          className="text-xs font-black text-primary bg-primary/10 px-3.5 py-2 rounded-xl hover:bg-primary/20 transition-colors shrink-0"
+          className="min-h-[36px] text-xs font-black text-primary bg-primary/10 px-3.5 py-2 rounded-xl hover:bg-primary/20 transition-colors shrink-0"
         >
           {showVacForm ? 'Cancelar' : '+ Programar Vacina'}
         </button>
@@ -142,7 +142,7 @@ export function ConsultationVaccinationSection({
                     setVacDoseStage('dose_1');
                   }
                 }}
-                className="w-full bg-card border border-border rounded-xl px-3.5 py-2.5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="w-full bg-card border border-border-strong rounded-xl px-3.5 py-2.5 text-sm font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 <option value="V10_VANGUARD">V10 Vanguard (Canino - 3 doses 21d + Anual)</option>
                 <option value="ANTIRRABICA">Vacina Antirrábica (Dose única Anual)</option>
@@ -168,7 +168,7 @@ export function ConsultationVaccinationSection({
                       e.target.value as 'dose_1' | 'dose_2' | 'dose_3' | 'annual'
                     )
                   }
-                  className="w-full bg-card border border-border rounded-xl px-3.5 py-2.5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="w-full bg-card border border-border-strong rounded-xl px-3.5 py-2.5 text-sm font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
                   <option value="dose_1">1ª Dose Inicial (Retorno em 21 dias)</option>
                   <option value="dose_2">2ª Dose Inicial (Retorno em 21 dias)</option>
@@ -190,7 +190,7 @@ export function ConsultationVaccinationSection({
                   id={stageSelectId}
                   value={effectiveDoseStage}
                   onChange={(e) => setVacDoseStage(e.target.value as 'dose_1' | 'annual')}
-                  className="w-full bg-card border border-border rounded-xl px-3.5 py-2.5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="w-full bg-card border border-border-strong rounded-xl px-3.5 py-2.5 text-sm font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
                   <option value="dose_1">Dose Única (Inicial)</option>
                   <option value="annual">Reforço Anual (+1 ano)</option>
@@ -210,6 +210,7 @@ export function ConsultationVaccinationSection({
               <Input
                 label="Intervalo Próxima Dose (dias)"
                 type="number"
+                inputMode="numeric"
                 min={1}
                 max={3650}
                 value={vacCustomInterval}
@@ -219,7 +220,7 @@ export function ConsultationVaccinationSection({
             </div>
           )}
 
-          <div className="flex items-center justify-between p-2.5 rounded-xl bg-success/10 border border-success/20 text-xs font-bold text-success">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-success/10 border border-success/20 text-xs font-bold text-emerald-800 dark:text-emerald-300">
             <span>
               Próxima dose ({previewSchedule.nextDoseLabel}):{' '}
               {previewSchedule.nextDueDate.split('-').reverse().join('/')}
@@ -228,7 +229,7 @@ export function ConsultationVaccinationSection({
               type="button"
               variant="primary"
               onClick={handleAddVaccinationDraft}
-              className="py-1.5! px-3! text-xs font-black"
+              className="py-2! px-4! text-xs font-black min-h-[38px]"
             >
               Confirmar Vacina
             </Button>
@@ -249,13 +250,13 @@ export function ConsultationVaccinationSection({
             return (
               <div
                 key={v.id}
-                className="flex items-center justify-between p-3 rounded-xl bg-card border border-border"
+                className="flex items-center justify-between gap-3 p-3 rounded-xl bg-card border border-border"
               >
                 <div className="flex flex-col">
                   <span className="text-xs font-black text-foreground">
-                    💉 {sched.vaccineName} • {sched.currentDoseLabel}
+                    <span aria-hidden="true">💉</span> {sched.vaccineName} • {sched.currentDoseLabel}
                   </span>
-                  <span className="text-[11px] font-bold text-primary">
+                  <span className="text-xs font-bold text-primary">
                     Próxima dose ({sched.nextDoseLabel}):{' '}
                     {sched.nextDueDate.split('-').reverse().join('/')}
                   </span>
@@ -263,7 +264,8 @@ export function ConsultationVaccinationSection({
                 <button
                   type="button"
                   onClick={() => handleRemoveVaccinationDraft(v.id)}
-                  className="text-xs font-bold text-error hover:underline"
+                  aria-label={`Remover vacina ${sched.vaccineName}`}
+                  className="min-h-[36px] px-3 py-1.5 rounded-lg bg-error/10 hover:bg-error/20 text-xs font-bold text-red-700 dark:text-red-300 transition-colors shrink-0"
                 >
                   Remover
                 </button>

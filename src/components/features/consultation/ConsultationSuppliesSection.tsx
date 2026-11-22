@@ -48,6 +48,7 @@ export function ConsultationSuppliesSection({
 }: ConsultationSuppliesSectionProps) {
   const router = useRouter();
   const categorySelectId = useId();
+  const searchInputId = useId();
   const [searchTerm, setSearchTerm] = useState('');
   const [showNewItemForm, setShowNewItemForm] = useState(false);
   const [newItemName, setNewItemName] = useState('');
@@ -119,14 +120,14 @@ export function ConsultationSuppliesSection({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-between items-center">
-        <h4 className="font-bold text-foreground/80">
+      <div className="flex justify-between items-center gap-2">
+        <h3 className="font-bold text-foreground/85">
           Insumos e Procedimentos Cobrados (Maleta)
-        </h4>
+        </h3>
         <button
           type="button"
           onClick={() => setShowNewItemForm(!showNewItemForm)}
-          className="text-xs font-black text-primary bg-primary/10 px-3 py-1.5 rounded-full hover:bg-primary/20 transition-colors"
+          className="min-h-[36px] text-xs font-black text-primary bg-primary/10 px-3.5 py-1.5 rounded-full hover:bg-primary/20 transition-colors shrink-0"
         >
           {showNewItemForm ? 'Cancelar' : '+ Cadastrar Novo'}
         </button>
@@ -153,7 +154,7 @@ export function ConsultationSuppliesSection({
             <div className="flex flex-col gap-2">
               <label
                 htmlFor={categorySelectId}
-                className="text-[10px] font-black text-foreground/30 uppercase tracking-widest pl-1"
+                className="text-[11px] font-bold text-foreground/75 uppercase tracking-wider pl-1"
               >
                 Categoria
               </label>
@@ -161,7 +162,7 @@ export function ConsultationSuppliesSection({
                 id={categorySelectId}
                 value={newItemCategory}
                 onChange={(e) => setNewItemCategory(e.target.value)}
-                className="w-full bg-card rounded-xl px-4 py-3 shadow-inner border border-border focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm font-bold text-foreground"
+                className="w-full bg-card rounded-xl px-4 py-3 shadow-inner border border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary text-sm font-bold text-foreground"
               >
                 <option className="bg-card text-foreground" value="Consultation">
                   Consulta
@@ -200,20 +201,31 @@ export function ConsultationSuppliesSection({
 
       <div className="flex flex-col gap-4">
         <div className="relative">
+          <label htmlFor={searchInputId} className="sr-only">
+            Buscar item na maleta
+          </label>
           <input
+            id={searchInputId}
             type="text"
             placeholder="Buscar item na maleta..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-foreground/5 rounded-2xl px-6 py-4 shadow-inner border border-border focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground font-medium placeholder:text-foreground/30 transition-all"
+            className="w-full bg-foreground/5 rounded-2xl pl-5 pr-14 py-4 shadow-inner border border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary text-foreground font-medium placeholder:text-muted-foreground transition-all"
           />
           {searchTerm && (
             <button
               type="button"
               onClick={() => setSearchTerm('')}
-              className="absolute right-5 top-1/2 -translate-y-1/2 text-foreground/20 hover:text-foreground/60 transition-colors"
+              aria-label="Limpar busca na maleta"
+              className="absolute right-2 top-1/2 -translate-y-1/2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-muted-foreground hover:text-foreground transition-colors"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                aria-hidden="true"
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -232,14 +244,14 @@ export function ConsultationSuppliesSection({
                 key={item.id}
                 type="button"
                 onClick={() => onAddItem(item.id)}
-                className="flex items-center gap-3 px-5 py-3 bg-background shadow-sm hover:shadow-inner hover:bg-foreground/5 rounded-full border border-border hover:border-primary/20 transition-all duration-300 group"
+                className="flex items-center gap-3 px-5 py-3 bg-background shadow-sm hover:shadow-inner hover:bg-foreground/5 rounded-full border border-border-strong hover:border-primary/40 transition-all duration-300 group"
               >
                 <div className="flex flex-col items-start leading-tight">
                   <span className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">
                     {item.name}
                   </span>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-[9px] font-black opacity-40 group-hover:opacity-60 transition-opacity uppercase tracking-widest">
+                    <span className="text-[10px] font-black text-muted-foreground group-hover:text-foreground transition-colors uppercase tracking-widest">
                       {item.type === 'Medication'
                         ? 'Medicamento'
                         : item.type === 'Vaccine'
@@ -249,20 +261,20 @@ export function ConsultationSuppliesSection({
                         : 'Material'}
                     </span>
                     {item.concentration && (
-                      <span className="text-[9px] font-bold text-primary/40 group-hover:text-primary/60">
+                      <span className="text-[10px] font-bold text-primary">
                         • {item.concentration}
                       </span>
                     )}
                   </div>
                 </div>
-                <div className="h-4 w-px bg-foreground/5 group-hover:bg-primary/10 mx-1"></div>
-                <span className="text-xs font-black text-primary/40 group-hover:text-primary transition-colors">
+                <div className="h-4 w-px bg-border mx-1"></div>
+                <span className="text-xs font-black text-primary transition-colors">
                   R$ {item.salePrice.toFixed(2)}
                 </span>
               </button>
             ))
           ) : (
-            <p className="w-full text-center py-8 text-foreground/20 text-sm font-bold italic tracking-wide">
+            <p className="w-full text-center py-8 text-muted-foreground text-sm font-bold italic tracking-wide">
               Nenhum item encontrado no catálogo.
             </p>
           )}
@@ -270,8 +282,8 @@ export function ConsultationSuppliesSection({
       </div>
 
       {selectedItems.length > 0 && (
-        <div className="mt-4 p-5 rounded-2xl bg-foreground/5 shadow-inner flex flex-col gap-3 border border-primary/5 animate-in zoom-in-95 duration-300">
-          <span className="text-xs font-black text-foreground/40 uppercase tracking-widest pl-1">
+        <div className="mt-4 p-5 rounded-2xl bg-foreground/5 shadow-inner flex flex-col gap-3 border border-primary/10 animate-in zoom-in-95 duration-300">
+          <span className="text-xs font-black text-muted-foreground uppercase tracking-widest pl-1">
             Itens Selecionados
           </span>
           <div className="flex flex-col gap-2">
@@ -282,31 +294,33 @@ export function ConsultationSuppliesSection({
                   key={item.id}
                   className="flex justify-between items-center p-3 bg-card rounded-2xl border border-border hover:border-primary/20 transition-all"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-black text-primary shadow-sm border border-border">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 shrink-0 rounded-full bg-primary/10 flex items-center justify-center text-xs font-black text-primary shadow-sm border border-border">
                       {item.quantity}x
                     </div>
-                    <div className="flex flex-col">
-                      <span className="font-bold text-sm text-foreground">
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-bold text-sm text-foreground truncate">
                         {invItem?.name || 'Item Novo'}
                       </span>
                       {invItem?.concentration && (
-                        <span className="text-[10px] font-medium text-foreground/40 leading-none">
+                        <span className="text-[11px] font-medium text-muted-foreground leading-tight">
                           {invItem.concentration}
                         </span>
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <span className="font-bold text-xs text-foreground/60">
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="font-bold text-xs text-muted-foreground">
                       R$ {invItem ? (invItem.salePrice * item.quantity).toFixed(2) : '0.00'}
                     </span>
                     <button
                       type="button"
                       onClick={() => onRemoveItem(item.id)}
-                      className="w-9 h-9 shrink-0 flex items-center justify-center rounded-full bg-error/10 text-error hover:bg-error hover:text-white transition-all duration-200"
+                      aria-label={`Diminuir ou remover ${invItem?.name || 'item'}`}
+                      className="min-w-[44px] min-h-[44px] w-11 h-11 shrink-0 flex items-center justify-center rounded-full bg-error/10 text-red-700 dark:text-red-300 hover:bg-error hover:text-error-foreground transition-all duration-200"
                     >
                       <svg
+                        aria-hidden="true"
                         className="w-4 h-4"
                         fill="none"
                         stroke="currentColor"

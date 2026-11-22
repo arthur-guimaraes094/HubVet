@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useId } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -93,6 +93,9 @@ export function ConsultationForm({
 }: ConsultationFormProps) {
   const router = useRouter();
   const { success, error } = useToast();
+  const consultationTypeLabelId = useId();
+  const travelFeeInputId = useId();
+  const notesTextareaId = useId();
 
   // Chave de rascunho escopada por paciente e consulta
   const draftKey = patientId
@@ -717,38 +720,43 @@ export function ConsultationForm({
   const fertilityLabel = fertilityStatus ? formatFertilityStatus(fertilityStatus) : null;
 
   return (
-    <Card className="flex flex-col gap-6 w-full max-w-3xl mx-auto">
+    <Card className="flex flex-col gap-6 w-full max-w-3xl mx-auto p-5 sm:p-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border pb-4">
         <div className="flex flex-col">
-          <h3 className="text-xl font-extrabold text-primary">
+          <h2 className="text-xl font-extrabold text-primary">
             {patientName ? `Atendimento: ${patientName}` : 'Prontuário e Fechamento'}
-          </h3>
+          </h2>
           {tutorName && (
-            <span className="text-xs font-bold text-foreground/50">
+            <span className="text-xs font-bold text-muted-foreground">
               Tutor(a): {tutorName}
               {breed ? ` • ${breed}` : ''}
-              {ageLabel ? ` • 🎂 ${ageLabel}` : ''}
+              {ageLabel ? (
+                <>
+                  {' '}
+                  • <span aria-hidden="true">🎂</span> {ageLabel}
+                </>
+              ) : null}
               {fertilityLabel ? ` • ${fertilityLabel}` : ''}
             </span>
           )}
         </div>
         {patientId && (
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <button
               type="button"
               onClick={handleDownloadRelatorioPDF}
-              className="px-3 py-1.5 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-white text-xs font-black transition-all"
+              className="min-h-[36px] px-3 py-1.5 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground text-xs font-black transition-all flex items-center gap-1.5"
               title="Pré-visualizar Relatório em PDF"
             >
-              📄 Prévia Relatório
+              <span aria-hidden="true">📄</span> Prévia Relatório
             </button>
             <button
               type="button"
               onClick={handleDownloadReceituarioPDF}
-              className="px-3 py-1.5 rounded-xl bg-secondary/10 text-secondary hover:bg-secondary hover:text-white text-xs font-black transition-all"
+              className="min-h-[36px] px-3 py-1.5 rounded-xl bg-secondary/10 text-secondary hover:bg-secondary hover:text-secondary-foreground text-xs font-black transition-all flex items-center gap-1.5"
               title="Pré-visualizar Receita em PDF"
             >
-              💊 Prévia Receita
+              <span aria-hidden="true">💊</span> Prévia Receita
             </button>
           </div>
         )}
@@ -756,17 +764,17 @@ export function ConsultationForm({
 
       {/* Alerta de Rascunho Recuperado */}
       {hasRestoredDraft && (
-        <div className="p-3.5 rounded-2xl bg-primary/10 border border-primary/25 flex items-center justify-between gap-3 animate-in fade-in">
+        <div className="p-3.5 rounded-2xl bg-primary/10 border border-primary/25 flex items-center justify-between gap-3 animate-in fade-in flex-wrap">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="text-base shrink-0">📝</span>
-            <span className="text-xs font-bold text-foreground/85 truncate sm:overflow-visible">
+            <span aria-hidden="true" className="text-base shrink-0">📝</span>
+            <span className="text-xs font-bold text-foreground/90 truncate sm:overflow-visible">
               Rascunho não finalizado restaurado automaticamente deste dispositivo.
             </span>
           </div>
           <button
             type="button"
             onClick={handleDiscardDraft}
-            className="text-[11px] font-black text-error hover:underline px-2.5 py-1 rounded-lg bg-error/10 hover:bg-error/20 transition-colors shrink-0"
+            className="min-h-[36px] text-xs font-black text-red-700 dark:text-red-300 hover:underline px-3 py-1.5 rounded-lg bg-error/10 hover:bg-error/20 transition-colors shrink-0"
           >
             Descartar Rascunho
           </button>
@@ -774,7 +782,10 @@ export function ConsultationForm({
       )}
 
       {!patientId && (
-        <div className="p-3 bg-error/10 text-error rounded-xl text-sm font-bold text-center">
+        <div
+          role="alert"
+          className="p-3 bg-error/10 border border-error/30 text-red-700 dark:text-red-300 rounded-xl text-sm font-bold text-center"
+        >
           Você não selecionou um paciente. Volte à página inicial e pesquise na Busca Rápida.
         </div>
       )}
@@ -782,9 +793,9 @@ export function ConsultationForm({
       {/* Alerta de Alergias e Observações Clínicas do Paciente */}
       {clinicalObservations && (
         <div className="p-3.5 rounded-2xl bg-error/10 border border-error/25 flex items-start gap-3">
-          <span className="text-lg leading-none">⚠️</span>
+          <span aria-hidden="true" className="text-lg leading-none">⚠️</span>
           <div className="flex flex-col">
-            <span className="text-[10px] font-black uppercase tracking-widest text-error">
+            <span className="text-[11px] font-black uppercase tracking-widest text-red-700 dark:text-red-300">
               Alerta Clínico / Alergias do Paciente
             </span>
             <p className="text-xs font-bold text-foreground/90 mt-0.5">
@@ -796,22 +807,31 @@ export function ConsultationForm({
 
       {!consultationId && (
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-foreground/70 uppercase tracking-wider pl-1">
+          <span
+            id={consultationTypeLabelId}
+            className="text-xs font-bold text-foreground/75 uppercase tracking-wider pl-1"
+          >
             Tipo de Atendimento
-          </label>
-          <div className="flex p-1 bg-foreground/5 rounded-2xl border border-border/70 gap-1">
+          </span>
+          <div
+            role="group"
+            aria-labelledby={consultationTypeLabelId}
+            className="flex p-1 bg-foreground/5 rounded-2xl border border-border-strong gap-1"
+          >
             {(['Home', 'Hospital'] as const).map((t) => (
               <button
                 key={t}
                 type="button"
+                aria-pressed={consultationType === t}
                 onClick={() => setConsultationType(t)}
-                className={`flex-1 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-[transform,background-color,color] duration-150 active:scale-[0.98] flex items-center justify-center gap-2 ${
+                className={`flex-1 min-h-[44px] py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-[transform,background-color,color] duration-150 active:scale-[0.98] flex items-center justify-center gap-2 ${
                   consultationType === t
-                    ? 'bg-primary text-white shadow-sm'
-                    : 'text-foreground/70 hover:text-foreground hover:bg-foreground/5'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-foreground/80 hover:text-foreground hover:bg-foreground/5'
                 }`}
               >
-                {t === 'Home' ? '🏠 Domicílio' : '🏥 Consultório / Hospital'}
+                <span aria-hidden="true">{t === 'Home' ? '🏠' : '🏥'}</span>
+                {t === 'Home' ? 'Domicílio' : 'Consultório / Hospital'}
               </button>
             ))}
           </div>
@@ -823,16 +843,17 @@ export function ConsultationForm({
         <div className="p-4 rounded-2xl bg-primary/5 border border-primary/15 flex flex-col gap-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-1.5">
-              🚗 Atendimento a Domicílio & Deslocamento
+              <span aria-hidden="true">🚗</span> Atendimento a Domicílio &amp; Deslocamento
             </span>
             {address.trim() && (
               <a
                 href={buildGoogleMapsUrl(address)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-3 py-1 rounded-lg bg-primary text-white text-xs font-black hover:bg-primary/90 transition-all flex items-center gap-1.5 shadow-sm"
+                className="min-h-[36px] px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-black hover:bg-primary/90 transition-all inline-flex items-center gap-1.5 shadow-sm"
               >
-                🗺️ Abrir no Mapa
+                <span aria-hidden="true">🗺️</span> Abrir no Mapa
+                <span className="sr-only"> (abre em nova aba)</span>
               </a>
             )}
           </div>
@@ -841,6 +862,7 @@ export function ConsultationForm({
             <div className="flex-1 w-full">
               <Input
                 label="Endereço do Atendimento"
+                autoComplete="street-address"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 placeholder="Rua, Número, Bairro, Cidade - UF ou CEP"
@@ -853,36 +875,43 @@ export function ConsultationForm({
               disabled={calculatingTravel || !address.trim()}
               className="py-3! px-4! text-xs font-black whitespace-nowrap w-full sm:w-auto"
             >
-              {calculatingTravel ? 'Calculando...' : '🧮 Calcular Deslocamento'}
+              <span aria-hidden="true">🧮</span>{' '}
+              {calculatingTravel ? 'Calculando...' : 'Calcular Deslocamento'}
             </Button>
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-primary/10">
-            <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-foreground/80">
+            <label className="flex items-center gap-2.5 cursor-pointer text-xs font-bold text-foreground/85 min-h-[36px]">
               <input
                 type="checkbox"
                 checked={includeTravelFee}
                 onChange={(e) => setIncludeTravelFee(e.target.checked)}
-                className="rounded border-border text-primary focus:ring-primary w-4 h-4"
+                className="rounded border-border-strong text-primary focus:ring-primary w-5 h-5 shrink-0"
               />
-              Incluir taxa de deslocamento no valor da consulta
-              {travelDistanceKm ? (
-                <span className="text-[11px] font-black text-primary">
-                  ({travelDistanceKm} km ida e volta)
-                </span>
-              ) : null}
+              <span>
+                Incluir taxa de deslocamento no valor da consulta
+                {travelDistanceKm ? (
+                  <span className="text-xs font-black text-primary ml-1">
+                    ({travelDistanceKm} km ida e volta)
+                  </span>
+                ) : null}
+              </span>
             </label>
 
             {includeTravelFee && (
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-foreground/60">Taxa (R$):</span>
+                <label htmlFor={travelFeeInputId} className="text-xs font-bold text-foreground/75">
+                  Taxa (R$):
+                </label>
                 <input
+                  id={travelFeeInputId}
                   type="number"
+                  inputMode="decimal"
                   step="0.50"
                   value={travelFee}
                   onChange={(e) => setTravelFee(e.target.value)}
                   placeholder="0.00"
-                  className="w-24 bg-background border border-border rounded-xl px-3 py-1.5 text-xs font-black text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  className="w-24 bg-background border border-border-strong rounded-xl px-3 py-2 text-xs font-black text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 />
               </div>
             )}
@@ -892,18 +921,21 @@ export function ConsultationForm({
 
       {/* Evolução Clínica / Anamnese (Relatório de Atendimento) */}
       <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <h4 className="font-bold text-foreground/80">
-            Anamnese, Exame Físico e Evolução Clínica
-          </h4>
-          <span className="text-[10px] font-black uppercase tracking-wider text-foreground/40">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <h3 className="font-bold text-foreground/85">
+            <label htmlFor={notesTextareaId}>
+              Anamnese, Exame Físico e Evolução Clínica
+            </label>
+          </h3>
+          <span className="text-[11px] font-black uppercase tracking-wider text-muted-foreground">
             Sai no Relatório Clínico
           </span>
         </div>
         <textarea
+          id={notesTextareaId}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          className="w-full bg-foreground/5 border border-border rounded-xl p-4 shadow-inner min-h-[130px] focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground resize-y text-sm"
+          className="w-full bg-foreground/5 border border-border-strong rounded-xl p-4 shadow-inner min-h-[130px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary text-foreground placeholder:text-muted-foreground resize-y text-sm"
           placeholder="Descreva a anamnese, parâmetros vitais (FC, FR, TR, TPC), exame físico, suspeita clínica e recomendações gerais ao tutor..."
         />
       </div>
@@ -913,6 +945,7 @@ export function ConsultationForm({
         <Input
           label="Peso Atual do Paciente (kg)"
           type="number"
+          inputMode="decimal"
           step="0.1"
           value={weight}
           onChange={(e) => setWeight(e.target.value)}
@@ -940,33 +973,39 @@ export function ConsultationForm({
 
       {/* Imagens e Anexos */}
       <div className="flex flex-col gap-3">
-        <h4 className="font-bold text-foreground/80 flex items-center gap-2">
+        <h3 className="font-bold text-foreground/85 flex items-center gap-2">
           Imagens e Anexos
           {uploadingImage && (
-            <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+            <span
+              role="status"
+              aria-label="Enviando anexo clínico"
+              className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin inline-block"
+            />
           )}
-        </h4>
-        <div className="flex flex-wrap gap-4">
+        </h3>
+        <div className="flex flex-wrap gap-4 pt-1">
           {images.map((img, i) => (
             <div
               key={`${img.storageRef}-${i}`}
-              className="relative group w-24 h-24 rounded-2xl overflow-hidden shadow-inner border border-border bg-foreground/5"
+              className="relative w-24 h-24 rounded-2xl shadow-inner border border-border bg-foreground/5"
             >
-              <Image
-                src={img.previewUrl}
-                alt={`Anexo ${i + 1}`}
-                fill
-                sizes="96px"
-                unoptimized
-                className="object-cover"
-              />
+              <div className="relative w-full h-full rounded-2xl overflow-hidden">
+                <Image
+                  src={img.previewUrl}
+                  alt={`Anexo clínico ${i + 1} de ${patientName || 'paciente'}`}
+                  fill
+                  sizes="96px"
+                  unoptimized
+                  className="object-cover"
+                />
+              </div>
               <button
                 type="button"
                 onClick={() => removeImage(i)}
-                aria-label={`Remover anexo ${i + 1}`}
-                className="absolute inset-0 bg-error/80 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                aria-label={`Remover anexo clínico ${i + 1} de ${patientName || 'paciente'}`}
+                className="absolute -top-2 -right-2 w-8 h-8 min-w-[32px] min-h-[32px] rounded-full bg-error text-error-foreground shadow-md hover:bg-error/90 transition-colors flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg aria-hidden="true" className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -977,9 +1016,10 @@ export function ConsultationForm({
               </button>
             </div>
           ))}
-          <label className="w-24 h-24 rounded-2xl border-2 border-dashed border-foreground/10 hover:border-primary/40 hover:bg-primary/5 transition-all flex flex-col items-center justify-center gap-1 cursor-pointer group">
+          <label className="w-24 h-24 rounded-2xl border-2 border-dashed border-border-strong hover:border-primary hover:bg-primary/5 transition-all flex flex-col items-center justify-center gap-1 cursor-pointer group focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2">
             <svg
-              className="w-6 h-6 text-foreground/20 group-hover:text-primary transition-colors"
+              aria-hidden="true"
+              className="w-6 h-6 text-muted-foreground group-hover:text-primary transition-colors"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -991,14 +1031,17 @@ export function ConsultationForm({
                 d="M12 4v16m8-8H4"
               />
             </svg>
-            <span className="text-[10px] font-black text-foreground/30 group-hover:text-primary/60 uppercase tracking-tighter">
+            <span aria-hidden="true" className="text-[11px] font-black text-muted-foreground group-hover:text-primary uppercase tracking-tighter">
               Adicionar
+            </span>
+            <span className="sr-only">
+              {uploadingImage ? 'Enviando anexo clínico...' : 'Adicionar anexo clínico'}
             </span>
             <input
               type="file"
               accept="image/*"
               onChange={handleImageUpload}
-              className="hidden"
+              className="sr-only"
               disabled={uploadingImage}
             />
           </label>
@@ -1017,22 +1060,22 @@ export function ConsultationForm({
       />
 
       {/* Resumo Financeiro da Consulta */}
-      <div className="mt-4 p-8 rounded-3xl bg-gradient-to-br from-success/5 to-success/15 border border-success/20 shadow-sm flex flex-col items-center justify-center gap-2 relative overflow-hidden group">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-success/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-success/10 transition-colors"></div>
-        <span className="text-xs font-black text-success/60 uppercase tracking-[0.2em] relative z-10">
+      <div className="mt-4 p-5 sm:p-8 rounded-3xl bg-gradient-to-br from-success/5 to-success/15 border border-success/20 shadow-sm flex flex-col items-center justify-center gap-2 relative overflow-hidden group">
+        <div aria-hidden="true" className="absolute top-0 right-0 w-32 h-32 bg-success/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-success/10 transition-colors"></div>
+        <span className="text-xs font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-[0.2em] relative z-10 text-center">
           Valor Total do Atendimento
         </span>
         <div className="flex items-baseline gap-1 relative z-10">
-          <span className="text-lg font-black text-success/60">R$</span>
-          <span className="text-5xl font-extrabold text-success tracking-tighter flex items-baseline">
+          <span className="text-lg font-black text-emerald-800 dark:text-emerald-300">R$</span>
+          <span className="text-5xl font-extrabold text-emerald-800 dark:text-emerald-300 tracking-tighter flex items-baseline">
             {Math.floor(totalCents / 100)}
-            <span className="text-3xl opacity-60">
+            <span className="text-3xl text-emerald-700 dark:text-emerald-200">
               ,{String(totalCents % 100).padStart(2, '0')}
             </span>
           </span>
         </div>
         {travelFeeCents > 0 && (
-          <span className="text-xs font-bold text-success/80 relative z-10">
+          <span className="text-xs font-bold text-emerald-800 dark:text-emerald-200 relative z-10 text-center">
             Insumos/Serviços: R$ {(itemsTotalCents / 100).toFixed(2)} + Deslocamento: R${' '}
             {(travelFeeCents / 100).toFixed(2)}
           </span>
@@ -1040,7 +1083,10 @@ export function ConsultationForm({
       </div>
 
       {submitError && (
-        <div className="mt-2 p-4 rounded-xl bg-error/10 border border-error/20 text-error text-sm font-bold text-center animate-in fade-in slide-in-from-bottom-2">
+        <div
+          role="alert"
+          className="mt-2 p-4 rounded-xl bg-error/10 border border-error/30 text-red-700 dark:text-red-300 text-sm font-bold text-center animate-in fade-in slide-in-from-bottom-2"
+        >
           {submitError}
         </div>
       )}
