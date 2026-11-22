@@ -41,7 +41,11 @@ export default async function AgendaPage() {
     .eq('tutors.profile_id', userId);
 
   return (
-    <main className="flex-1 flex flex-col p-4 md:p-8 gap-8 w-full">
+    <main
+      id="main-content"
+      tabIndex={-1}
+      className="flex-1 flex flex-col p-4 md:p-8 gap-8 w-full outline-none"
+    >
       <AgendaClient
         initialConsultations={(consultations as unknown as Consultation[]) || []}
         patients={(patients as unknown as Patient[]) || []}

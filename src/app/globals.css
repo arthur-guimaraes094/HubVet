@@ -3,25 +3,36 @@
 :root {
   --background: #F9FAFB;
   --card: #FFFFFF;
-  --border: #E5E7EB;
+  --border: #D1D5DB;
+  --border-strong: #8792A2;
   --foreground: #111827;
-  --muted-foreground: #6B7280;
-  --primary: #E0537A;
+  --muted-foreground: #4B5563;
+  --primary: #C22756;
+  --primary-foreground: #FFFFFF;
   --secondary: #731F28;
-  --success: #10B981;
-  --error: #EF4444;
+  --secondary-foreground: #FFFFFF;
+  --success: #047857;
+  --success-foreground: #FFFFFF;
+  --error: #DC2626;
+  --error-foreground: #FFFFFF;
+  color-scheme: light;
 }
 
 .dark {
   --background: #111827;
   --card: #1F2937;
   --border: #374151;
+  --border-strong: #6B7280;
   --foreground: #F9FAFB;
-  --muted-foreground: #9CA3AF;
+  --muted-foreground: #CBD5E1;
   --primary: #FF85A2;
-  --secondary: #C04A5E;
-  --success: #10B981;
-  --error: #EF4444;
+  --primary-foreground: #111827;
+  --secondary: #F472B6;
+  --secondary-foreground: #111827;
+  --success: #34D399;
+  --success-foreground: #052E16;
+  --error: #F87171;
+  --error-foreground: #2B0808;
   color-scheme: dark;
 }
 
@@ -29,19 +40,35 @@
   --color-background: var(--background);
   --color-card: var(--card);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-foreground: var(--foreground);
   --color-muted-foreground: var(--muted-foreground);
   --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
   --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --color-error: var(--error);
+  --color-error-foreground: var(--error-foreground);
   --font-sans: var(--font-nunito);
 }
 
 body {
   background-color: var(--background);
   color: var(--foreground);
-  color-scheme: light;
+}
+
+@layer base {
+  :focus {
+    scroll-margin-top: 80px;
+    scroll-margin-bottom: 60px;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
 }
 
 input, select, textarea {
@@ -197,6 +224,15 @@ input, select, textarea {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
   ::view-transition-group(root),
   ::view-transition-old(root),
   ::view-transition-new(root) {

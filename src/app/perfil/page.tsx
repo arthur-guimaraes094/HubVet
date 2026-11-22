@@ -2,6 +2,7 @@ import { requireSession } from '@/infrastructure/auth/session'
 import { signStorageUrl } from '@/infrastructure/storage/media'
 import { redirect } from 'next/navigation'
 import { ProfileForm } from '@/components/features/ProfileForm'
+import { buttonClasses } from '@/components/ui/Button'
 import Link from 'next/link'
 import { ViewTransition } from 'react'
 
@@ -45,10 +46,11 @@ export default async function PerfilPage() {
   return (
     <ViewTransition enter="fade-in" default="none">
       <div className="min-h-screen flex flex-col p-4 sm:p-8 pt-6 relative max-w-4xl mx-auto w-full gap-8">
-        <main className="flex-1 flex flex-col gap-6">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="text-primary hover:underline font-bold text-sm">
-              &larr; Voltar
+        <main id="main-content" tabIndex={-1} className="flex-1 flex flex-col gap-6 outline-none">
+          <div className="flex items-center justify-between gap-4">
+            <h1 className="text-3xl font-extrabold text-foreground">Meu Perfil</h1>
+            <Link href="/" className={buttonClasses('secondary', 'px-4! py-2! text-sm')}>
+              Voltar
             </Link>
           </div>
 

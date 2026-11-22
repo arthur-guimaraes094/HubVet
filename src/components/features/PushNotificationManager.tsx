@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
+
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding)
@@ -17,6 +18,7 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 
 export function PushNotificationManager() {
+  const labelId = useId();
   const [isSupported, setIsSupported] = useState(false);
   const [subscription, setSubscription] = useState<PushSubscription | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -62,7 +64,7 @@ export function PushNotificationManager() {
       if (permission === 'granted') {
         const registration = await navigator.serviceWorker.ready;
         const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-        
+
         if (!vapidPublicKey) {
           throw new Error('VAPID public key not found');
         }
@@ -74,7 +76,6 @@ export function PushNotificationManager() {
 
         setSubscription(sub);
 
-        // Enviar a inscrição para o backend
         const res = await fetch('/api/push/subscribe', {
           method: 'POST',
           headers: {
@@ -88,14 +89,9 @@ export function PushNotificationManager() {
           setSubscription(null);
           throw new Error('Falha ao salvar inscrição de notificação');
         }
-
-        // alert('Notificações ativadas com sucesso!');
-      } else {
-        // alert('Permissão de notificação negada.');
       }
     } catch (error) {
       console.error('Failed to subscribe:', error);
-      // alert('Erro ao ativar notificações.');
     } finally {
       setIsLoading(false);
     }
@@ -114,8 +110,6 @@ export function PushNotificationManager() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ endpoint }),
         });
-
-        // alert('Notificações desativadas.');
       }
     } catch (error) {
       console.error('Failed to unsubscribe:', error);
@@ -126,7 +120,7 @@ export function PushNotificationManager() {
 
   if (!isSupported) {
     return (
-      <div className="p-4 bg-error/10 text-error rounded-xl text-sm">
+      <div className="p-4 bg-error/15 border border-error/30 text-red-800 dark:text-red-200 rounded-xl text-sm font-medium">
         Notificações não suportadas.
       </div>
     );
@@ -135,21 +129,30 @@ export function PushNotificationManager() {
   const isSubscribed = !!subscription;
 
   return (
-    <div className="flex items-center justify-between p-3 bg-background/50 rounded-xl border border-border">
-      <span className="font-semibold text-foreground">Permitir Notificações</span>
-      
+    <div className="flex items-center justify-between gap-3 p-3 bg-background/50 rounded-xl border border-border-strong">
+      <span id={labelId} className="font-semibold text-foreground">
+        Permitir Notificações
+      </span>
+
       <button
         type="button"
+        role="switch"
+        aria-checked={isSubscribed}
+        aria-labelledby={labelId}
         disabled={isLoading}
         onClick={isSubscribed ? unsubscribeFromPush : subscribeToPush}
-        className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
-          isSubscribed ? 'bg-success' : 'bg-gray-300 dark:bg-gray-600'
+        className={`relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+          isSubscribed
+            ? 'bg-success border-success'
+            : 'bg-slate-600 border-border-strong'
         } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
-        <span className="sr-only">Permitir notificações</span>
         <span
-          className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-            isSubscribed ? 'translate-x-5' : 'translate-x-0'
+          aria-hidden="true"
+          className={`pointer-events-none inline-block h-6 w-6 transform rounded-full shadow ring-0 transition duration-200 ease-in-out ${
+            isSubscribed
+              ? 'translate-x-6 bg-success-foreground'
+              : 'translate-x-0.5 bg-white'
           }`}
         />
       </button>

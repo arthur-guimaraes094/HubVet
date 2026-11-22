@@ -1,7 +1,7 @@
 import { requireSession } from '@/infrastructure/auth/session';
 import { signStorageUrl, signStorageUrls } from '@/infrastructure/storage/media';
 import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
+import { buttonClasses } from '@/components/ui/Button';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ViewTransition } from 'react';
@@ -57,11 +57,17 @@ export default async function PatientHistoryPage({
 
   if (patientError || !patient) {
     return (
-      <main className="flex-1 flex flex-col items-center justify-center p-8">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 outline-none"
+      >
         <Card className="text-center py-8">
-          <p className="text-error font-bold">Paciente não encontrado.</p>
-          <Link href="/pacientes" className="mt-4 block">
-            <Button variant="secondary">Voltar</Button>
+          <p role="alert" className="text-error font-bold">
+            Paciente não encontrado.
+          </p>
+          <Link href="/pacientes" className={buttonClasses('secondary', 'mt-4')}>
+            Voltar
           </Link>
         </Card>
       </main>
@@ -131,12 +137,20 @@ export default async function PatientHistoryPage({
     .map((c) => ({ date: c.date, weight: Number(c.weight_kg) }))
     .reverse();
 
+  const sortedWeightData = [...weightData].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+
   const patientAge = formatPatientAge(patient.birth_date);
   const fertilityLabel = formatFertilityStatus(patient.fertility_status);
 
   return (
     <ViewTransition enter="fade-in" default="none">
-      <main className="flex-1 flex flex-col p-8 gap-8 w-full max-w-4xl mx-auto">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex-1 flex flex-col p-4 sm:p-8 gap-8 w-full max-w-4xl mx-auto outline-none"
+      >
         <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
             {signedPatientPhotoUrl ? (
@@ -151,7 +165,10 @@ export default async function PatientHistoryPage({
                 />
               </div>
             ) : (
-              <div className="w-20 h-20 rounded-full bg-foreground/5 border border-border flex items-center justify-center text-4xl shrink-0">
+              <div
+                aria-hidden="true"
+                className="w-20 h-20 rounded-full bg-foreground/5 border border-border flex items-center justify-center text-4xl shrink-0"
+              >
                 {patient.species === 'Canine'
                   ? '🐶'
                   : patient.species === 'Feline'
@@ -169,12 +186,12 @@ export default async function PatientHistoryPage({
                   {translateSpecies(patient.species)}
                 </span>
                 {patient.breed && (
-                  <span className="text-[10px] font-black bg-foreground/5 text-foreground/60 px-3 py-1 rounded-full uppercase tracking-widest">
+                  <span className="text-[10px] font-black bg-foreground/5 text-muted-foreground px-3 py-1 rounded-full uppercase tracking-widest">
                     {patient.breed}
                   </span>
                 )}
                 {patient.color && (
-                  <span className="text-[10px] font-black bg-foreground/5 text-foreground/60 px-3 py-1 rounded-full uppercase tracking-widest">
+                  <span className="text-[10px] font-black bg-foreground/5 text-muted-foreground px-3 py-1 rounded-full uppercase tracking-widest">
                     Pelagem: {patient.color}
                   </span>
                 )}
@@ -184,25 +201,26 @@ export default async function PatientHistoryPage({
                   </span>
                 )}
                 {patientAge && (
-                  <span className="text-[10px] font-black bg-foreground/5 text-foreground/70 px-3 py-1 rounded-full uppercase tracking-widest">
-                    🎂 {patientAge}
+                  <span className="text-[10px] font-black bg-foreground/5 text-muted-foreground px-3 py-1 rounded-full uppercase tracking-widest">
+                    <span aria-hidden="true">🎂 </span>
+                    {patientAge}
                   </span>
                 )}
                 {fertilityLabel && (
-                  <span className="text-[10px] font-black bg-primary/8 text-primary px-3 py-1 rounded-full uppercase tracking-widest">
+                  <span className="text-[10px] font-black bg-primary/10 text-primary px-3 py-1 rounded-full uppercase tracking-widest">
                     {fertilityLabel}
                   </span>
                 )}
               </div>
 
               {patient.fertility_notes && (
-                <p className="text-xs font-medium text-foreground/60 mt-1.5 italic">
+                <p className="text-xs font-medium text-muted-foreground mt-1.5 italic">
                   Reprodução/Fertilidade: {patient.fertility_notes}
                 </p>
               )}
 
-              <div className="flex flex-wrap items-center gap-3 mt-3">
-                <p className="text-foreground/40 font-bold uppercase text-[10px] tracking-[0.2em]">
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mt-3">
+                <p className="text-muted-foreground font-bold uppercase text-[10px] tracking-[0.2em]">
                   Tutor: {patient.tutors?.name}
                   {patient.tutors?.phone ? ` • ${patient.tutors.phone}` : ''}
                 </p>
@@ -211,35 +229,41 @@ export default async function PatientHistoryPage({
                     href={buildGoogleMapsUrl(patient.tutors.address)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[10px] font-black text-primary hover:underline flex items-center gap-1"
+                    className="text-xs font-black text-primary hover:underline inline-flex items-center gap-1 py-1 min-h-[32px]"
                   >
-                    📍 {patient.tutors.address} (Abrir Mapa)
+                    <span aria-hidden="true">📍</span>
+                    {patient.tutors.address} (Abrir Mapa)
+                    <span className="sr-only"> (abre em nova aba)</span>
                   </a>
                 )}
               </div>
             </div>
           </div>
 
-          <div className="flex gap-4">
-            <Link href={`/prontuario?id=${patient.id}&type=Paciente`}>
-              <Button variant="primary" className="px-8! py-3! shadow-sm border border-border">
-                Novo Atendimento
-              </Button>
+          <div className="flex flex-wrap gap-3 sm:gap-4 justify-center sm:justify-end">
+            <Link
+              href={`/prontuario?id=${patient.id}&type=Paciente`}
+              className={buttonClasses('primary', 'px-6! sm:px-8! py-3! shadow-sm')}
+            >
+              Novo Atendimento
             </Link>
-            <Link href="/pacientes">
-              <Button variant="secondary" className="px-6! py-3!">
-                Voltar
-              </Button>
+            <Link
+              href="/pacientes"
+              className={buttonClasses('secondary', 'px-6! py-3!')}
+            >
+              Voltar
             </Link>
           </div>
         </div>
 
         {/* Banner de Alergias e Observações Importantes */}
         {patient.clinical_observations && (
-          <div className="p-4 rounded-2xl bg-error/10 border-2 border-error/25 flex items-start gap-3">
-            <span className="text-2xl">⚠️</span>
+          <div className="p-4 rounded-2xl bg-error/15 border-2 border-error/30 flex items-start gap-3">
+            <span aria-hidden="true" className="text-2xl">
+              ⚠️
+            </span>
             <div className="flex flex-col">
-              <span className="text-[10px] font-black text-error uppercase tracking-[0.2em]">
+              <span className="text-[10px] font-black text-red-800 dark:text-red-200 uppercase tracking-[0.2em]">
                 Alergias & Observações Clínicas do Paciente
               </span>
               <p className="text-sm font-bold text-foreground mt-0.5">
@@ -260,141 +284,182 @@ export default async function PatientHistoryPage({
         />
 
         {/* Gráfico de Peso */}
-        {weightData.length > 1 && (
-          <Card className="p-6 flex flex-col gap-4 bg-background shadow-sm border border-border overflow-hidden">
-            <h3 className="text-sm font-black text-primary uppercase tracking-widest flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-                />
-              </svg>
-              Evolução de Peso
-            </h3>
-            <div className="h-64 w-full relative mt-4 px-2">
-              {(() => {
-                const sortedData = [...weightData].sort(
-                  (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-                );
-                if (sortedData.length < 2) return null;
+        {sortedWeightData.length > 1 && (() => {
+          const padding = 40;
+          const width = 600;
+          const height = 200;
+          const maxW = Math.max(...sortedWeightData.map((w) => w.weight)) * 1.2;
+          const minW = Math.min(...sortedWeightData.map((w) => w.weight)) * 0.8;
+          const range = maxW - minW || 1;
 
-                const padding = 40;
-                const width = 600;
-                const height = 200;
-                const maxW = Math.max(...sortedData.map((w) => w.weight)) * 1.2;
-                const minW = Math.min(...sortedData.map((w) => w.weight)) * 0.8;
-                const range = maxW - minW || 1;
+          const points = sortedWeightData.map((d, i) => {
+            const x =
+              (i / (sortedWeightData.length - 1)) * (width - padding * 2) + padding;
+            const y =
+              height -
+              ((d.weight - minW) / range) * (height - padding * 2) -
+              padding;
+            return { x, y, weight: d.weight, date: d.date };
+          });
 
-                const points = sortedData.map((d, i) => {
-                  const x =
-                    (i / (sortedData.length - 1)) * (width - padding * 2) + padding;
-                  const y =
-                    height -
-                    ((d.weight - minW) / range) * (height - padding * 2) -
-                    padding;
-                  return { x, y, weight: d.weight, date: d.date };
-                });
+          const pathD = points
+            .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
+            .join(' ');
+          const areaD = `${pathD} L ${points[points.length - 1].x} ${height} L ${points[0].x} ${height} Z`;
 
-                const pathD = points
-                  .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
-                  .join(' ');
-                const areaD = `${pathD} L ${points[points.length - 1].x} ${height} L ${points[0].x} ${height} Z`;
+          const chartSummary = `Gráfico de evolução de peso de ${patient.name}: ${sortedWeightData
+            .map(
+              (item) =>
+                `${formatBrazilDate(item.date, {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                })}: ${item.weight} kg`
+            )
+            .join('; ')}`;
 
-                return (
-                  <svg
-                    viewBox={`0 0 ${width} ${height}`}
-                    className="w-full h-full drop-shadow-lg overflow-visible"
-                  >
-                    <defs>
-                      <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="rgb(59, 130, 246)" stopOpacity="0.3" />
-                        <stop offset="100%" stopColor="rgb(59, 130, 246)" stopOpacity="0" />
-                      </linearGradient>
-                    </defs>
+          return (
+            <Card className="p-5 sm:p-6 flex flex-col gap-4 bg-background shadow-sm border border-border overflow-hidden">
+              <h2 className="text-sm font-black text-primary uppercase tracking-widest flex items-center gap-2">
+                <svg
+                  className="w-4 h-4"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                  />
+                </svg>
+                Evolução de Peso
+              </h2>
+              <div className="h-64 w-full relative mt-4 px-2">
+                <svg
+                  role="img"
+                  aria-label={chartSummary}
+                  viewBox={`0 0 ${width} ${height}`}
+                  className="w-full h-full drop-shadow-lg overflow-visible"
+                >
+                  <defs>
+                    <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="rgb(59, 130, 246)" stopOpacity="0.3" />
+                      <stop offset="100%" stopColor="rgb(59, 130, 246)" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
 
-                    <line
-                      x1={padding}
-                      y1={height - 20}
-                      x2={width - padding / 2}
-                      y2={height - 20}
-                      stroke="currentColor"
-                      strokeOpacity="0.1"
-                      strokeWidth="1"
-                    />
-                    <line
-                      x1={padding}
-                      y1={padding / 2}
-                      x2={padding}
-                      y2={height - 20}
-                      stroke="currentColor"
-                      strokeOpacity="0.1"
-                      strokeWidth="1"
-                    />
+                  <line
+                    x1={padding}
+                    y1={height - 20}
+                    x2={width - padding / 2}
+                    y2={height - 20}
+                    stroke="currentColor"
+                    strokeOpacity="0.1"
+                    strokeWidth="1"
+                  />
+                  <line
+                    x1={padding}
+                    y1={padding / 2}
+                    x2={padding}
+                    y2={height - 20}
+                    stroke="currentColor"
+                    strokeOpacity="0.1"
+                    strokeWidth="1"
+                  />
 
-                    <path d={areaD} fill="url(#areaGradient)" />
+                  <path d={areaD} fill="url(#areaGradient)" />
 
-                    <path
-                      d={pathD}
-                      fill="none"
-                      stroke="rgb(59, 130, 246)"
-                      strokeWidth="4"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
+                  <path
+                    d={pathD}
+                    fill="none"
+                    stroke="rgb(59, 130, 246)"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
 
-                    {points.map((p, i) => (
-                      <g key={i} className="group cursor-pointer">
-                        <line
-                          x1={p.x}
-                          y1={p.y}
-                          x2={p.x}
-                          y2={height - 20}
-                          stroke="currentColor"
-                          strokeOpacity="0.2"
-                          strokeWidth="1"
-                          strokeDasharray="4"
-                        />
-                        <circle
-                          cx={p.x}
-                          cy={p.y}
-                          r="6"
-                          fill="white"
-                          stroke="rgb(59, 130, 246)"
-                          strokeWidth="3"
-                        />
-                        <text
-                          x={p.x}
-                          y={p.y - 12}
-                          textAnchor="middle"
-                          className="text-[14px] font-black fill-primary"
-                        >
-                          {p.weight}kg
-                        </text>
-                        <text
-                          x={p.x}
-                          y={height - 5}
-                          textAnchor="middle"
-                          className="text-[12px] font-bold fill-foreground/40"
-                        >
-                          {formatBrazilDate(p.date, {
-                            day: '2-digit',
-                            month: '2-digit',
-                          })}
-                        </text>
-                      </g>
-                    ))}
-                  </svg>
-                );
-              })()}
-            </div>
-          </Card>
-        )}
+                  {points.map((p, i) => (
+                    <g key={i} className="group cursor-pointer">
+                      <line
+                        x1={p.x}
+                        y1={p.y}
+                        x2={p.x}
+                        y2={height - 20}
+                        stroke="currentColor"
+                        strokeOpacity="0.2"
+                        strokeWidth="1"
+                        strokeDasharray="4"
+                      />
+                      <circle
+                        cx={p.x}
+                        cy={p.y}
+                        r="6"
+                        fill="white"
+                        stroke="rgb(59, 130, 246)"
+                        strokeWidth="3"
+                      />
+                      <text
+                        x={p.x}
+                        y={p.y - 12}
+                        textAnchor="middle"
+                        className="text-[14px] font-black fill-primary"
+                      >
+                        {p.weight}kg
+                      </text>
+                      <text
+                        x={p.x}
+                        y={height - 5}
+                        textAnchor="middle"
+                        className="text-[12px] font-bold fill-muted-foreground"
+                      >
+                        {formatBrazilDate(p.date, {
+                          day: '2-digit',
+                          month: '2-digit',
+                        })}
+                      </text>
+                    </g>
+                  ))}
+                </svg>
+              </div>
+              <table className="sr-only">
+                <caption>Evolução de peso do paciente</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Data</th>
+                    <th scope="col">Peso (kg)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedWeightData.map((item, idx) => (
+                    <tr key={`${item.date}-${idx}`}>
+                      <td>
+                        {formatBrazilDate(item.date, {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                        })}
+                      </td>
+                      <td>{item.weight} kg</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Card>
+          );
+        })()}
 
         <div className="flex flex-col gap-6">
           <h2 className="text-xl font-bold text-primary flex items-center gap-2">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              className="w-5 h-5"
+              aria-hidden="true"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -407,14 +472,14 @@ export default async function PatientHistoryPage({
 
           {!consultations || consultations.length === 0 ? (
             <Card className="text-center py-12">
-              <p className="text-foreground/50 font-bold">
+              <p className="text-muted-foreground font-bold">
                 Nenhum atendimento registrado para este paciente.
               </p>
               <Link
                 href={`/prontuario?id=${patient.id}&type=Paciente`}
-                className="mt-4 block"
+                className={buttonClasses('primary', 'mt-4')}
               >
-                <Button variant="primary">Iniciar Primeiro Atendimento</Button>
+                Iniciar Primeiro Atendimento
               </Link>
             </Card>
           ) : (
@@ -436,6 +501,7 @@ export default async function PatientHistoryPage({
                 return (
                   <div key={consult.id} className="relative pl-12">
                     <div
+                      aria-hidden="true"
                       className={`absolute left-0 top-2 w-10 h-10 bg-background rounded-full shadow-sm border border-border flex items-center justify-center z-10 ${
                         isScheduled ? 'animate-pulse border-primary/30' : ''
                       }`}
@@ -449,7 +515,7 @@ export default async function PatientHistoryPage({
 
                     <Card
                       className={`flex flex-col gap-4 ${
-                        isScheduled ? 'border-2 border-orange-200 bg-orange-50/30' : ''
+                        isScheduled ? 'border-2 border-amber-500/30 bg-amber-500/10' : ''
                       }`}
                     >
                       <div className="flex justify-between items-start border-b border-foreground/5 pb-3">
@@ -468,10 +534,9 @@ export default async function PatientHistoryPage({
                         {isScheduled ? (
                           <Link
                             href={`/prontuario?id=${patient.id}&type=Paciente&consultationId=${consult.id}&returnTo=history`}
+                            className={buttonClasses('primary', 'px-4! py-2! text-xs')}
                           >
-                            <Button variant="primary" className="px-4! py-1! text-xs">
-                              Atender
-                            </Button>
+                            Atender
                           </Link>
                         ) : (
                           <div className="flex flex-col items-end shrink-0">
@@ -479,7 +544,7 @@ export default async function PatientHistoryPage({
                               R$ {Number(consult.base_fee).toFixed(2)}
                             </span>
                             {consult.weight_kg && (
-                              <span className="text-[10px] font-bold text-foreground/40 mt-1">
+                              <span className="text-[10px] font-bold text-muted-foreground mt-1">
                                 {consult.weight_kg} kg
                               </span>
                             )}
@@ -488,25 +553,25 @@ export default async function PatientHistoryPage({
                       </div>
 
                       {isScheduled ? (
-                        <div className="flex items-center gap-2 p-3 bg-orange-100/50 rounded-xl border border-orange-200">
-                          <span className="text-sm font-bold text-orange-700">
+                        <div className="flex items-center gap-2 p-3 bg-amber-500/15 rounded-xl border border-amber-500/30">
+                          <span className="text-sm font-bold text-amber-800 dark:text-amber-200">
                             Atendimento ainda não realizado.
                           </span>
                         </div>
                       ) : (
                         <>
                           <div className="space-y-2">
-                            <span className="text-xs font-bold text-foreground/50 uppercase tracking-wider">
+                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                               Notas Clínicas
                             </span>
-                            <p className="text-sm text-foreground/80 leading-relaxed bg-background/50 p-4 rounded-xl shadow-inner border border-border italic">
+                            <p className="text-sm text-foreground/85 leading-relaxed bg-background/50 p-4 rounded-xl shadow-inner border border-border italic">
                               {consult.clinical_notes || 'Sem observações.'}
                             </p>
                           </div>
 
                           {(prescriptionText || prescriptions.length > 0) && (
                             <div className="space-y-2">
-                              <span className="text-xs font-bold text-foreground/50 uppercase tracking-wider">
+                              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                                 Receituário Prescrito
                               </span>
                               {prescriptionText && (
@@ -525,7 +590,7 @@ export default async function PatientHistoryPage({
                                         {rx.medicationName}{' '}
                                         {rx.concentration ? `(${rx.concentration})` : ''}
                                       </span>{' '}
-                                      <span className="text-foreground/60">
+                                      <span className="text-muted-foreground">
                                         • {rx.route} • {rx.dosage} • {rx.frequency} • {rx.duration}
                                       </span>
                                     </div>
@@ -537,18 +602,18 @@ export default async function PatientHistoryPage({
 
                           {consult.images && consult.images.length > 0 && (
                             <div className="space-y-3">
-                              <span className="text-xs font-bold text-foreground/50 uppercase tracking-wider">
+                              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                                 Imagens e Anexos
                               </span>
                               <div className="flex flex-wrap gap-2">
                                 {consult.images.map((url: string, idx: number) => (
                                   <div
                                     key={idx}
-                                    className="relative w-20 h-20 rounded-xl overflow-hidden shadow-sm border border-border bg-card group cursor-pointer hover:scale-105 transition-transform"
+                                    className="relative w-20 h-20 rounded-xl overflow-hidden shadow-sm border border-border bg-card group hover:scale-105 transition-transform"
                                   >
                                     <Image
                                       src={url}
-                                      alt={`Anexo ${idx + 1}`}
+                                      alt={`Anexo ${idx + 1} do atendimento de ${patient.name} em ${formatBrazilDate(consult.date)}`}
                                       fill
                                       sizes="80px"
                                       className="object-cover"
@@ -562,7 +627,7 @@ export default async function PatientHistoryPage({
                           {consult.consultation_items &&
                             consult.consultation_items.length > 0 && (
                               <div className="space-y-3">
-                                <span className="text-xs font-bold text-foreground/50 uppercase tracking-wider">
+                                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                                   Insumos e Medicamentos Aplicados
                                 </span>
                                 <div className="flex flex-wrap gap-2">

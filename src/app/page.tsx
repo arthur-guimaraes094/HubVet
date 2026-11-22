@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/Button";
+import { buttonClasses } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { QuickSearch } from "@/components/features/QuickSearch";
 import { VaccineAlertsCard, UpcomingVaccineItem } from "@/components/features/VaccineAlertsCard";
@@ -61,54 +61,70 @@ export default async function Home() {
 
   return (
     <ViewTransition enter="fade-in" default="none">
-      <main className="flex-1 flex flex-col items-center justify-center p-8 gap-6 max-w-2xl mx-auto w-full">
-        <div className="flex items-center justify-between mb-4 w-full px-2">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 gap-6 max-w-2xl mx-auto w-full outline-none"
+      >
+        <header className="flex items-center justify-between mb-4 w-full px-1 sm:px-2">
           <div className="text-left">
             <h1 className="text-5xl font-black tracking-tighter text-foreground mb-1">HubVet</h1>
-            <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] opacity-80">
+            <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">
               Atendimentos Domiciliares
             </p>
           </div>
           
           <div className="flex items-center gap-2">
             <SettingsModal />
-            <Link href="/perfil" className="w-16 h-16 bg-background rounded-full shadow-sm border border-border flex items-center justify-center text-primary hover:shadow-inner bg-foreground/5 transition-all active:scale-95 cursor-pointer border border-foreground/[0.03] overflow-hidden p-1">
+            <Link
+              href="/perfil"
+              aria-label="Abrir meu perfil"
+              className="w-16 h-16 bg-background rounded-full shadow-sm border border-border-strong flex items-center justify-center text-primary hover:shadow-inner bg-foreground/5 transition-all active:scale-95 cursor-pointer overflow-hidden p-1"
+            >
               <div className="w-full h-full rounded-full overflow-hidden bg-foreground/5 flex items-center justify-center">
                 {avatarUrl ? (
-                  <Image src={avatarUrl} alt="Perfil" width={64} height={64} className="w-full h-full object-cover" />
+                  <Image
+                    src={avatarUrl}
+                    alt="Foto de perfil da veterinária"
+                    width={64}
+                    height={64}
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
-                  <span className="font-black text-xl tracking-tighter">MV</span>
+                  <span aria-hidden="true" className="font-black text-xl tracking-tighter">
+                    MV
+                  </span>
                 )}
               </div>
             </Link>
           </div>
-        </div>
+        </header>
 
         <VaccineAlertsCard vaccines={upcomingVaccines} />
 
-        <Card className="w-full flex flex-col gap-8 p-10 bg-background/40">
+        <Card className="w-full flex flex-col gap-6 sm:gap-8 p-5 sm:p-10 bg-background/40">
           <QuickSearch />
           
-          <div className="grid grid-cols-2 gap-4 mt-2">
-            <Link href="/agenda" className="w-full">
-              <Button variant="primary" className="w-full py-4! shadow-sm border border-border hover:shadow-sm">Agenda</Button>
+          <nav aria-label="Acesso rápido" className="grid grid-cols-2 gap-3 sm:gap-4 mt-2">
+            <Link href="/agenda" className={buttonClasses("primary", "w-full py-4! shadow-sm")}>
+              Agenda
             </Link>
-            <Link href="/pacientes" className="w-full">
-              <Button variant="secondary" className="w-full py-4!">Pacientes</Button>
+            <Link href="/pacientes" className={buttonClasses("secondary", "w-full py-4!")}>
+              Pacientes
             </Link>
-            <Link href="/tutores" className="w-full">
-              <Button variant="secondary" className="w-full py-4!">Tutores</Button>
+            <Link href="/tutores" className={buttonClasses("secondary", "w-full py-4!")}>
+              Tutores
             </Link>
-            <Link href="/financeiro" className="w-full">
-              <Button variant="secondary" className="w-full py-4!">Financeiro</Button>
+            <Link href="/financeiro" className={buttonClasses("secondary", "w-full py-4!")}>
+              Financeiro
             </Link>
-            <Link href="/estoque" className="w-full">
-              <Button variant="secondary" className="w-full py-4!">Maleta</Button>
+            <Link href="/estoque" className={buttonClasses("secondary", "w-full py-4!")}>
+              Maleta
             </Link>
-            <Link href="/calculadora" className="w-full">
-              <Button variant="secondary" className="w-full py-4!">Calculadora</Button>
+            <Link href="/calculadora" className={buttonClasses("secondary", "w-full py-4!")}>
+              Calculadora
             </Link>
-          </div>
+          </nav>
         </Card>
       </main>
     </ViewTransition>

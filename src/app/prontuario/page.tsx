@@ -1,6 +1,6 @@
 import { requireSession } from '@/infrastructure/auth/session';
 import { ConsultationForm } from '@/components/features/ConsultationForm';
-import { Button } from '@/components/ui/Button';
+import { buttonClasses } from '@/components/ui/Button';
 import Link from 'next/link';
 import { ViewTransition } from "react";
 import { z } from 'zod';
@@ -113,15 +113,24 @@ export default async function ProntuarioPage({
 
   return (
     <ViewTransition enter="fade-in" default="none">
-      <main className="flex-1 flex flex-col p-4 sm:p-8 gap-6 w-full max-w-4xl mx-auto">
-        <div className="flex items-center justify-between">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex-1 flex flex-col p-4 sm:p-8 gap-6 w-full max-w-4xl mx-auto outline-none"
+      >
+        <div className="flex items-center justify-between gap-4">
           <h1 className="text-3xl font-extrabold text-foreground">Prontuário</h1>
-          <Link href={
-            returnTo === 'agenda' ? '/agenda' :
-            returnTo === 'history' && patientData?.id ? `/pacientes/${patientData.id}` :
-            '/'
-          }>
-            <Button variant="secondary" className="px-4! py-2! text-sm">Voltar</Button>
+          <Link
+            href={
+              returnTo === 'agenda'
+                ? '/agenda'
+                : returnTo === 'history' && patientData?.id
+                ? `/pacientes/${patientData.id}`
+                : '/'
+            }
+            className={buttonClasses('secondary', 'px-4! py-2! text-sm')}
+          >
+            Voltar
           </Link>
         </div>
 

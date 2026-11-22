@@ -28,10 +28,14 @@ export default async function LoginPage({
       : null
 
   return (
-    <main className="flex-1 flex flex-col items-center justify-center min-h-screen p-6 max-w-md mx-auto w-full">
+    <main
+      id="main-content"
+      tabIndex={-1}
+      className="flex-1 flex flex-col items-center justify-center min-h-screen p-4 sm:p-6 max-w-md mx-auto w-full outline-none"
+    >
       <div className="text-center mb-8">
         <h1 className="text-4xl font-extrabold tracking-tight text-primary mb-2">HubVet</h1>
-        <p className="text-lg font-medium text-foreground/80">
+        <p className="text-lg font-medium text-muted-foreground">
           Acesso Restrito
         </p>
       </div>
@@ -41,7 +45,7 @@ export default async function LoginPage({
           {errorMessage && (
             <div
               role="alert"
-              className="p-3 bg-red-100 text-red-700 text-sm font-bold rounded-xl text-center shadow-inner border border-border"
+              className="p-3 bg-error/15 text-red-800 dark:text-red-200 text-sm font-bold rounded-xl text-center border border-error/30"
             >
               {errorMessage}
             </div>

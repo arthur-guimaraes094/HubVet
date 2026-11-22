@@ -1,7 +1,7 @@
 import { requireSession } from '@/infrastructure/auth/session';
 import { signStorageUrls } from '@/infrastructure/storage/media';
 import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
+import { buttonClasses } from '@/components/ui/Button';
 import { NewPatientForm } from '@/components/features/NewPatientForm';
 import { PatientSearchList } from '@/components/features/PatientSearchList';
 import Link from 'next/link';
@@ -73,7 +73,11 @@ export default async function PacientesPage({
   }));
 
   return (
-    <main className="flex-1 flex flex-col p-8 gap-12 w-full max-w-5xl mx-auto">
+    <main
+      id="main-content"
+      tabIndex={-1}
+      className="flex-1 flex flex-col p-4 sm:p-8 gap-8 sm:gap-12 w-full max-w-5xl mx-auto outline-none"
+    >
       <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
         <div className="flex flex-col items-center sm:items-start">
           <h1 className="text-4xl font-black text-foreground tracking-tighter">
@@ -86,15 +90,17 @@ export default async function PacientesPage({
             initialTutorId={verifiedTutorName ? validTutorId : undefined}
             initialTutorName={verifiedTutorName}
           />
-          <Link href="/">
-            <Button variant="secondary" className="px-6! py-2! text-sm">Voltar</Button>
+          <Link href="/" className={buttonClasses('secondary', 'px-6! py-2! text-sm')}>
+            Voltar
           </Link>
         </div>
       </div>
 
       {error ? (
-        <Card className="bg-error/10 border-error/20 p-6">
-          <p className="text-error font-bold text-center">Erro ao carregar pacientes. Tente novamente.</p>
+        <Card role="alert" className="bg-error/15 border-error/30 p-6">
+          <p className="text-red-800 dark:text-red-200 font-bold text-center">
+            Erro ao carregar pacientes. Tente novamente.
+          </p>
         </Card>
       ) : (
         <PatientSearchList initialPatients={patients || []} />

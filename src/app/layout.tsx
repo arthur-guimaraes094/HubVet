@@ -40,6 +40,12 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col font-sans bg-background text-foreground selection:bg-primary/20">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[10000] focus:px-4 focus:py-3 focus:rounded-xl focus:bg-primary focus:text-primary-foreground focus:font-bold focus:shadow-lg"
+        >
+          Pular para o conteúdo principal
+        </a>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

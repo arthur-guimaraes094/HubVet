@@ -1,6 +1,6 @@
 import { requireSession } from '@/infrastructure/auth/session';
 import { FinanceDashboard } from '@/components/features/FinanceDashboard';
-import { Button } from '@/components/ui/Button';
+import { buttonClasses } from '@/components/ui/Button';
 import Link from 'next/link';
 import { ViewTransition } from 'react';
 import { Metadata } from 'next';
@@ -54,14 +54,18 @@ export default async function FinanceiroPage() {
 
   return (
     <ViewTransition enter="fade-in" default="none">
-      <main className="flex-1 flex flex-col p-8 gap-8 w-full max-w-5xl mx-auto">
-        <div className="flex items-center justify-between">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex-1 flex flex-col p-4 sm:p-8 gap-8 w-full max-w-5xl mx-auto outline-none"
+      >
+        <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-extrabold text-foreground">Financeiro</h1>
             <p className="text-muted-foreground mt-1">Gestão de Faturas e Receitas</p>
           </div>
-          <Link href="/">
-            <Button variant="secondary" className="px-4! py-2! text-sm">Voltar</Button>
+          <Link href="/" className={buttonClasses('secondary', 'px-4! py-2! text-sm')}>
+            Voltar
           </Link>
         </div>
 
