@@ -1,0 +1,311 @@
+"use client";
+
+import React, { useState } from 'react';
+import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
+import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
+import { addInventoryItem } from '@/app/estoque/actions';
+import { VET_SUPPLIES_CATALOG } from '@/core/data/vet-supplies-catalog';
+import { useRouter } from 'next/navigation';
+
+export type InventoryItem = {
+  id: string;
+  name: string;
+  type: 'Medication' | 'Vaccine' | 'Supply' | 'Material' | 'Consultation';
+  unitCost: number;
+  salePrice: number;
+  concentration?: string;
+};
+
+interface ConsultationSuppliesSectionProps {
+  inventory: InventoryItem[];
+  selectedItems: { id: string; quantity: number }[];
+  onAddItem: (id: string) => void;
+  onRemoveItem: (id: string) => void;
+  catalogNames: string[];
+  parentLoading: boolean;
+  onNotifySuccess: (message: string) => void;
+  onNotifyError: (message: string) => void;
+}
+
+export function ConsultationSuppliesSection({
+  inventory,
+  selectedItems,
+  onAddItem,
+  onRemoveItem,
+  catalogNames,
+  parentLoading,
+  onNotifySuccess,
+  onNotifyError,
+}: ConsultationSuppliesSectionProps) {
+  const router = useRouter();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showNewItemForm, setShowNewItemForm] = useState(false);
+  const [newItemName, setNewItemName] = useState('');
+  const [newItemPrice, setNewItemPrice] = useState('');
+  const [newItemConcentration, setNewItemConcentration] = useState('');
+  const [newItemCategory, setNewItemCategory] = useState('Medication');
+  const [savingNewItem, setSavingNewItem] = useState(false);
+
+  const handleSelectCatalogForNewItem = (val: string) => {
+    setNewItemName(val);
+    const match = VET_SUPPLIES_CATALOG.find(
+      (c) => c.name.toLowerCase() === val.toLowerCase()
+    );
+    if (match) {
+      if (match.concentration) setNewItemConcentration(match.concentration);
+      if (match.category === 'Vaccine') setNewItemCategory('Vaccine');
+      else if (match.category === 'Medication') setNewItemCategory('Medication');
+      else if (match.category === 'Consultation') setNewItemCategory('Consultation');
+      else setNewItemCategory('Supply');
+    }
+  };
+
+  const handleAddNewInventoryItem = async () => {
+    if (!newItemName || !newItemPrice) {
+      onNotifyError('Preencha nome e valor de aplicação do novo item.');
+      return;
+    }
+
+    try {
+      setSavingNewItem(true);
+      const result = await addInventoryItem({
+        name: newItemName,
+        type: newItemCategory as 'Medication' | 'Vaccine' | 'Supply' | 'Material' | 'Consultation',
+        concentration: newItemConcentration,
+        unitCost: parseFloat(newItemPrice) * 0.5,
+        salePrice: parseFloat(newItemPrice),
+      });
+
+      if (result.success) {
+        onNotifySuccess(`${newItemName} cadastrado no catálogo!`);
+        setNewItemName('');
+        setNewItemPrice('');
+        setNewItemConcentration('');
+        setShowNewItemForm(false);
+        router.refresh();
+      } else {
+        onNotifyError(result.error);
+      }
+    } catch {
+      onNotifyError('Erro ao cadastrar novo item.');
+    } finally {
+      setSavingNewItem(false);
+    }
+  };
+
+  const filteredInventory =
+    inventory?.filter(
+      (item) =>
+        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.type.toLowerCase().includes(searchTerm.toLowerCase())
+    ) || [];
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex justify-between items-center">
+        <h4 className="font-bold text-foreground/80">
+          Insumos e Procedimentos Cobrados (Maleta)
+        </h4>
+        <button
+          type="button"
+          onClick={() => setShowNewItemForm(!showNewItemForm)}
+          className="text-xs font-black text-primary bg-primary/10 px-3 py-1.5 rounded-full hover:bg-primary/20 transition-colors"
+        >
+          {showNewItemForm ? 'Cancelar' : '+ Cadastrar Novo'}
+        </button>
+      </div>
+
+      {showNewItemForm && (
+        <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 flex flex-col gap-4 animate-in fade-in slide-in-from-top-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <AutocompleteInput
+              label="Nome do Item"
+              value={newItemName}
+              onChange={handleSelectCatalogForNewItem}
+              options={catalogNames}
+              placeholder="Ex: Vacina V10, Dipirona..."
+            />
+            <Input
+              label="Concentração (Opcional)"
+              value={newItemConcentration}
+              onChange={(e) => setNewItemConcentration(e.target.value)}
+              placeholder="Ex: 500mg"
+            />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-black text-foreground/30 uppercase tracking-widest pl-1">
+                Categoria
+              </label>
+              <select
+                value={newItemCategory}
+                onChange={(e) => setNewItemCategory(e.target.value)}
+                className="w-full bg-card rounded-xl px-4 py-3 shadow-inner border border-border focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm font-bold text-foreground"
+              >
+                <option className="bg-card text-foreground" value="Consultation">
+                  Consulta
+                </option>
+                <option className="bg-card text-foreground" value="Medication">
+                  Medicamento
+                </option>
+                <option className="bg-card text-foreground" value="Vaccine">
+                  Vacina
+                </option>
+                <option className="bg-card text-foreground" value="Supply">
+                  Material/Serviço
+                </option>
+              </select>
+            </div>
+            <Input
+              label="Valor Aplicação (R$)"
+              type="number"
+              value={newItemPrice}
+              onChange={(e) => setNewItemPrice(e.target.value)}
+              placeholder="Ex: 50.00"
+            />
+          </div>
+          <Button
+            type="button"
+            variant="primary"
+            onClick={handleAddNewInventoryItem}
+            disabled={parentLoading || savingNewItem}
+            className="w-full py-2"
+          >
+            {savingNewItem ? 'Cadastrando...' : 'Confirmar Cadastro'}
+          </Button>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-4">
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Buscar item na maleta..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-foreground/5 rounded-2xl px-6 py-4 shadow-inner border border-border focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground font-medium placeholder:text-foreground/30 transition-all"
+          />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => setSearchTerm('')}
+              className="absolute right-5 top-1/2 -translate-y-1/2 text-foreground/20 hover:text-foreground/60 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="3"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          )}
+        </div>
+
+        <div className="flex flex-wrap gap-3 max-h-[320px] overflow-y-auto p-2 scrollbar-none rounded-3xl">
+          {filteredInventory.length > 0 ? (
+            filteredInventory.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onAddItem(item.id)}
+                className="flex items-center gap-3 px-5 py-3 bg-background shadow-sm hover:shadow-inner hover:bg-foreground/5 rounded-full border border-border hover:border-primary/20 transition-all duration-300 group"
+              >
+                <div className="flex flex-col items-start leading-tight">
+                  <span className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">
+                    {item.name}
+                  </span>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="text-[9px] font-black opacity-40 group-hover:opacity-60 transition-opacity uppercase tracking-widest">
+                      {item.type === 'Medication'
+                        ? 'Medicamento'
+                        : item.type === 'Vaccine'
+                        ? 'Vacina'
+                        : item.type === 'Consultation'
+                        ? 'Consulta'
+                        : 'Material'}
+                    </span>
+                    {item.concentration && (
+                      <span className="text-[9px] font-bold text-primary/40 group-hover:text-primary/60">
+                        • {item.concentration}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="h-4 w-px bg-foreground/5 group-hover:bg-primary/10 mx-1"></div>
+                <span className="text-xs font-black text-primary/40 group-hover:text-primary transition-colors">
+                  R$ {item.salePrice.toFixed(2)}
+                </span>
+              </button>
+            ))
+          ) : (
+            <p className="w-full text-center py-8 text-foreground/20 text-sm font-bold italic tracking-wide">
+              Nenhum item encontrado no catálogo.
+            </p>
+          )}
+        </div>
+      </div>
+
+      {selectedItems.length > 0 && (
+        <div className="mt-4 p-5 rounded-2xl bg-foreground/5 shadow-inner flex flex-col gap-3 border border-primary/5 animate-in zoom-in-95 duration-300">
+          <span className="text-xs font-black text-foreground/40 uppercase tracking-widest pl-1">
+            Itens Selecionados
+          </span>
+          <div className="flex flex-col gap-2">
+            {selectedItems.map((item) => {
+              const invItem = inventory.find((i) => i.id === item.id);
+              return (
+                <div
+                  key={item.id}
+                  className="flex justify-between items-center p-3 bg-card rounded-2xl border border-border hover:border-primary/20 transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-black text-primary shadow-sm border border-border">
+                      {item.quantity}x
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-sm text-foreground">
+                        {invItem?.name || 'Item Novo'}
+                      </span>
+                      {invItem?.concentration && (
+                        <span className="text-[10px] font-medium text-foreground/40 leading-none">
+                          {invItem.concentration}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="font-bold text-xs text-foreground/60">
+                      R$ {invItem ? (invItem.salePrice * item.quantity).toFixed(2) : '0.00'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onRemoveItem(item.id)}
+                      className="w-9 h-9 shrink-0 flex items-center justify-center rounded-full bg-error/10 text-error hover:bg-error hover:text-white transition-all duration-200"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="3"
+                          d="M20 12H4"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
