@@ -56,30 +56,14 @@ export default async function PatientHistoryPage({
   const patient = rawPatient;
 
   if (patientError || !patient) {
-    return (
-      <main
-        id="main-content"
-        tabIndex={-1}
-        className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 outline-none"
-      >
-        <Card className="text-center py-8">
-          <p role="alert" className="text-error font-bold">
-            Paciente não encontrado.
-          </p>
-          <Link href="/pacientes" className={buttonClasses('secondary', 'mt-4')}>
-            Voltar
-          </Link>
-        </Card>
-      </main>
-    );
+    notFound();
   }
 
-  const signedPatientPhotoUrl = patient.photo_url
-    ? await signStorageUrl(supabase, patient.photo_url, 'patients')
-    : null;
-
-  // 2. Buscar perfil, carteira de vacinação e histórico de consultas em paralelo
-  const [profileRes, vaccinationsRes, consultationsRes] = await Promise.all([
+  // 2. Buscar foto assinada, perfil, carteira de vacinação e histórico de consultas em paralelo
+  const [signedPatientPhotoUrl, profileRes, vaccinationsRes, consultationsRes] = await Promise.all([
+    patient.photo_url
+      ? signStorageUrl(supabase, patient.photo_url, 'patients')
+      : Promise.resolve(null),
     supabase
       .from('profiles')
       .select('full_name, crmv')

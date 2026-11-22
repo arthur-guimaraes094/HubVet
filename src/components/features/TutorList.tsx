@@ -17,7 +17,7 @@ import {
   formatFullAddress,
 } from '@/core/utils/cep';
 
-interface Tutor {
+export interface Tutor {
   id: string;
   name: string;
   phone: string | null;
@@ -61,10 +61,10 @@ function formatPhoneInput(raw: string, stripCountryPrefix = false): string {
   return `(${ddd}) ${part1}`;
 }
 
-export function TutorList() {
+export function TutorList({ initialTutors }: { initialTutors?: Tutor[] } = {}) {
   const searchId = useId();
-  const [tutors, setTutors] = useState<Tutor[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [tutors, setTutors] = useState<Tutor[]>(initialTutors ?? []);
+  const [loading, setLoading] = useState(initialTutors === undefined);
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [tutorToDelete, setTutorToDelete] = useState<Tutor | null>(null);
@@ -173,11 +173,12 @@ export function TutorList() {
   }
 
   useEffect(() => {
+    if (initialTutors !== undefined) return;
     getTutors().then((data) => {
       setTutors(data as unknown as Tutor[]);
       setLoading(false);
     });
-  }, []);
+  }, [initialTutors]);
 
   const handleDelete = async () => {
     if (!tutorToDelete) return;

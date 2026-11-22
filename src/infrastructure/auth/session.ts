@@ -1,12 +1,13 @@
 // Server-only authentication & authorization helpers (uses next/headers cookies via createClient).
+import { cache } from 'react';
 import { redirect } from 'next/navigation';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/infrastructure/database/server';
 
-export async function requireSession(): Promise<{
+export const requireSession = cache(async (): Promise<{
   supabase: Awaited<ReturnType<typeof createClient>>;
   userId: string;
-}> {
+}> => {
   const supabase = await createClient();
   const { data: claimsData, error } = await supabase.auth.getClaims();
 
@@ -18,7 +19,7 @@ export async function requireSession(): Promise<{
     supabase,
     userId: claimsData.claims.sub,
   };
-}
+});
 
 export async function assertTutorOwnership(
   supabase: SupabaseClient,

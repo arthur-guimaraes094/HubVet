@@ -114,6 +114,7 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
   }, [isOpen, patient]);
 
   useEffect(() => {
+    if (!isOpen) return;
     const speciesParam = patientSpecies || 'Canine';
     let active = true;
     fetch(`/api/breeds?species=${encodeURIComponent(speciesParam)}`)
@@ -132,7 +133,7 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
     return () => {
       active = false;
     };
-  }, [patientSpecies]);
+  }, [isOpen, patientSpecies]);
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const inputEl = e.currentTarget;

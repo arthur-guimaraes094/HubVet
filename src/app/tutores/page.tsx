@@ -4,7 +4,13 @@ import { buttonClasses } from '@/components/ui/Button';
 import Link from 'next/link';
 
 export default async function TutoresPage() {
-  await requireSession();
+  const { supabase, userId } = await requireSession();
+
+  const { data: tutors } = await supabase
+    .from('tutors')
+    .select('id, name, phone, cpf, address, cep, street, number, complement, neighborhood, city, state')
+    .eq('profile_id', userId)
+    .order('name');
 
   return (
     <main
@@ -26,7 +32,7 @@ export default async function TutoresPage() {
         </div>
       </div>
 
-      <TutorList />
+      <TutorList initialTutors={tutors || []} />
     </main>
   );
 }

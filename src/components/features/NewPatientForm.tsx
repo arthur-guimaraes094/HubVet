@@ -108,6 +108,7 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
   }, [isOpen]);
 
   useEffect(() => {
+    if (!isOpen) return;
     const speciesParam = patientSpecies || 'Canine';
     let active = true;
     fetch(`/api/breeds?species=${encodeURIComponent(speciesParam)}`)
@@ -126,7 +127,7 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
     return () => {
       active = false;
     };
-  }, [patientSpecies]);
+  }, [isOpen, patientSpecies]);
 
   const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, '');

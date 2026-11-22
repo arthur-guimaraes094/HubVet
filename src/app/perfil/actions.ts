@@ -101,16 +101,27 @@ export async function updateProfile(
       signedAvatarUrl = (await signStorageUrl(supabase, avatarStorageRef, 'avatars')) ?? undefined
     }
 
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('base_cep, base_address')
+      .eq('id', userData.user.id)
+      .maybeSingle()
+
+    const nextCep = result.data.baseCep || null
+    const nextAddress = result.data.baseAddress || null
+    const prevCep = existingProfile?.base_cep || null
+    const prevAddress = existingProfile?.base_address || null
+    const baseLocationChanged = nextCep !== prevCep || nextAddress !== prevAddress
+
     const { data: updatedProfile, error } = await supabase
       .from('profiles')
       .update({
         full_name: result.data.fullName,
         crmv: result.data.crmv || '',
         phone: result.data.phone || '',
-        base_cep: result.data.baseCep || null,
-        base_address: result.data.baseAddress || null,
-        base_lat: null,
-        base_lng: null,
+        base_cep: nextCep,
+        base_address: nextAddress,
+        ...(baseLocationChanged ? { base_lat: null, base_lng: null } : {}),
         km_rate: result.data.kmRate ?? 2.5,
         pix_key: result.data.pixKey || null,
         pix_key_type: result.data.pixKeyType || 'CPF',

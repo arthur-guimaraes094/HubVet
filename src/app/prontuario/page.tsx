@@ -16,9 +16,24 @@ export default async function ProntuarioPage({
   const params = await searchParams;
   const { supabase, userId } = await requireSession();
 
+  const rawConsultationId = params?.consultationId;
+  const validConsultationId =
+    rawConsultationId && z.uuid().safeParse(rawConsultationId).success
+      ? rawConsultationId
+      : undefined;
+  const rawExplicitPatientId = params?.id || params?.patient;
+  const explicitPatientId =
+    rawExplicitPatientId && z.uuid().safeParse(rawExplicitPatientId).success
+      ? rawExplicitPatientId
+      : undefined;
+  const targetType = params?.type || 'Paciente';
+  const returnTo = params?.returnTo;
+
   const [
     { data: rawInventory },
-    { data: profileData }
+    { data: profileData },
+    consultRes,
+    explicitPatientRes,
   ] = await Promise.all([
     supabase.from('inventory').select('*').eq('profile_id', userId).order('name'),
     supabase
@@ -26,6 +41,22 @@ export default async function ProntuarioPage({
       .select('full_name, crmv, pix_key, pix_key_type')
       .eq('id', userId)
       .single(),
+    validConsultationId
+      ? supabase
+          .from('consultations')
+          .select('*')
+          .eq('id', validConsultationId)
+          .eq('profile_id', userId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    explicitPatientId && targetType === 'Paciente'
+      ? supabase
+          .from('patients')
+          .select('*, tutors!inner(*)')
+          .eq('id', explicitPatientId)
+          .eq('tutors.profile_id', userId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   const p = profileData as Record<string, unknown> | null;
@@ -43,14 +74,7 @@ export default async function ProntuarioPage({
     salePrice: item.sale_price
   })) || [];
 
-  const rawConsultationId = params?.consultationId;
-  const validConsultationId =
-    rawConsultationId && z.uuid().safeParse(rawConsultationId).success
-      ? rawConsultationId
-      : undefined;
-  const returnTo = params?.returnTo;
-
-  let scheduledConsultation: {
+  const scheduledConsultation: {
     id: string;
     patient_id: string | null;
     type: string | null;
@@ -60,33 +84,23 @@ export default async function ProntuarioPage({
     clinical_notes: string | null;
     weight_kg: number | null;
     prescriptions?: unknown;
-  } | null = null;
-
-  if (validConsultationId) {
-    const { data: consultData } = await supabase
-      .from('consultations')
-      .select('*')
-      .eq('id', validConsultationId)
-      .eq('profile_id', userId)
-      .maybeSingle();
-    scheduledConsultation = consultData;
-  }
-
-  const rawTargetId = params?.id || params?.patient || scheduledConsultation?.patient_id;
-  const targetId =
-    rawTargetId && z.uuid().safeParse(rawTargetId).success ? rawTargetId : undefined;
-  const targetType = params?.type || (targetId ? 'Paciente' : null);
+  } | null = consultRes.data;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let patientData: any = null;
-  if (targetId && targetType === 'Paciente') {
-    const { data } = await supabase
-      .from('patients')
-      .select('*, tutors!inner(*)')
-      .eq('id', targetId)
-      .eq('tutors.profile_id', userId)
-      .maybeSingle();
-    patientData = data ?? null;
+  let patientData: any = explicitPatientRes.data ?? null;
+  if (!explicitPatientId && scheduledConsultation?.patient_id && targetType === 'Paciente') {
+    const fallbackPatientId = z.uuid().safeParse(scheduledConsultation.patient_id).success
+      ? scheduledConsultation.patient_id
+      : undefined;
+    if (fallbackPatientId) {
+      const { data } = await supabase
+        .from('patients')
+        .select('*, tutors!inner(*)')
+        .eq('id', fallbackPatientId)
+        .eq('tutors.profile_id', userId)
+        .maybeSingle();
+      patientData = data ?? null;
+    }
   }
 
   const tutorObj = Array.isArray(patientData?.tutors)

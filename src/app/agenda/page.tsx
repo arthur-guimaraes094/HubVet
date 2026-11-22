@@ -12,33 +12,40 @@ export const metadata: Metadata = {
 export default async function AgendaPage() {
   const { supabase, userId } = await requireSession();
 
-  // 1. Buscar consultas agendadas e realizadas (incluindo endereço do tutor)
-  const { data: consultations } = await supabase
-    .from('consultations')
-    .select(
-      `
-      *,
-      patients (
+  // 1. Buscar consultas agendadas/realizadas e pacientes em paralelo
+  const [{ data: consultations }, { data: patients }] = await Promise.all([
+    supabase
+      .from('consultations')
+      .select(
+        `
         id,
-        name,
-        species,
-        tutors (
+        date,
+        type,
+        address,
+        status,
+        travel_distance_km,
+        travel_fee,
+        patients (
+          id,
           name,
-          address,
-          phone
+          species,
+          tutors (
+            name,
+            address,
+            phone
+          )
         )
+      `
       )
-    `
-    )
-    .eq('profile_id', userId)
-    .in('status', ['Scheduled', 'Completed'])
-    .order('date', { ascending: true });
-
-  // 2. Buscar pacientes para o form (incluindo endereço do tutor)
-  const { data: patients } = await supabase
-    .from('patients')
-    .select('id, name, species, tutors!inner (name, address, phone)')
-    .eq('tutors.profile_id', userId);
+      .eq('profile_id', userId)
+      .in('status', ['Scheduled', 'Completed'])
+      .order('date', { ascending: true })
+      .limit(500),
+    supabase
+      .from('patients')
+      .select('id, name, species, tutors!inner (name, address, phone)')
+      .eq('tutors.profile_id', userId),
+  ]);
 
   return (
     <main
