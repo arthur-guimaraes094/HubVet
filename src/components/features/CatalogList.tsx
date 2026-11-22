@@ -102,7 +102,10 @@ export function CatalogList({ initialItems }: CatalogListProps) {
 
   const filteredItems = initialItems.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = filterType === 'all' || item.type === filterType;
+    const matchesType =
+      filterType === 'all' ||
+      item.type === filterType ||
+      (filterType === 'Supply' && item.type === 'Material');
     return matchesSearch && matchesType;
   });
 

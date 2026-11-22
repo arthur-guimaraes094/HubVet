@@ -4,7 +4,13 @@
 
 export function calculateYearsAndMonths(birthDateStr: string | null | undefined): { years: number; months: number } | null {
   if (!birthDateStr) return null;
-  const birth = new Date(birthDateStr);
+  let birth: Date;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(birthDateStr)) {
+    const [year, month, day] = birthDateStr.split('-').map(Number);
+    birth = new Date(year, month - 1, day);
+  } else {
+    birth = new Date(birthDateStr);
+  }
   if (isNaN(birth.getTime())) return null;
 
   const now = new Date();

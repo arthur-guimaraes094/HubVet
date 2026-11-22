@@ -44,7 +44,7 @@ export default async function ProntuarioPage({
   const inventory = rawInventory?.map(item => ({
     id: item.id,
     name: item.name,
-    type: item.type as 'Medication' | 'Vaccine' | 'Material' | 'Consultation',
+    type: item.type as 'Medication' | 'Vaccine' | 'Supply' | 'Material' | 'Consultation',
     concentration: item.concentration || undefined,
     unitCost: item.unit_cost,
     salePrice: item.sale_price

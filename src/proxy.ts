@@ -14,9 +14,10 @@ export const config = {
      * - _vercel (Vercel internal preview/SSO/insights endpoints)
      * - favicon.ico (favicon file)
      * - manifest.json (PWA manifest)
+     * - sw.js (PWA service worker)
      * - icons/ (PWA icons)
      * - templates/ (PDF stationery templates)
      */
-    '/((?!_next/static|_next/image|_vercel|favicon.ico|manifest\\.json|icons/|templates/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|_vercel|favicon.ico|manifest\\.json|sw\\.js|icons/|templates/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

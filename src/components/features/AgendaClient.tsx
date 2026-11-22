@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { LocalDate } from '@/components/ui/LocalDate';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ScheduleConsultationForm } from './ScheduleConsultationForm';
 import { getConsultationDetails, cancelarConsulta } from '@/app/agenda/actions';
 import {
@@ -70,6 +71,7 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
   const [lastTriggeredId, setLastTriggeredId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const router = useRouter();
   const { success, error } = useToast();
 
   const triggerMenu = useCallback((x: number, y: number, consult: Consultation) => {
@@ -122,7 +124,7 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
         success('Consulta cancelada com sucesso.');
         setConsultationToDelete(null);
         setMenuConsultation(null);
-        window.location.reload();
+        router.refresh();
       } else {
         error(result.error);
       }
@@ -209,9 +211,26 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
     setDownloadingPdf(`${id}-${docType}`);
     try {
       const data = await getConsultationDetails(id);
-      const prescriptions = Array.isArray(data.prescriptions)
-        ? (data.prescriptions as unknown as PrescriptionItem[])
+      const rawPrescriptions = data.prescriptions as
+        | PrescriptionItem[]
+        | { text?: string; items?: PrescriptionItem[] }
+        | string
+        | null;
+      const structuredObj =
+        rawPrescriptions && typeof rawPrescriptions === 'object' && !Array.isArray(rawPrescriptions)
+          ? rawPrescriptions
+          : null;
+      const prescriptions: PrescriptionItem[] = Array.isArray(rawPrescriptions)
+        ? rawPrescriptions
+        : Array.isArray(structuredObj?.items)
+        ? structuredObj.items
         : [];
+      const prescriptionText: string | undefined =
+        typeof rawPrescriptions === 'string'
+          ? rawPrescriptions.trim() || undefined
+          : typeof structuredObj?.text === 'string'
+          ? structuredObj.text.trim() || undefined
+          : undefined;
 
       const docPayload = {
         tutorName: data.patients?.tutors?.name || 'Não Informado',
@@ -232,6 +251,7 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
             quantity: ci.quantity,
           })),
         prescriptions,
+        prescriptionText,
         date: data.date,
         vetName: data.profiles?.full_name || 'Dra. Gabriela Soares',
         vetCrmv: data.profiles?.crmv || '',

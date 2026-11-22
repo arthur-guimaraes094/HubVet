@@ -61,6 +61,33 @@ async function loadStationeryTemplate(): Promise<string | null> {
   }
 }
 
+function fitSingleLineText(
+  doc: jsPDF,
+  rawText: string,
+  maxWidthMm: number,
+  initialFontSize: number,
+  minFontSize: number
+): { text: string; fontSize: number } {
+  const cleanText = rawText.trim();
+  let fontSize = initialFontSize;
+  doc.setFontSize(fontSize);
+
+  while (fontSize > minFontSize && doc.getTextWidth(cleanText) > maxWidthMm) {
+    fontSize = Math.max(minFontSize, Number((fontSize - 0.5).toFixed(1)));
+    doc.setFontSize(fontSize);
+  }
+
+  let fitted = cleanText;
+  if (doc.getTextWidth(fitted) > maxWidthMm) {
+    while (fitted.length > 1 && doc.getTextWidth(`${fitted}…`) > maxWidthMm) {
+      fitted = fitted.slice(0, -1);
+    }
+    fitted = `${fitted.trimEnd()}…`;
+  }
+
+  return { text: fitted, fontSize };
+}
+
 /**
  * Desenha o papel timbrado oficial da Dra. Gabriela Soares e preenche
  * nas coordenadas milimétricas exatas as caixas do cabeçalho:
@@ -115,9 +142,9 @@ function renderOfficialStationeryHeader(
   }
 
   // 3. Raça (caixa: x0=113.9..156.6, y0=62.1..71.5, label termina em x=126.8)
-  const breedText = (data.breed || 'SRD').slice(0, 16);
-  doc.setFontSize(9.5);
-  doc.text(breedText, 128.5, 68.0);
+  const fittedBreed = fitSingleLineText(doc, data.breed || 'SRD', 26.5, 9.5, 7);
+  doc.setFontSize(fittedBreed.fontSize);
+  doc.text(fittedBreed.text, 128.5, 68.0);
 
   // 4. Peso (caixa: x0=53.4..100.1, y0=74.7..84.0, label termina em x=67.5)
   const cleanWeight = data.weight
@@ -131,8 +158,9 @@ function renderOfficialStationeryHeader(
   // 5. Idade (caixa: x0=104.6..156.6, y0=74.7..84.0, label termina em x=120.8)
   const computedAge =
     data.age?.trim() || (data.birthDate ? formatPatientAge(data.birthDate) : '') || '—';
-  doc.setFontSize(9.5);
-  doc.text(computedAge.slice(0, 18), 122.5, 80.5);
+  const fittedAge = fitSingleLineText(doc, computedAge, 32, 9.5, 7.5);
+  doc.setFontSize(fittedAge.fontSize);
+  doc.text(fittedAge.text, 122.5, 80.5);
 
   // 6. Tutor (caixa: x0=53.4..156.6, y0=86.1..95.4, label termina em x=66.9)
   doc.setFontSize(10.5);
@@ -340,31 +368,8 @@ export async function gerarPDFReceituario(data: VetDocumentData) {
     }
   }
 
-  // Orientações gerais / Notas da receita
-  if (data.notes?.trim()) {
-    if (currentY > 220) {
-      addNewStationeryPage();
-      currentY = 105;
-    }
-
-    if (hasPrescriptions) {
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.setTextColor(115, 31, 40);
-      doc.text('ORIENTAÇÕES E RECOMENDAÇÕES CLÍNICAS:', 25, currentY);
-      currentY += 6;
-    }
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10.5);
-    doc.setTextColor(50, 35, 38);
-    const splitNotes = doc.splitTextToSize(data.notes.trim(), 160);
-    doc.text(splitNotes, 25, currentY);
-    currentY += splitNotes.length * 5.5 + 4;
-  }
-
-  // Caso não haja prescrições estruturadas nem notas, mas haja itens aplicados
-  if (!hasPrescriptions && (!data.notes || !data.notes.trim()) && data.items && data.items.length > 0) {
+  // Caso não haja prescrições estruturadas nem texto livre, mas haja itens aplicados
+  if (!hasPrescriptions && data.items && data.items.length > 0) {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10.5);
     doc.setTextColor(115, 31, 40);

@@ -137,7 +137,3 @@ export function buildWhatsAppPixBillingUrl(params: {
 export function buildWazeUrl(address: string): string {
   return `https://waze.com/ul?q=${encodeURIComponent(address)}&navigate=yes`;
 }
-
-export function buildGoogleMapsUrl(address: string): string {
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
-}

@@ -30,20 +30,21 @@ self.addEventListener('push', function (event) {
 self.addEventListener('notificationclick', function (event) {
   event.notification.close()
 
-  const urlToOpen = event.notification.data.url
+  const urlToOpen = event.notification.data?.url || '/agenda'
+  const resolvedUrl = new URL(urlToOpen, self.location.origin).href
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
       // Verifica se já existe uma aba aberta com essa URL
       for (let i = 0; i < windowClients.length; i++) {
         const client = windowClients[i]
-        if (client.url === urlToOpen && 'focus' in client) {
+        if (client.url === resolvedUrl && 'focus' in client) {
           return client.focus()
         }
       }
       // Se não tiver, abre uma nova janela/aba
       if (clients.openWindow) {
-        return clients.openWindow(urlToOpen)
+        return clients.openWindow(resolvedUrl)
       }
     })
   )

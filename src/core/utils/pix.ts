@@ -2,10 +2,48 @@ import { qrcodegen } from './qrcodegen';
 
 interface PixPayloadParams {
   key: string;
+  keyType?: string;
   name?: string;
   city?: string;
   amount?: number;
   txId?: string;
+}
+
+/**
+ * Normaliza a chave PIX conforme o padrão DICT/EMVCo do Banco Central:
+ * - CPF/CNPJ: apenas dígitos
+ * - Telefone: formato E.164 com +55 (ex: +5584986365455)
+ * - E-mail: minúsculas
+ */
+function normalizePixKey(key: string, keyType?: string): string {
+  const trimmed = key.trim();
+  if (!trimmed) return '';
+
+  const type = (keyType || '').trim().toLowerCase();
+
+  if (type === 'cpf' || type === 'cnpj') {
+    return trimmed.replace(/\D/g, '');
+  }
+
+  if (type === 'telefone' || type === 'phone') {
+    if (trimmed.startsWith('+')) {
+      return `+${trimmed.slice(1).replace(/\D/g, '')}`;
+    }
+    const digits = trimmed.replace(/\D/g, '');
+    if (digits.length === 10 || digits.length === 11) {
+      return `+55${digits}`;
+    }
+    if ((digits.length === 12 || digits.length === 13) && digits.startsWith('55')) {
+      return `+${digits}`;
+    }
+    return trimmed;
+  }
+
+  if (type === 'email' || type === 'e-mail') {
+    return trimmed.toLowerCase();
+  }
+
+  return trimmed;
 }
 
 function formatField(id: string, value: string): string {
@@ -37,12 +75,13 @@ function crc16Ccitt(str: string): string {
  */
 export function generatePixPayload({
   key,
+  keyType,
   name = 'Dra Gabriela Soares',
   city = 'Natal',
   amount,
   txId = '***',
 }: PixPayloadParams): string {
-  const cleanKey = key.trim();
+  const cleanKey = normalizePixKey(key, keyType);
   if (!cleanKey) return '';
 
   const sub26 = formatField('00', 'br.gov.bcb.pix') + formatField('01', cleanKey);
@@ -61,6 +100,9 @@ export function generatePixPayload({
     name
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^A-Za-z0-9 ]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
       .slice(0, 25)
       .trim() || 'VETERINARIO';
 
@@ -68,6 +110,9 @@ export function generatePixPayload({
     city
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^A-Za-z0-9 ]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
       .slice(0, 15)
       .trim() || 'NATAL';
 
