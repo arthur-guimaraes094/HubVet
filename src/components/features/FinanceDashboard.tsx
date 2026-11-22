@@ -47,19 +47,19 @@ export function FinanceDashboard({ initialInvoices }: { initialInvoices: Invoice
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="p-6 flex flex-col gap-2">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Receita Total (Paga)</h3>
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Receita Total (Paga)</h2>
           <p className="text-3xl font-black text-primary">
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalRevenue)}
           </p>
         </Card>
         <Card className="p-6 flex flex-col gap-2">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">A Receber (Pendente)</h3>
-          <p className="text-3xl font-black text-amber-600">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">A Receber (Pendente)</h2>
+          <p className="text-3xl font-black text-amber-700 dark:text-amber-400">
             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pendingRevenue)}
           </p>
         </Card>
         <Card className="p-6 flex flex-col gap-2">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Faturas Abertas</h3>
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Faturas Abertas</h2>
           <p className="text-3xl font-black text-foreground">
             {invoices.filter(i => i.status === 'pending').length}
           </p>
@@ -67,16 +67,17 @@ export function FinanceDashboard({ initialInvoices }: { initialInvoices: Invoice
       </div>
 
       {/* Tabela de Faturas */}
-      <Card className="p-6 overflow-x-auto">
+      <Card className="p-5 sm:p-6 overflow-x-auto">
         <h2 className="text-xl font-bold mb-4">Últimas Faturas</h2>
         <table className="w-full text-left text-sm">
-          <thead className="border-b text-muted-foreground">
+          <caption className="sr-only">Histórico financeiro e faturas</caption>
+          <thead className="border-b border-border text-muted-foreground">
             <tr>
-              <th className="pb-3 font-medium">Data</th>
-              <th className="pb-3 font-medium">Paciente / Tutor</th>
-              <th className="pb-3 font-medium">Valor</th>
-              <th className="pb-3 font-medium">Status</th>
-              <th className="pb-3 font-medium text-right">Ações</th>
+              <th scope="col" className="pb-3 font-medium">Data</th>
+              <th scope="col" className="pb-3 font-medium">Paciente / Tutor</th>
+              <th scope="col" className="pb-3 font-medium">Valor</th>
+              <th scope="col" className="pb-3 font-medium">Status</th>
+              <th scope="col" className="pb-3 font-medium text-right">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/50">
@@ -89,7 +90,7 @@ export function FinanceDashboard({ initialInvoices }: { initialInvoices: Invoice
             ) : (
               invoices.map((invoice) => (
                 <tr key={invoice.id} className="group">
-                  <td className="py-4 text-foreground/80">
+                  <td className="py-4 text-foreground/85">
                     {formatBrazilDate(invoice.createdAt)}
                   </td>
                   <td className="py-4">
@@ -100,10 +101,10 @@ export function FinanceDashboard({ initialInvoices }: { initialInvoices: Invoice
                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(invoice.totalAmount)}
                   </td>
                   <td className="py-4">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold
-                      ${invoice.status === 'paid' ? 'bg-green-100 text-green-700' : 
-                        invoice.status === 'pending' ? 'bg-amber-100 text-amber-700' : 
-                        'bg-red-100 text-red-700'}
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold
+                      ${invoice.status === 'paid' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' : 
+                        invoice.status === 'pending' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300' : 
+                        'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'}
                     `}>
                       {invoice.status === 'paid' ? 'Pago' : invoice.status === 'pending' ? 'Pendente' : 'Cancelado'}
                     </span>
@@ -112,17 +113,21 @@ export function FinanceDashboard({ initialInvoices }: { initialInvoices: Invoice
                     {invoice.status === 'pending' && (
                       <div className="flex items-center justify-end gap-2">
                         <Button 
+                          type="button"
                           variant="secondary" 
                           className="px-3! py-1! text-xs"
                           disabled={isUpdating === invoice.id}
+                          aria-label={`Marcar fatura de ${invoice.patientName} como paga`}
                           onClick={() => handleUpdateStatus(invoice.id, 'paid')}
                         >
                           Marcar Pago
                         </Button>
                         <Button 
+                          type="button"
                           variant="secondary" 
                           className="px-3! py-1! text-xs"
                           disabled={isUpdating === invoice.id}
+                          aria-label={`Cancelar fatura de ${invoice.patientName}`}
                           onClick={() => handleUpdateStatus(invoice.id, 'cancelled')}
                         >
                           Cancelar

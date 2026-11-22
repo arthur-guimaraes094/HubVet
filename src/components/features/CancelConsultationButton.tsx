@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { Modal } from '@/components/ui/Modal';
 import { cancelarConsulta } from '@/app/agenda/actions';
 import { useToast } from '@/components/ui/Toast';
 
@@ -17,7 +18,7 @@ export function CancelConsultationButton({ id }: CancelConsultationButtonProps) 
   const handleCancel = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     setLoading(true);
     try {
       const result = await cancelarConsulta(id);
@@ -38,35 +39,42 @@ export function CancelConsultationButton({ id }: CancelConsultationButtonProps) 
   const toggleConfirm = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsConfirming(!isConfirming);
+    setIsConfirming((prev) => !prev);
   };
 
   return (
     <>
-      {isConfirming && (
-        <div 
-          className="absolute inset-0 z-60 bg-background/95 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center animate-in zoom-in-95 duration-200"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="text-6xl mb-6 animate-bounce">⚠️</div>
-          <h3 className="text-2xl font-black text-foreground mb-2 tracking-tight">Confirmar Cancelamento?</h3>
-          <p className="text-foreground/60 font-medium mb-8 leading-relaxed max-w-xs">
+      <Modal
+        isOpen={isConfirming}
+        onClose={() => {
+          if (!loading) setIsConfirming(false);
+        }}
+        title="Confirmar Cancelamento?"
+        role="alertdialog"
+        showCloseButton={false}
+        maxWidth="max-w-md"
+      >
+        <div className="flex flex-col items-center gap-6 py-2 text-center">
+          <div className="text-6xl" aria-hidden="true">
+            ⚠️
+          </div>
+          <p className="text-muted-foreground font-medium leading-relaxed max-w-xs">
             Esta ação removerá o agendamento da sua agenda. Você poderá agendá-lo novamente depois se desejar.
           </p>
-          <div className="flex flex-col gap-3 w-full max-w-xs">
-            <Button 
+          <div className="flex flex-col gap-3 w-full">
+            <Button
               type="button"
-              variant="primary" 
-              onClick={handleCancel} 
+              variant="danger"
+              onClick={handleCancel}
               disabled={loading}
-              className="w-full bg-error! hover:bg-error/80! border-none! py-4! shadow-sm text-[10px] font-black uppercase tracking-widest"
+              className="w-full py-4! text-[10px] font-black uppercase tracking-widest"
             >
               {loading ? 'Cancelando...' : 'Sim, Cancelar Agendamento'}
             </Button>
-            <Button 
+            <Button
               type="button"
-              variant="secondary" 
-              onClick={toggleConfirm}
+              variant="secondary"
+              onClick={() => setIsConfirming(false)}
               disabled={loading}
               className="w-full py-4! text-[10px] font-black uppercase tracking-widest"
             >
@@ -74,14 +82,14 @@ export function CancelConsultationButton({ id }: CancelConsultationButtonProps) 
             </Button>
           </div>
         </div>
-      )}
+      </Modal>
 
-      <Button 
+      <Button
         type="button"
-        variant="secondary" 
-        onClick={toggleConfirm} 
+        variant="secondary"
+        onClick={toggleConfirm}
         disabled={loading}
-        className="text-error! hover:bg-error/10! w-full py-4 text-sm font-bold shadow-sm border border-border"
+        className="text-error! hover:bg-error/10! w-full py-4 text-sm font-bold shadow-sm border border-border-strong"
       >
         Cancelar Agendamento
       </Button>

@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
+import { Button, buttonClasses } from '@/components/ui/Button';
 import { LocalDate } from '@/components/ui/LocalDate';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -19,6 +19,7 @@ import { buildGoogleMapsUrl } from '@/core/utils/cep';
 import { buildWazeUrl, buildWhatsAppOnMyWayUrl } from '@/core/utils/whatsapp';
 import { Edit2, Trash2, MoreVertical } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
+import { ContextMenu } from '@/components/ui/ContextMenu';
 import { formatBrazilDate, getBrazilDateString } from '@/core/utils/timezone';
 
 export interface Consultation {
@@ -108,37 +109,40 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
   const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null);
   const [menuConsultation, setMenuConsultation] = useState<Consultation | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
-  const [isMenuClosing, setIsMenuClosing] = useState(false);
   const [pressingConsultationId, setPressingConsultationId] = useState<string | null>(null);
   const [consultationToDelete, setConsultationToDelete] = useState<Consultation | null>(null);
-  const [lastTriggeredId, setLastTriggeredId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const lastMenuTriggerRef = useRef<HTMLElement | null>(null);
+  const triggerButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const router = useRouter();
   const { success, error } = useToast();
 
-  const triggerMenu = useCallback((x: number, y: number, consult: Consultation) => {
-    setMenuPosition({ x, y });
-    setMenuConsultation(consult);
-    setLastTriggeredId(consult.id);
-    setTimeout(() => setLastTriggeredId(null), 150);
-    setPressingConsultationId(null);
-    if (window.navigator.vibrate) window.navigator.vibrate(50);
-  }, []);
+  const openMenuForConsultation = useCallback(
+    (x: number, y: number, consult: Consultation, triggerEl?: HTMLElement | null) => {
+      lastMenuTriggerRef.current = triggerEl ?? triggerButtonRefs.current[consult.id] ?? null;
+      setMenuPosition({ x, y });
+      setMenuConsultation(consult);
+      setPressingConsultationId(null);
+      if (window.navigator.vibrate) window.navigator.vibrate(50);
+    },
+    []
+  );
 
   const handleStartPress = useCallback(
     (e: React.MouseEvent | React.TouchEvent, consult: Consultation) => {
       if (consult.status === 'Completed') return;
+      if ((e.target as HTMLElement).closest('button, a')) return;
 
       const x = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
       const y = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
 
       setPressingConsultationId(consult.id);
       longPressTimer.current = setTimeout(() => {
-        triggerMenu(x, y, consult);
+        openMenuForConsultation(x, y, consult);
       }, 500);
     },
-    [triggerMenu]
+    [openMenuForConsultation]
   );
 
   const handleEndPress = useCallback(() => {
@@ -150,12 +154,8 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
   }, []);
 
   const handleCloseMenu = useCallback(() => {
-    setIsMenuClosing(true);
-    setTimeout(() => {
-      setMenuConsultation(null);
-      setMenuPosition(null);
-      setIsMenuClosing(false);
-    }, 200);
+    setMenuConsultation(null);
+    setMenuPosition(null);
   }, []);
 
   const handleCancelAction = async () => {
@@ -298,197 +298,7 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
     }
   };
 
-  const renderDayView = () => (
-    <div className="grid grid-cols-1 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {filteredConsultations.map((consult) => {
-        const isCompleted = consult.status === 'Completed';
-        const effectiveAddress =
-          consult.address?.trim() || consult.patients?.tutors?.address?.trim() || null;
-
-        return (
-          <Card
-            key={consult.id}
-            className={`relative flex flex-col sm:flex-row justify-between items-center gap-6 border-l-8 overflow-hidden border border-border transition-all duration-300 ${
-              isCompleted
-                ? 'border-emerald-500/50 bg-emerald-500/3 cursor-default'
-                : `border-primary shadow-lg shadow-primary/5 cursor-pointer hover:shadow-sm active:scale-[0.98] ${
-                    pressingConsultationId === consult.id
-                      ? 'bg-primary/5 scale-[0.98] border-primary/40'
-                      : ''
-                  }`
-            }`}
-            onMouseDown={(e) => handleStartPress(e, consult)}
-            onMouseUp={handleEndPress}
-            onMouseLeave={handleEndPress}
-            onTouchStart={(e) => handleStartPress(e, consult)}
-            onTouchEnd={handleEndPress}
-            onClick={() => {
-              if (lastTriggeredId === consult.id) return;
-              if (consult.status !== 'Completed') {
-                setEditingConsultation(consult);
-              }
-            }}
-          >
-            {!isCompleted && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  triggerMenu(e.clientX, e.clientY, consult);
-                }}
-                className="absolute top-2 right-2 sm:top-4 sm:right-4 p-2 rounded-full hover:bg-foreground/5 transition-all text-foreground/20 hover:text-foreground/60 z-20"
-              >
-                <MoreVertical className="w-5 h-5" />
-              </button>
-            )}
-            <div className="flex items-center gap-4 sm:gap-6 w-full min-w-0 pointer-events-none">
-              <div
-                className={`flex flex-col items-center justify-center min-w-[80px] p-3 rounded-2xl bg-card shadow-sm border border-border shrink-0 ${
-                  isCompleted ? 'bg-emerald-500/10 border-emerald-500/20' : ''
-                }`}
-              >
-                <span
-                  className={`text-[10px] font-black uppercase ${
-                    isCompleted ? 'text-emerald-500' : 'text-primary'
-                  }`}
-                >
-                  <LocalDate date={consult.date} format="date" />
-                </span>
-                <span className="text-xl font-black text-foreground">
-                  <LocalDate date={consult.date} format="time" />
-                </span>
-              </div>
-
-              <div className="flex flex-col min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-xl font-extrabold text-foreground truncate">
-                    {consult.patients?.name}
-                  </h3>
-                  {isCompleted && (
-                    <span className="flex items-center gap-1 text-[9px] font-black bg-emerald-500/20 text-emerald-500 px-2 py-0.5 rounded-full uppercase tracking-widest">
-                      ✓ Realizada
-                    </span>
-                  )}
-                </div>
-                <span className="text-sm font-bold text-foreground/60 truncate">
-                  {translateSpecies(consult.patients?.species || '')} • Tutor:{' '}
-                  {consult.patients?.tutors?.name}
-                </span>
-                <div className="mt-3 bg-foreground/10 p-3 rounded-2xl flex flex-col gap-2 border border-foreground/5">
-                  <div className="flex flex-wrap gap-2">
-                    <span
-                      className={`w-fit text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${
-                        consult.type === 'Home'
-                          ? 'bg-orange-500/20 text-orange-500 border-orange-500/30'
-                          : 'bg-primary/20 text-primary border-primary/30'
-                      }`}
-                    >
-                      {consult.type === 'Home' ? '🏠 Domicílio' : '🏥 Hospital'}
-                    </span>
-                    {consult.travel_fee && Number(consult.travel_fee) > 0 ? (
-                      <span className="w-fit text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-600 border border-emerald-500/30">
-                        🚗 Deslocamento: R$ {Number(consult.travel_fee).toFixed(2)}
-                      </span>
-                    ) : null}
-                  </div>
-                  {effectiveAddress && (
-                    <span className="text-xs text-foreground/70 font-medium truncate w-full flex items-center gap-1.5 px-1">
-                      <span className="text-primary">📍</span> {effectiveAddress}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div
-              className="flex flex-wrap sm:flex-col gap-2 w-full sm:w-auto mt-2 sm:mt-0 shrink-0"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {consult.type === 'Home' && effectiveAddress && (
-                <div className="flex flex-col gap-1.5 w-full">
-                  <div className="flex gap-1.5 w-full">
-                    <a
-                      href={buildGoogleMapsUrl(effectiveAddress)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 px-2.5 py-1.5 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 text-orange-600 border border-orange-500/30 text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-1 transition-colors"
-                      title="Abrir no Google Maps"
-                    >
-                      🗺️ Maps
-                    </a>
-                    <a
-                      href={buildWazeUrl(effectiveAddress)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 px-2.5 py-1.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 text-sky-600 border border-sky-500/30 text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-1 transition-colors"
-                      title="Navegar com Waze"
-                    >
-                      🚙 Waze
-                    </a>
-                  </div>
-
-                  {!isCompleted && consult.patients?.tutors?.phone && (
-                    <a
-                      href={buildWhatsAppOnMyWayUrl({
-                        phone: consult.patients.tutors.phone,
-                        tutorName: consult.patients.tutors.name,
-                        patientName: consult.patients.name,
-                        address: effectiveAddress,
-                      })}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full px-3 py-1.5 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#1ea952] border border-[#25D366]/30 text-[11px] font-black flex items-center justify-center gap-1.5 transition-colors"
-                    >
-                      🚗 Avisar a Caminho
-                    </a>
-                  )}
-                </div>
-              )}
-
-              {isCompleted ? (
-                <div className="flex flex-wrap gap-2 w-full">
-                  <Button
-                    variant="secondary"
-                    onClick={() => handleDownloadPDF(consult.id, 'relatorio')}
-                    disabled={downloadingPdf === `${consult.id}-relatorio`}
-                    className="flex-1 px-4! py-2! text-xs shadow-sm flex items-center justify-center gap-1.5"
-                  >
-                    {downloadingPdf === `${consult.id}-relatorio`
-                      ? 'Gerando...'
-                      : '📄 Relatório'}
-                  </Button>
-                  <Button
-                    variant="info"
-                    onClick={() => handleDownloadPDF(consult.id, 'receita')}
-                    disabled={downloadingPdf === `${consult.id}-receita`}
-                    className="flex-1 px-4! py-2! text-xs shadow-sm flex items-center justify-center gap-1.5"
-                  >
-                    {downloadingPdf === `${consult.id}-receita`
-                      ? 'Gerando...'
-                      : '💊 Receita'}
-                  </Button>
-                </div>
-              ) : (
-                <Link
-                  href={`/prontuario?id=${consult.patients?.id}&type=Paciente&consultationId=${consult.id}&returnTo=agenda`}
-                  className="flex-1 sm:flex-none"
-                >
-                  <Button
-                    variant="primary"
-                    className="w-full px-8! py-2! text-sm shadow-sm border border-border"
-                  >
-                    Atender
-                  </Button>
-                </Link>
-              )}
-            </div>
-          </Card>
-        );
-      })}
-    </div>
-  );
-
-  const renderWeekView = () => {
+  const weekDays = useMemo(() => {
     const days = [];
     const dow = getDayOfWeekYmd(currentDateStr);
     const weekStartStr = addDaysYmd(currentDateStr, -dow);
@@ -498,208 +308,45 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
       const dayConsults = filteredConsultations.filter(
         (c) => getConsultationBrazilDate(c.date) === dayStr
       );
-
       days.push({ dateStr: dayStr, consultations: dayConsults });
     }
+    return days;
+  }, [currentDateStr, filteredConsultations]);
 
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-7 gap-4 animate-in fade-in duration-500">
-        {days.map((d, i) => {
-          const isToday = d.dateStr === todayBrtStr;
-          return (
-            <Card
-              key={i}
-              onClick={() => {
-                setCurrentDateStr(d.dateStr);
-                setView('day');
-              }}
-              className={`p-4 flex flex-col items-center gap-3 transition-all cursor-pointer hover:shadow-sm border border-border ${
-                isToday ? 'border-2 border-primary/30' : ''
-              }`}
-            >
-              <div className="text-center">
-                <span className="text-[10px] font-black text-foreground/40 uppercase tracking-widest">
-                  {formatBrazilDate(d.dateStr, { weekday: 'short' }).replace('.', '')}
-                </span>
-                <div className={`text-xl font-black ${isToday ? 'text-primary' : 'text-foreground'}`}>
-                  {parseYmd(d.dateStr).day}
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2 w-full">
-                {d.consultations.length > 0 ? (
-                  d.consultations.slice(0, 3).map((c) => {
-                    const isComp = c.status === 'Completed';
-                    return (
-                      <div
-                        key={c.id}
-                        className={`text-[10px] font-black p-2 rounded-lg truncate border ${
-                          isComp
-                            ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
-                            : 'bg-primary/5 text-primary border-primary/10'
-                        }`}
-                      >
-                        {isComp ? '✓ ' : ''}
-                        {formatBrazilDate(c.date, {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          hourCycle: 'h23',
-                        })}{' '}
-                        • {c.patients?.name}
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="h-10 border border-dashed border-foreground/10 rounded-xl flex items-center justify-center text-[10px] text-foreground/20 font-bold uppercase tracking-widest">
-                    Livre
-                  </div>
-                )}
-                {d.consultations.length > 3 && (
-                  <div className="text-[9px] text-center font-black text-foreground/30">
-                    + {d.consultations.length - 3} mais
-                  </div>
-                )}
-              </div>
-            </Card>
-          );
-        })}
-      </div>
-    );
-  };
-
-  const renderMonthView = () => {
+  const calendarDays = useMemo(() => {
     const { year, month } = parseYmd(currentDateStr);
     const firstOfMonthStr = formatYmd(year, month, 1);
     const startDay = getDayOfWeekYmd(firstOfMonthStr);
     const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
     const lastOfMonthStr = formatYmd(year, month, daysInMonth);
 
-    const calendarDays = [];
+    const days = [];
     for (let i = startDay - 1; i >= 0; i--) {
-      calendarDays.push({ dateStr: addDaysYmd(firstOfMonthStr, -i - 1), currentMonth: false });
+      days.push({ dateStr: addDaysYmd(firstOfMonthStr, -i - 1), currentMonth: false });
     }
     for (let i = 1; i <= daysInMonth; i++) {
-      calendarDays.push({
+      days.push({
         dateStr: formatYmd(year, month, i),
         currentMonth: true,
       });
     }
-    const remaining = 42 - calendarDays.length;
+    const remaining = 42 - days.length;
     for (let i = 1; i <= remaining; i++) {
-      calendarDays.push({ dateStr: addDaysYmd(lastOfMonthStr, i), currentMonth: false });
+      days.push({ dateStr: addDaysYmd(lastOfMonthStr, i), currentMonth: false });
     }
+    return days;
+  }, [currentDateStr]);
 
-    return (
-      <div className="flex flex-col gap-4 animate-in fade-in duration-500">
-        <div className="grid grid-cols-7 gap-2 text-center px-4">
-          {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((d) => (
-            <span
-              key={d}
-              className="text-[10px] font-black text-foreground/30 uppercase tracking-widest"
-            >
-              {d}
-            </span>
-          ))}
-        </div>
-        <div className="grid grid-cols-7 gap-2">
-          {calendarDays.map((d, i) => {
-            const consults = filteredConsultations.filter(
-              (c) => getConsultationBrazilDate(c.date) === d.dateStr
-            );
-            const isToday = d.dateStr === todayBrtStr;
-
-            return (
-              <button
-                key={i}
-                onClick={() => {
-                  setCurrentDateStr(d.dateStr);
-                  setView('day');
-                }}
-                className={`aspect-square p-1 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group ${
-                  d.currentMonth ? 'hover:shadow-sm border border-border' : 'opacity-20'
-                } ${
-                  isToday
-                    ? 'bg-primary/5 border border-primary/20'
-                    : 'bg-foreground/5 shadow-inner border border-border'
-                }`}
-              >
-                <span
-                  className={`text-xs font-black ${
-                    isToday
-                      ? 'text-primary'
-                      : d.currentMonth
-                      ? 'text-foreground'
-                      : 'text-foreground/40'
-                  }`}
-                >
-                  {parseYmd(d.dateStr).day}
-                </span>
-                {consults.length > 0 && (
-                  <div className="flex gap-0.5 flex-wrap justify-center max-w-[80%]">
-                    {consults.slice(0, 3).map((c, idx) => (
-                      <div
-                        key={idx}
-                        className={`w-1.5 h-1.5 rounded-full ${
-                          c.status === 'Completed' ? 'bg-emerald-500' : 'bg-primary animate-pulse'
-                        }`}
-                      />
-                    ))}
-                    {consults.length > 3 && (
-                      <div className="text-[8px] font-black text-primary">+</div>
-                    )}
-                  </div>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
-  const renderYearView = () => {
+  const yearMonths = useMemo(() => {
     const { year } = parseYmd(currentDateStr);
-    const months = Array.from({ length: 12 }, (_, i) => {
+    return Array.from({ length: 12 }, (_, i) => {
       const monthStr = formatYmd(year, i + 1, 1);
       return {
         monthStr,
         monthPrefix: monthStr.slice(0, 7),
       };
     });
-
-    return (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 animate-in fade-in duration-500">
-        {months.map((m, i) => {
-          const count = initialConsultations.filter((c) =>
-            getConsultationBrazilDate(c.date).startsWith(m.monthPrefix)
-          ).length;
-
-          return (
-            <Card
-              key={i}
-              onClick={() => {
-                setCurrentDateStr(m.monthStr);
-                setView('month');
-              }}
-              className="p-6 flex flex-col items-center gap-4 cursor-pointer hover:shadow-sm border border-border group transition-all"
-            >
-              <div className="text-sm font-black text-primary uppercase tracking-[0.2em]">
-                {formatBrazilDate(m.monthStr, { month: 'short' }).replace('.', '')}
-              </div>
-              <div className="flex flex-col items-center bg-foreground/5 shadow-inner border border-border p-4 rounded-3xl w-full">
-                <span className="text-3xl font-black text-foreground group-hover:scale-110 transition-transform">
-                  {count}
-                </span>
-                <span className="text-[9px] font-bold text-foreground/40 uppercase tracking-widest mt-1">
-                  Consultas
-                </span>
-              </div>
-            </Card>
-          );
-        })}
-      </div>
-    );
-  };
+  }, [currentDateStr]);
 
   return (
     <div className="flex flex-col gap-8 w-full max-w-4xl mx-auto">
@@ -722,25 +369,29 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
 
           <div className="flex flex-wrap items-center gap-3">
             <ScheduleConsultationForm patients={patients} />
-            <Link href="/">
-              <Button variant="secondary" className="px-4! py-2! text-sm">
-                Voltar
-              </Button>
+            <Link href="/" className={buttonClasses('secondary', 'px-4! py-2! text-sm')}>
+              Voltar
             </Link>
           </div>
         </div>
 
         {/* View Switcher & Navigation */}
         <div className="flex flex-col md:flex-row items-center gap-4 bg-foreground/5 p-2 rounded-3xl shadow-inner border border-border">
-          <div className="flex p-1 bg-background rounded-full shadow-sm border border-border w-full md:w-auto">
+          <div
+            role="group"
+            aria-label="Visualização da agenda"
+            className="flex p-1 bg-background rounded-full shadow-sm border border-border w-full md:w-auto gap-1"
+          >
             {(['day', 'week', 'month', 'year'] as ViewType[]).map((v) => (
               <button
                 key={v}
+                type="button"
+                aria-pressed={view === v}
                 onClick={() => setView(v)}
-                className={`flex-1 md:flex-none px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${
+                className={`flex-1 md:flex-none min-h-[44px] px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-widest transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                   view === v
-                    ? 'bg-primary text-white shadow-sm border border-border'
-                    : 'text-foreground/40 hover:text-foreground'
+                    ? 'bg-primary text-primary-foreground shadow-sm border border-border'
+                    : 'text-foreground/75 hover:text-foreground hover:bg-foreground/5'
                 }`}
               >
                 {v === 'day' ? 'Dia' : v === 'week' ? 'Semana' : v === 'month' ? 'Mês' : 'Ano'}
@@ -753,9 +404,10 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
               type="button"
               variant="secondary"
               onClick={handlePrevious}
-              className="w-10 h-10 p-0! rounded-full! shadow-sm border border-border shrink-0 flex items-center justify-center"
+              aria-label="Período anterior"
+              className="w-11 h-11 p-0! rounded-full! shadow-sm border border-border-strong shrink-0 flex items-center justify-center"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg aria-hidden="true" className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -768,7 +420,7 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
               type="button"
               variant="secondary"
               onClick={() => setCurrentDateStr(getBrazilDateString())}
-              className="text-[10px] font-black uppercase tracking-widest px-4 flex-1 md:flex-none min-w-[120px]"
+              className="text-[11px] font-black uppercase tracking-widest px-4 flex-1 md:flex-none min-w-[120px]"
             >
               {view === 'day' && currentDateStr === todayBrtStr ? 'Hoje' : getViewTitle()}
             </Button>
@@ -776,9 +428,10 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
               type="button"
               variant="secondary"
               onClick={handleNext}
-              className="w-10 h-10 p-0! rounded-full! shadow-sm border border-border shrink-0 flex items-center justify-center"
+              aria-label="Próximo período"
+              className="w-11 h-11 p-0! rounded-full! shadow-sm border border-border-strong shrink-0 flex items-center justify-center"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg aria-hidden="true" className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -795,92 +448,481 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
       <div className="flex flex-col gap-6">
         {filteredConsultations.length === 0 && view === 'day' ? (
           <Card className="text-center py-20 flex flex-col items-center gap-4 bg-background/40">
-            <div className="w-20 h-20 bg-foreground/5 rounded-full flex items-center justify-center text-4xl opacity-30">
+            <div aria-hidden="true" className="w-20 h-20 bg-foreground/5 rounded-full flex items-center justify-center text-4xl">
               📅
             </div>
-            <p className="text-foreground/40 font-bold text-lg italic">
+            <p className="text-muted-foreground font-bold text-lg italic">
               Nenhuma consulta encontrada para este dia.
             </p>
           </Card>
         ) : (
           <>
-            {view === 'day' && renderDayView()}
-            {view === 'week' && renderWeekView()}
-            {view === 'month' && renderMonthView()}
-            {view === 'year' && renderYearView()}
+            {view === 'day' && (
+              <div className="grid grid-cols-1 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {filteredConsultations.map((consult) => {
+                  const isCompleted = consult.status === 'Completed';
+                  const effectiveAddress =
+                    consult.address?.trim() || consult.patients?.tutors?.address?.trim() || null;
+
+                  return (
+                    <Card
+                      key={consult.id}
+                      className={`relative flex flex-col sm:flex-row justify-between items-center gap-6 border-l-8 overflow-hidden border border-border transition-all duration-300 ${
+                        isCompleted
+                          ? 'border-emerald-500/50 bg-emerald-500/3'
+                          : `border-primary shadow-lg shadow-primary/5 hover:shadow-sm ${
+                              pressingConsultationId === consult.id
+                                ? 'bg-primary/5 scale-[0.98] border-primary/40'
+                                : ''
+                            }`
+                      }`}
+                      onMouseDown={(e) => handleStartPress(e, consult)}
+                      onMouseUp={handleEndPress}
+                      onMouseLeave={handleEndPress}
+                      onTouchStart={(e) => handleStartPress(e, consult)}
+                      onTouchEnd={handleEndPress}
+                    >
+                      {!isCompleted && (
+                        <button
+                          ref={(el) => {
+                            triggerButtonRefs.current[consult.id] = el;
+                          }}
+                          type="button"
+                          aria-label={`Ações para ${consult.patients?.name || 'consulta'}`}
+                          aria-haspopup="menu"
+                          aria-expanded={menuConsultation?.id === consult.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const x = e.clientX || rect.right - 180;
+                            const y = e.clientY || rect.bottom + 4;
+                            openMenuForConsultation(x, y, consult, e.currentTarget);
+                          }}
+                          className="absolute top-2 right-2 sm:top-3 sm:right-3 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-foreground/10 transition-colors text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary z-20"
+                        >
+                          <MoreVertical aria-hidden="true" className="w-5 h-5" />
+                        </button>
+                      )}
+
+                      <div className={`flex items-center gap-4 sm:gap-6 w-full min-w-0 ${!isCompleted ? 'pr-10 sm:pr-0' : ''}`}>
+                        <div
+                          className={`flex flex-col items-center justify-center min-w-[80px] p-3 rounded-2xl bg-card shadow-sm border border-border shrink-0 ${
+                            isCompleted ? 'bg-emerald-500/10 border-emerald-500/20' : ''
+                          }`}
+                        >
+                          <span
+                            className={`text-[11px] font-black uppercase ${
+                              isCompleted ? 'text-emerald-700 dark:text-emerald-300' : 'text-primary'
+                            }`}
+                          >
+                            <LocalDate date={consult.date} format="date" />
+                          </span>
+                          <span className="text-xl font-black text-foreground">
+                            <LocalDate date={consult.date} format="time" />
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h2 className="text-xl font-extrabold text-foreground truncate">
+                              {consult.patients?.name}
+                            </h2>
+                            {isCompleted && (
+                              <span className="flex items-center gap-1 text-[10px] font-black bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 px-2.5 py-0.5 rounded-full uppercase tracking-widest">
+                                <span aria-hidden="true">✓</span> Realizada
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-sm font-bold text-muted-foreground truncate">
+                            {translateSpecies(consult.patients?.species || '')} • Tutor:{' '}
+                            {consult.patients?.tutors?.name}
+                          </span>
+                          <div className="mt-3 bg-foreground/10 p-3 rounded-2xl flex flex-col gap-2 border border-foreground/5">
+                            <div className="flex flex-wrap gap-2">
+                              <span
+                                className={`w-fit text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${
+                                  consult.type === 'Home'
+                                    ? 'bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/30'
+                                    : 'bg-primary/15 text-primary border-primary/30'
+                                }`}
+                              >
+                                <span aria-hidden="true">
+                                  {consult.type === 'Home' ? '🏠 ' : '🏥 '}
+                                </span>
+                                {consult.type === 'Home' ? 'Domicílio' : 'Hospital'}
+                              </span>
+                              {consult.travel_fee && Number(consult.travel_fee) > 0 ? (
+                                <span className="w-fit text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                                  <span aria-hidden="true">🚗 </span>
+                                  Deslocamento: R$ {Number(consult.travel_fee).toFixed(2)}
+                                </span>
+                              ) : null}
+                            </div>
+                            {effectiveAddress && (
+                              <span className="text-xs text-foreground/80 font-medium truncate w-full flex items-center gap-1.5 px-1">
+                                <span aria-hidden="true" className="text-primary">📍</span>
+                                <span>{effectiveAddress}</span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className={`flex flex-wrap sm:flex-col gap-2 w-full sm:w-auto mt-2 sm:mt-0 shrink-0 ${!isCompleted ? 'sm:pr-10' : ''}`}>
+                        {consult.type === 'Home' && effectiveAddress && (
+                          <div className="flex flex-col gap-1.5 w-full">
+                            <div className="flex gap-1.5 w-full">
+                              <a
+                                href={buildGoogleMapsUrl(effectiveAddress)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1 min-h-[44px] px-3 py-2 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 text-orange-700 dark:text-orange-300 border border-orange-500/30 text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                title="Abrir no Google Maps"
+                              >
+                                <span aria-hidden="true">🗺️</span>
+                                <span>Maps</span>
+                                <span className="sr-only"> (abre em nova aba)</span>
+                              </a>
+                              <a
+                                href={buildWazeUrl(effectiveAddress)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1 min-h-[44px] px-3 py-2 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 text-sky-700 dark:text-sky-300 border border-sky-500/30 text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                title="Navegar com Waze"
+                              >
+                                <span aria-hidden="true">🚙</span>
+                                <span>Waze</span>
+                                <span className="sr-only"> (abre em nova aba)</span>
+                              </a>
+                            </div>
+
+                            {!isCompleted && consult.patients?.tutors?.phone && (
+                              <a
+                                href={buildWhatsAppOnMyWayUrl({
+                                  phone: consult.patients.tutors.phone,
+                                  tutorName: consult.patients.tutors.name,
+                                  patientName: consult.patients.name,
+                                  address: effectiveAddress,
+                                })}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-full min-h-[44px] px-3 py-2 rounded-xl bg-[#15803D] hover:bg-[#166534] text-white text-xs font-black flex items-center justify-center gap-1.5 transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                              >
+                                <span aria-hidden="true">🚗</span>
+                                <span>Avisar a Caminho</span>
+                                <span className="sr-only"> (abre em nova aba)</span>
+                              </a>
+                            )}
+                          </div>
+                        )}
+
+                        {isCompleted ? (
+                          <div className="flex flex-wrap gap-2 w-full">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              onClick={() => handleDownloadPDF(consult.id, 'relatorio')}
+                              disabled={downloadingPdf === `${consult.id}-relatorio`}
+                              className="flex-1 px-4! py-2! text-xs shadow-sm flex items-center justify-center gap-1.5"
+                            >
+                              {downloadingPdf === `${consult.id}-relatorio` ? (
+                                'Gerando...'
+                              ) : (
+                                <>
+                                  <span aria-hidden="true">📄</span>
+                                  <span>Relatório</span>
+                                </>
+                              )}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="info"
+                              onClick={() => handleDownloadPDF(consult.id, 'receita')}
+                              disabled={downloadingPdf === `${consult.id}-receita`}
+                              className="flex-1 px-4! py-2! text-xs shadow-sm flex items-center justify-center gap-1.5"
+                            >
+                              {downloadingPdf === `${consult.id}-receita` ? (
+                                'Gerando...'
+                              ) : (
+                                <>
+                                  <span aria-hidden="true">💊</span>
+                                  <span>Receita</span>
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2 w-full">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              onClick={() => setEditingConsultation(consult)}
+                              aria-label={`Editar consulta de ${consult.patients?.name || 'paciente'}`}
+                              className="px-4! py-2! text-sm"
+                            >
+                              Editar
+                            </Button>
+                            <Link
+                              href={`/prontuario?id=${consult.patients?.id}&type=Paciente&consultationId=${consult.id}&returnTo=agenda`}
+                              className={buttonClasses('primary', 'flex-1 sm:flex-none px-6! py-2! text-sm shadow-sm')}
+                            >
+                              Atender
+                            </Link>
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+
+            {view === 'week' && (
+              <div className="grid grid-cols-1 md:grid-cols-7 gap-4 animate-in fade-in duration-500">
+                {weekDays.map((d, i) => {
+                  const isToday = d.dateStr === todayBrtStr;
+                  const weekdayLabel = formatBrazilDate(d.dateStr, { weekday: 'short' }).replace('.', '');
+                  const dayAriaLabel = `${formatBrazilDate(d.dateStr, {
+                    weekday: 'long',
+                    day: '2-digit',
+                    month: 'long',
+                  })} — ${d.consultations.length} ${
+                    d.consultations.length === 1 ? 'consulta' : 'consultas'
+                  }`;
+
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      aria-label={dayAriaLabel}
+                      onClick={() => {
+                        setCurrentDateStr(d.dateStr);
+                        setView('day');
+                      }}
+                      className={`bg-card rounded-2xl shadow-sm p-4 flex flex-col items-center gap-3 transition-all cursor-pointer hover:shadow-sm border border-border text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+                        isToday ? 'border-2 border-primary/50' : ''
+                      }`}
+                    >
+                      <span className="block text-center">
+                        <span className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                          {weekdayLabel}
+                        </span>
+                        <span
+                          className={`block text-xl font-black ${
+                            isToday ? 'text-primary' : 'text-foreground'
+                          }`}
+                        >
+                          {parseYmd(d.dateStr).day}
+                        </span>
+                      </span>
+
+                      <span className="flex flex-col gap-2 w-full">
+                        {d.consultations.length > 0 ? (
+                          d.consultations.slice(0, 3).map((c) => {
+                            const isComp = c.status === 'Completed';
+                            return (
+                              <span
+                                key={c.id}
+                                className={`block text-[10px] font-black p-2 rounded-lg truncate border ${
+                                  isComp
+                                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                                    : 'bg-primary/10 text-primary border-primary/20'
+                                }`}
+                              >
+                                {isComp ? '✓ ' : ''}
+                                {formatBrazilDate(c.date, {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  hourCycle: 'h23',
+                                })}{' '}
+                                • {c.patients?.name}
+                              </span>
+                            );
+                          })
+                        ) : (
+                          <span className="h-10 border border-dashed border-border-strong rounded-xl flex items-center justify-center text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
+                            Livre
+                          </span>
+                        )}
+                        {d.consultations.length > 3 && (
+                          <span className="block text-[10px] text-center font-black text-muted-foreground">
+                            + {d.consultations.length - 3} mais
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {view === 'month' && (
+              <div className="flex flex-col gap-4 animate-in fade-in duration-500">
+                <div className="grid grid-cols-7 gap-1 sm:gap-2 text-center px-1 sm:px-4">
+                  {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((d) => (
+                    <span
+                      key={d}
+                      className="text-[11px] font-black text-muted-foreground uppercase tracking-widest"
+                    >
+                      {d}
+                    </span>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7 gap-1 sm:gap-2">
+                  {calendarDays.map((d, i) => {
+                    const consults = filteredConsultations.filter(
+                      (c) => getConsultationBrazilDate(c.date) === d.dateStr
+                    );
+                    const isToday = d.dateStr === todayBrtStr;
+                    const dateLabel = `${formatBrazilDate(d.dateStr, {
+                      day: '2-digit',
+                      month: 'long',
+                      year: 'numeric',
+                    })}${
+                      consults.length > 0
+                        ? `, ${consults.length} ${consults.length === 1 ? 'consulta' : 'consultas'}`
+                        : ''
+                    }`;
+
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        aria-label={dateLabel}
+                        onClick={() => {
+                          setCurrentDateStr(d.dateStr);
+                          setView('day');
+                        }}
+                        className={`min-h-[44px] sm:aspect-square p-1 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+                          isToday
+                            ? 'bg-primary/10 border-2 border-primary/40'
+                            : d.currentMonth
+                            ? 'bg-foreground/5 hover:shadow-sm shadow-inner border border-border'
+                            : 'bg-foreground/[0.02] border border-border/50'
+                        }`}
+                      >
+                        <span
+                          className={`text-xs font-black ${
+                            isToday
+                              ? 'text-primary'
+                              : d.currentMonth
+                              ? 'text-foreground'
+                              : 'text-muted-foreground'
+                          }`}
+                        >
+                          {parseYmd(d.dateStr).day}
+                        </span>
+                        {consults.length > 0 && (
+                          <div
+                            aria-hidden="true"
+                            className="flex gap-0.5 flex-wrap justify-center max-w-[80%]"
+                          >
+                            {consults.slice(0, 3).map((c, idx) => (
+                              <div
+                                key={idx}
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  c.status === 'Completed' ? 'bg-emerald-600' : 'bg-primary'
+                                }`}
+                              />
+                            ))}
+                            {consults.length > 3 && (
+                              <div className="text-[8px] font-black text-primary">+</div>
+                            )}
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {view === 'year' && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 animate-in fade-in duration-500">
+                {yearMonths.map((m, i) => {
+                  const count = initialConsultations.filter((c) =>
+                    getConsultationBrazilDate(c.date).startsWith(m.monthPrefix)
+                  ).length;
+                  const shortMonth = formatBrazilDate(m.monthStr, { month: 'short' }).replace('.', '');
+                  const fullMonth = formatBrazilDate(m.monthStr, { month: 'long', year: 'numeric' });
+
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      aria-label={`${fullMonth} — ${count} ${count === 1 ? 'consulta' : 'consultas'}`}
+                      onClick={() => {
+                        setCurrentDateStr(m.monthStr);
+                        setView('month');
+                      }}
+                      className="bg-card rounded-2xl shadow-sm p-6 flex flex-col items-center gap-4 cursor-pointer hover:shadow-sm border border-border group transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                    >
+                      <span className="block text-sm font-black text-primary uppercase tracking-[0.2em]">
+                        {shortMonth}
+                      </span>
+                      <span className="flex flex-col items-center bg-foreground/5 shadow-inner border border-border p-4 rounded-3xl w-full">
+                        <span className="text-3xl font-black text-foreground group-hover:scale-110 transition-transform">
+                          {count}
+                        </span>
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">
+                          Consultas
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </>
         )}
       </div>
 
-      {/* iOS Style Context Menu Overlay */}
-      {menuConsultation && menuPosition && (
-        <div className="fixed inset-0 z-100">
-          <div
-            className={`absolute inset-0 bg-black/5 backdrop-blur-[1px] ${
-              isMenuClosing ? 'animate-fade-out' : 'animate-fade-in'
-            }`}
-            onClick={handleCloseMenu}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              handleCloseMenu();
-            }}
-          />
-
-          <div
-            style={{
-              top: Math.min(
-                menuPosition.y,
-                typeof window !== 'undefined' ? window.innerHeight - 150 : menuPosition.y
-              ),
-              left: Math.min(
-                menuPosition.x,
-                typeof window !== 'undefined' ? window.innerWidth - 220 : menuPosition.x
-              ),
-            }}
-            className={`absolute w-full max-w-[200px] bg-card/90 backdrop-blur-2xl rounded-2xl shadow-2xl shadow-black/20 overflow-hidden border border-border z-101 ${
-              isMenuClosing ? 'animate-ios-pop-out' : 'animate-ios-pop'
-            }`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex flex-col divide-y divide-foreground/10">
-              <button
-                onClick={() => {
-                  setEditingConsultation(menuConsultation);
-                  handleCloseMenu();
-                }}
-                className="w-full px-5 py-4 flex items-center gap-3 hover:bg-foreground/5 active:bg-foreground/10 transition-colors text-foreground"
-              >
-                <Edit2 className="w-4 h-4 opacity-40" />
-                <span className="font-bold text-sm">Editar Consulta</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setConsultationToDelete(menuConsultation);
-                  handleCloseMenu();
-                }}
-                className="w-full px-5 py-4 flex items-center gap-3 hover:bg-error/5 active:bg-error/10 transition-colors text-error"
-              >
-                <Trash2 className="w-4 h-4 opacity-60" />
-                <span className="font-bold text-sm">Cancelar Consulta</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ContextMenu
+        isOpen={!!menuConsultation && !!menuPosition}
+        onClose={handleCloseMenu}
+        position={menuPosition}
+        ariaLabel={
+          menuConsultation
+            ? `Ações para consulta de ${menuConsultation.patients?.name || 'paciente'}`
+            : 'Ações da consulta'
+        }
+        triggerRef={lastMenuTriggerRef}
+        items={
+          menuConsultation
+            ? [
+                {
+                  id: 'edit',
+                  label: 'Editar Consulta',
+                  icon: <Edit2 className="w-4 h-4" />,
+                  onSelect: () => setEditingConsultation(menuConsultation),
+                },
+                {
+                  id: 'cancel',
+                  label: 'Cancelar Consulta',
+                  icon: <Trash2 className="w-4 h-4" />,
+                  tone: 'danger',
+                  onSelect: () => setConsultationToDelete(menuConsultation),
+                },
+              ]
+            : []
+        }
+      />
 
       {/* Delete Confirmation Modal */}
       <Modal
         isOpen={!!consultationToDelete}
         onClose={() => !isDeleting && setConsultationToDelete(null)}
         title="Cancelar Consulta"
+        role="alertdialog"
         showCloseButton={false}
       >
         <div className="flex flex-col items-center gap-6 py-4">
-          <div className="text-6xl animate-bounce">⚠️</div>
+          <div className="text-6xl" aria-hidden="true">
+            ⚠️
+          </div>
 
           <div className="text-center space-y-4">
-            <p className="text-foreground/60 font-medium text-lg leading-relaxed">
+            <p className="text-foreground/80 font-medium text-lg leading-relaxed">
               Você está prestes a cancelar a consulta de{' '}
               <span className="text-foreground font-black italic">
                 &quot;{consultationToDelete?.patients?.name}&quot;
@@ -897,27 +939,24 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
           </div>
 
           <div className="flex flex-col w-full gap-3 mt-4">
-            <button
+            <Button
+              type="button"
+              variant="danger"
               onClick={handleCancelAction}
               disabled={isDeleting}
-              className="w-full bg-error text-white font-black py-4 rounded-2xl shadow-lg shadow-error/20 hover:bg-error/90 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-4! rounded-2xl shadow-lg shadow-error/20"
             >
-              {isDeleting ? (
-                <>
-                  <div className="w-5 h-5 border-3 border-white/30 border-t-white rounded-full animate-spin" />
-                  CANCELANDO...
-                </>
-              ) : (
-                'SIM, CANCELAR CONSULTA'
-              )}
-            </button>
-            <button
+              {isDeleting ? 'CANCELANDO...' : 'SIM, CANCELAR CONSULTA'}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
               onClick={() => setConsultationToDelete(null)}
               disabled={isDeleting}
-              className="w-full bg-foreground/5 text-foreground/60 font-black py-4 rounded-2xl hover:bg-foreground/10 active:scale-[0.98] transition-all disabled:opacity-50 uppercase tracking-widest text-[10px]"
+              className="w-full py-4! rounded-2xl uppercase tracking-widest text-[10px]"
             >
               NÃO, MANTER CONSULTA
-            </button>
+            </Button>
           </div>
         </div>
       </Modal>
