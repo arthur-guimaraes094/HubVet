@@ -7,6 +7,7 @@ import {
   buildWhatsAppConsultationSummaryUrl,
   buildWhatsAppPixBillingUrl,
 } from '@/core/utils/whatsapp';
+import type { PrescriptionItem } from '@/core/use-cases/generate-pdf';
 
 interface ConsultationSuccessViewProps {
   patientName?: string;
@@ -15,6 +16,7 @@ interface ConsultationSuccessViewProps {
   vetName?: string;
   notes: string;
   prescriptionText: string;
+  prescriptions?: PrescriptionItem[];
   totalValue: number;
   prescriptionsCount: number;
   effectivePixKey: string;
@@ -35,6 +37,7 @@ export function ConsultationSuccessView({
   vetName,
   notes,
   prescriptionText,
+  prescriptions,
   totalValue,
   prescriptionsCount,
   effectivePixKey,
@@ -54,6 +57,7 @@ export function ConsultationSuccessView({
     vetName: vetName || 'Dra. Gabriela Soares',
     notes,
     prescriptionText,
+    prescriptions,
     totalValue,
     pixKey: effectivePixKey,
     pixKeyType: effectivePixType,
@@ -61,7 +65,7 @@ export function ConsultationSuccessView({
   });
 
   const whatsappPixUrl =
-    effectivePixKey && totalValue > 0
+    effectivePixKey && Number.isFinite(totalValue) && totalValue > 0
       ? buildWhatsAppPixBillingUrl({
           phone: tutorPhone,
           tutorName,
@@ -131,8 +135,12 @@ export function ConsultationSuccessView({
                   <button
                     type="button"
                     onClick={() => {
-                      navigator.clipboard.writeText(pixPayload);
-                      onNotifySuccess('Código PIX Copia e Cola copiado!');
+                      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+                        navigator.clipboard
+                          .writeText(pixPayload)
+                          .then(() => onNotifySuccess('Código PIX Copia e Cola copiado!'))
+                          .catch(() => {});
+                      }
                     }}
                     className="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-sm"
                   >
@@ -142,8 +150,12 @@ export function ConsultationSuccessView({
                 <button
                   type="button"
                   onClick={() => {
-                    navigator.clipboard.writeText(effectivePixKey);
-                    onNotifySuccess('Chave PIX copiada!');
+                    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+                      navigator.clipboard
+                        .writeText(effectivePixKey)
+                        .then(() => onNotifySuccess('Chave PIX copiada!'))
+                        .catch(() => {});
+                    }
                   }}
                   className="py-2 px-3 rounded-xl bg-card border border-border hover:border-emerald-500 text-foreground text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-sm"
                 >
