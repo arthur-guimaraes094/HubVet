@@ -53,9 +53,18 @@ async function sendPushAndCleanupExpired(
         ? (err as { statusCode?: number }).statusCode
         : undefined;
     if (statusCode === 404 || statusCode === 410) {
-      await supabase.from('push_subscriptions').delete().eq('id', sub.id);
+      const { error: deleteError } = await supabase
+        .from('push_subscriptions')
+        .delete()
+        .eq('id', sub.id);
+      if (deleteError) {
+        console.error('Failed to cleanup expired push subscription', {
+          subId: sub.id,
+          code: deleteError.code,
+        });
+      }
     }
-    console.error('Failed to send push to subscription:', sub.id, err);
+    console.error('Failed push delivery', { subId: sub.id, statusCode });
     return false;
   }
 }
@@ -66,11 +75,11 @@ export async function GET(request: Request) {
     const cronSecret = process.env.CRON_SECRET;
     if (!cronSecret) {
       console.error('CRON_SECRET is not configured in environment variables.');
-      return new Response('Internal Server Error: Cron secret not configured', { status: 500 });
+      return NextResponse.json({ error: 'Cron job unavailable' }, { status: 500 });
     }
     const authHeader = request.headers.get('authorization');
     if (!isValidCronSecret(authHeader, cronSecret)) {
-      return new Response('Unauthorized', { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     if (!vapidPublicKey || !vapidPrivateKey) {
@@ -101,13 +110,14 @@ export async function GET(request: Request) {
       .lte('date', endOfDayUtc)
       .neq('status', 'Completed')
       .neq('status', 'Canceled')
-      .order('date', { ascending: true });
+      .order('date', { ascending: true })
+      .limit(500);
 
     if (error) {
       throw error;
     }
 
-    const notificationsSent: string[] = [];
+    let consultationsNotified = 0;
 
     if (consultations && consultations.length > 0) {
       // 4. Agrupar consultas por usuário (profile_id)
@@ -128,10 +138,18 @@ export async function GET(request: Request) {
           : firstConsultation.profiles;
         const userName = profileObj?.full_name?.split(' ')[0] || 'Veterinário';
 
-        const { data: subscriptions } = await supabase
+        const { data: subscriptions, error: subError } = await supabase
           .from('push_subscriptions')
-          .select('*')
-          .eq('profile_id', profileId);
+          .select('id, endpoint, p256dh, auth')
+          .eq('profile_id', profileId)
+          .limit(50);
+
+        if (subError) {
+          console.error('Failed to query push subscriptions for consultations', {
+            code: subError.code,
+          });
+          continue;
+        }
 
         if (subscriptions && subscriptions.length > 0) {
           const payload = JSON.stringify({
@@ -140,11 +158,15 @@ export async function GET(request: Request) {
             url: '/agenda',
           });
 
+          let sentForUser = 0;
           for (const sub of subscriptions) {
             const sent = await sendPushAndCleanupExpired(supabase, sub, payload);
             if (sent) {
-              notificationsSent.push(profileId);
+              sentForUser++;
             }
+          }
+          if (sentForUser > 0) {
+            consultationsNotified += totalConsultations;
           }
         }
       }
@@ -153,12 +175,20 @@ export async function GET(request: Request) {
     // 5. Avisos Programados de Vacinas (próximos 7 dias ou vencidas em BRT)
     const inSevenDaysStr = getBrazilDateString(now, 7);
 
-    const { data: dueVaccines } = await supabase
+    const { data: dueVaccines, error: dueVaccinesError } = await supabase
       .from('patient_vaccinations')
       .select('id, profile_id, patient_id, vaccine_name, next_due_date, next_dose_label, notified_at, patients(name)')
       .is('completed_by_vaccination_id', null)
       .is('notified_at', null)
-      .lte('next_due_date', inSevenDaysStr);
+      .lte('next_due_date', inSevenDaysStr)
+      .order('next_due_date', { ascending: true })
+      .limit(500);
+
+    if (dueVaccinesError) {
+      throw dueVaccinesError;
+    }
+
+    let vaccinesNotified = 0;
 
     if (dueVaccines && dueVaccines.length > 0) {
       const vaccinesByUser = dueVaccines.reduce((acc, vac) => {
@@ -171,10 +201,18 @@ export async function GET(request: Request) {
         const userVacs = vaccinesByUser[profileId];
         if (!userVacs || userVacs.length === 0) continue;
 
-        const { data: subscriptions } = await supabase
+        const { data: subscriptions, error: subError } = await supabase
           .from('push_subscriptions')
-          .select('*')
-          .eq('profile_id', profileId);
+          .select('id, endpoint, p256dh, auth')
+          .eq('profile_id', profileId)
+          .limit(50);
+
+        if (subError) {
+          console.error('Failed to query push subscriptions for vaccines', {
+            code: subError.code,
+          });
+          continue;
+        }
 
         let deliveredCount = 0;
 
@@ -200,7 +238,6 @@ export async function GET(request: Request) {
             const sent = await sendPushAndCleanupExpired(supabase, sub, payload);
             if (sent) {
               deliveredCount++;
-              notificationsSent.push(`vaccine:${profileId}`);
             }
           }
         }
@@ -208,21 +245,32 @@ export async function GET(request: Request) {
         // Só marcar notified_at se ao menos uma notificação foi entregue com sucesso
         if (deliveredCount > 0) {
           const vacIds = userVacs.map((v) => v.id);
-          await supabase
+          const { error: updateNotifiedError } = await supabase
             .from('patient_vaccinations')
             .update({ notified_at: new Date().toISOString() })
             .in('id', vacIds);
+
+          if (updateNotifiedError) {
+            console.error('Failed to mark patient_vaccinations as notified', {
+              count: vacIds.length,
+              code: updateNotifiedError.code,
+            });
+          } else {
+            vaccinesNotified += vacIds.length;
+          }
         }
       }
     }
 
     return NextResponse.json(
-      { success: true, notifiedUsers: notificationsSent },
+      { success: true, consultationsNotified, vaccinesNotified },
       { status: 200 }
     );
   } catch (error: unknown) {
-    console.error('Error in cron job:', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error(
+      'Error in cron job:',
+      error instanceof Error ? error.message : 'Unknown error'
+    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

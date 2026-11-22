@@ -1,34 +1,38 @@
-import { createClient } from '@/infrastructure/database/server'
+import { requireSession } from '@/infrastructure/auth/session'
+import { signStorageUrl } from '@/infrastructure/storage/media'
 import { redirect } from 'next/navigation'
 import { ProfileForm } from '@/components/features/ProfileForm'
 import Link from 'next/link'
 import { ViewTransition } from 'react'
 
 export default async function PerfilPage() {
-  const supabase = await createClient()
+  const { supabase, userId } = await requireSession()
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const [{ data: { user } }, { data: profile }] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase
+      .from('profiles')
+      .select('full_name, crmv, phone, avatar_url, base_cep, base_address, km_rate, pix_key, pix_key_type')
+      .eq('id', userId)
+      .single(),
+  ])
 
   if (!user) {
     redirect('/login')
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single()
-
   const p = profile as Record<string, unknown> | null
+  const rawAvatarUrl = (p?.avatar_url as string) || ''
+  const signedAvatarUrl = rawAvatarUrl
+    ? await signStorageUrl(supabase, rawAvatarUrl, 'avatars')
+    : null
 
   const initialData = {
     email: user.email || '',
     full_name: (p?.full_name as string) || 'Dra. Gabriela Soares',
     crmv: (p?.crmv as string) || '',
     phone: (p?.phone as string) || '(84) 98636-5455',
-    avatar_url: (p?.avatar_url as string) || '',
+    avatar_url: signedAvatarUrl || '',
     base_cep: (p?.base_cep as string) || '59152-250',
     base_address:
       (p?.base_address as string) ||

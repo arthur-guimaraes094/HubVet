@@ -6,7 +6,7 @@ export async function createClient() {
   const cookieStore = await cookies()
 
   const supabaseUrl =
-    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://afggyuhfcbwocfcgxgkl.supabase.co'
+    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
   const supabaseAnonKey =
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'missing-supabase-anon-key'
 

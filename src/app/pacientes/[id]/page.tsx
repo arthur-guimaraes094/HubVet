@@ -1,14 +1,16 @@
-import { createClient } from '@/infrastructure/database/server';
+import { requireSession } from '@/infrastructure/auth/session';
+import { signStorageUrl, signStorageUrls } from '@/infrastructure/storage/media';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { ViewTransition } from 'react';
 import { LocalDate } from '@/components/ui/LocalDate';
 import Image from 'next/image';
+import { z } from 'zod';
 import { translateSpecies } from '@/core/utils/translations';
 import { formatPatientAge, formatFertilityStatus } from '@/core/utils/age';
 import { buildGoogleMapsUrl } from '@/core/utils/cep';
-import { enrichPatientWithFallbackMeta } from '@/core/utils/patient-fallback-storage';
 import {
   VaccinationSection,
   type PatientVaccinationRecord,
@@ -36,18 +38,21 @@ export default async function PatientHistoryPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
+  const { supabase, userId } = await requireSession();
 
-  // 1. Buscar dados do paciente e tutor
+  if (!z.uuid().safeParse(id).success) {
+    notFound();
+  }
+
+  // 1. Buscar dados do paciente e tutor (escopo por profile_id do tutor)
   const { data: rawPatient, error: patientError } = await supabase
     .from('patients')
-    .select('*, tutors(name, phone, address)')
+    .select('*, tutors!inner(name, phone, address)')
     .eq('id', id)
-    .single();
+    .eq('tutors.profile_id', userId)
+    .maybeSingle();
 
-  const patient = rawPatient
-    ? await enrichPatientWithFallbackMeta(supabase, rawPatient)
-    : null;
+  const patient = rawPatient;
 
   if (patientError || !patient) {
     return (
@@ -62,52 +67,65 @@ export default async function PatientHistoryPage({
     );
   }
 
-  // 2. Buscar dados do perfil da veterinária para assinatura dos PDFs
-  const { data: claimsData } = await supabase.auth.getClaims();
-  const userId = claimsData?.claims?.sub;
-  let vetName = 'Dra. Gabriela Soares';
-  let vetCrmv = '';
-  if (userId) {
-    const { data: profile } = await supabase
+  const signedPatientPhotoUrl = patient.photo_url
+    ? await signStorageUrl(supabase, patient.photo_url, 'patients')
+    : null;
+
+  // 2. Buscar perfil, carteira de vacinação e histórico de consultas em paralelo
+  const [profileRes, vaccinationsRes, consultationsRes] = await Promise.all([
+    supabase
       .from('profiles')
       .select('full_name, crmv')
       .eq('id', userId)
-      .single();
-    if (profile?.full_name) vetName = profile.full_name;
-    if (profile?.crmv) vetCrmv = profile.crmv;
-  }
-
-  // 3. Buscar carteira de vacinação do paciente (com fallback seguro caso a tabela ainda não exista)
-  const { data: rawVaccinations } = await supabase
-    .from('patient_vaccinations')
-    .select('*')
-    .eq('patient_id', id)
-    .order('applied_date', { ascending: false });
-
-  const vaccinations = (rawVaccinations || []) as unknown as PatientVaccinationRecord[];
-
-  // 4. Buscar histórico de consultas com itens e nomes dos insumos
-  const { data: consultations } = await supabase
-    .from('consultations')
-    .select(
-      `
-      *,
-      consultation_items (
-        id,
-        quantity,
-        applied_cost,
-        inventory (
-          name,
-          type
+      .single(),
+    supabase
+      .from('patient_vaccinations')
+      .select('*')
+      .eq('patient_id', id)
+      .eq('profile_id', userId)
+      .order('applied_date', { ascending: false }),
+    supabase
+      .from('consultations')
+      .select(
+        `
+        *,
+        consultation_items (
+          id,
+          quantity,
+          applied_cost,
+          inventory (
+            name,
+            type
+          )
         )
+      `
       )
-    `
-    )
-    .eq('patient_id', id)
-    .neq('status', 'Canceled')
-    .order('date', { ascending: false });
+      .eq('patient_id', id)
+      .eq('profile_id', userId)
+      .neq('status', 'Canceled')
+      .order('date', { ascending: false }),
+  ]);
 
-  const weightData = (consultations || [])
+  const vetName = profileRes.data?.full_name || 'Dra. Gabriela Soares';
+  const vetCrmv = profileRes.data?.crmv || '';
+
+  const vaccinations = (vaccinationsRes.data || []) as unknown as PatientVaccinationRecord[];
+  const rawConsultations = consultationsRes.data || [];
+
+  const consultations = await Promise.all(
+    rawConsultations.map(async (consult) => {
+      if (!consult.images || consult.images.length === 0) {
+        return { ...consult, images: [] as string[] };
+      }
+      const signedImages = await signStorageUrls(supabase, consult.images, 'consultations');
+      return {
+        ...consult,
+        images: signedImages.filter((url): url is string => Boolean(url)),
+      };
+    })
+  );
+
+  const weightData = consultations
     .filter((c) => c.weight_kg)
     .map((c) => ({ date: c.date, weight: Number(c.weight_kg) }))
     .reverse();
@@ -120,10 +138,10 @@ export default async function PatientHistoryPage({
       <main className="flex-1 flex flex-col p-8 gap-8 w-full max-w-4xl mx-auto">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
-            {patient.photo_url ? (
+            {signedPatientPhotoUrl ? (
               <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-primary/30 shadow-md shrink-0">
                 <Image
-                  src={patient.photo_url}
+                  src={signedPatientPhotoUrl}
                   alt={patient.name}
                   fill
                   sizes="96px"

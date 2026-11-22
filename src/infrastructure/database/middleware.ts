@@ -18,7 +18,10 @@ export async function updateSession(request: NextRequest) {
     )
     const isLogin = request.nextUrl.pathname.startsWith('/login')
     const isApi = request.nextUrl.pathname.startsWith('/api')
-    if (!isLogin && !isApi) {
+    if (isApi) {
+      return NextResponse.json({ error: 'Serviço indisponível' }, { status: 503 })
+    }
+    if (!isLogin) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'
       url.search = ''

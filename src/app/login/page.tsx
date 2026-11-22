@@ -9,13 +9,24 @@ export const metadata: Metadata = {
   description: 'Acesse sua conta no HubVet, o prontuário expresso digital veterinário.',
 }
 
+const LOGIN_ERROR_MESSAGES: Record<string, string> = {
+  invalid_credentials: 'E-mail ou senha incorretos.',
+  auth_unavailable: 'Erro de conexão com o servidor de autenticação. Tente novamente.',
+  invalid_input: 'Informe um e-mail válido e sua senha.',
+}
+
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ message?: string }>
+  searchParams: Promise<{ error?: string }>
 }) {
-  const params = await searchParams;
-  
+  const params = await searchParams
+  const errorCode = params?.error
+  const errorMessage =
+    errorCode && Object.prototype.hasOwnProperty.call(LOGIN_ERROR_MESSAGES, errorCode)
+      ? LOGIN_ERROR_MESSAGES[errorCode]
+      : null
+
   return (
     <main className="flex-1 flex flex-col items-center justify-center min-h-screen p-6 max-w-md mx-auto w-full">
       <div className="text-center mb-8">
@@ -27,26 +38,30 @@ export default async function LoginPage({
 
       <Card className="w-full">
         <form className="flex flex-col gap-6">
-          
-          {params?.message && (
-            <div className="p-3 bg-red-100 text-red-700 text-sm font-bold rounded-xl text-center shadow-inner border border-border">
-              {params.message}
+          {errorMessage && (
+            <div
+              role="alert"
+              className="p-3 bg-red-100 text-red-700 text-sm font-bold rounded-xl text-center shadow-inner border border-border"
+            >
+              {errorMessage}
             </div>
           )}
 
           <div className="flex flex-col gap-4">
-            <Input 
+            <Input
               name="email"
-              type="email" 
-              label="E-mail" 
-              placeholder="seu@email.com" 
+              type="email"
+              label="E-mail"
+              placeholder="seu@email.com"
+              autoComplete="email"
               required
             />
-            <Input 
+            <Input
               name="password"
-              type="password" 
-              label="Senha" 
-              placeholder="••••••••" 
+              type="password"
+              label="Senha"
+              placeholder="••••••••"
+              autoComplete="current-password"
               required
             />
           </div>
@@ -61,4 +76,3 @@ export default async function LoginPage({
     </main>
   )
 }
-

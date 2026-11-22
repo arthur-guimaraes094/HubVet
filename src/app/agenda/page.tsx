@@ -1,4 +1,4 @@
-import { createClient } from '@/infrastructure/database/server';
+import { requireSession } from '@/infrastructure/auth/session';
 import { AgendaClient, Consultation, Patient } from '@/components/features/AgendaClient';
 import { Metadata } from 'next';
 
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AgendaPage() {
-  const supabase = await createClient();
+  const { supabase, userId } = await requireSession();
 
   // 1. Buscar consultas agendadas e realizadas (incluindo endereço do tutor)
   const { data: consultations } = await supabase
@@ -30,13 +30,15 @@ export default async function AgendaPage() {
       )
     `
     )
+    .eq('profile_id', userId)
     .in('status', ['Scheduled', 'Completed'])
     .order('date', { ascending: true });
 
   // 2. Buscar pacientes para o form (incluindo endereço do tutor)
   const { data: patients } = await supabase
     .from('patients')
-    .select('id, name, species, tutors (name, address, phone)');
+    .select('id, name, species, tutors!inner (name, address, phone)')
+    .eq('tutors.profile_id', userId);
 
   return (
     <main className="flex-1 flex flex-col p-4 md:p-8 gap-8 w-full">

@@ -1,4 +1,4 @@
-import { createClient } from '@/infrastructure/database/server';
+import { requireSession } from '@/infrastructure/auth/session';
 import { FinanceDashboard } from '@/components/features/FinanceDashboard';
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
@@ -13,9 +13,9 @@ export const metadata: Metadata = {
 };
 
 export default async function FinanceiroPage() {
-  const supabase = await createClient();
+  const { supabase, userId } = await requireSession();
 
-  // Buscar faturas com pacientes relacionados
+  // Buscar faturas com pacientes relacionados pertencentes ao usuário autenticado
   const { data: rawInvoices, error: invoicesError } = await supabase
     .from('invoices')
     .select(`
@@ -24,25 +24,23 @@ export default async function FinanceiroPage() {
       status,
       created_at,
       due_date,
-      patients (
+      patients!inner (
         id,
         name,
         species,
-        tutors (
+        tutors!inner (
           id,
           name
         )
       )
     `)
+    .eq('patients.tutors.profile_id', userId)
     .order('created_at', { ascending: false });
 
   if (invoicesError) {
-    console.error('Erro ao buscar faturas:', invoicesError);
+    console.error('Erro ao buscar faturas:', invoicesError.code);
   }
 
-  // Buscar faturas itens (opcional, para exibir os detalhes se quisermos)
-  // No Dashboard inicial, vamos focar no resumo e lista de faturas
-  
   // Transformando dados para um formato mais limpo para o front-end
   const invoices = rawInvoices?.map(inv => ({
     id: inv.id,

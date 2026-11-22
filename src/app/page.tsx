@@ -4,66 +4,59 @@ import { QuickSearch } from "@/components/features/QuickSearch";
 import { VaccineAlertsCard, UpcomingVaccineItem } from "@/components/features/VaccineAlertsCard";
 import Link from "next/link";
 import Image from "next/image";
-import { createClient } from '@/infrastructure/database/server';
 import { ViewTransition } from "react";
+import { requireSession } from "@/infrastructure/auth/session";
+import { signStorageUrl } from "@/infrastructure/storage/media";
+import { getBrazilDateString } from "@/core/utils/timezone";
 
 import { SettingsModal } from "@/components/features/SettingsModal";
 
 export default async function Home() {
-  const supabase = await createClient();
-  const { data: claimsData } = await supabase.auth.getClaims();
-  const userId = claimsData?.claims?.sub;
-  
-  let avatarUrl = null;
+  const { supabase, userId } = await requireSession();
+  const in14DaysStr = getBrazilDateString(new Date(), 14);
+
+  const [profileRes, vaccinesRes] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('avatar_url')
+      .eq('id', userId)
+      .single(),
+    supabase
+      .from('patient_vaccinations')
+      .select('id, patient_id, vaccine_name, next_due_date, next_dose_label, patients(id, name, tutors(name, phone))')
+      .eq('profile_id', userId)
+      .is('completed_by_vaccination_id', null)
+      .lte('next_due_date', in14DaysStr)
+      .order('next_due_date', { ascending: true })
+      .limit(10),
+  ]);
+
+  const avatarUrl = profileRes.data?.avatar_url
+    ? await signStorageUrl(supabase, profileRes.data.avatar_url, 'avatars')
+    : null;
+
   const upcomingVaccines: UpcomingVaccineItem[] = [];
+  if (vaccinesRes.data && vaccinesRes.data.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    vaccinesRes.data.forEach((v: any) => {
+      const patientObj = Array.isArray(v.patients) ? v.patients[0] : v.patients;
+      const tutorObj = Array.isArray(patientObj?.tutors)
+        ? patientObj.tutors[0]
+        : patientObj?.tutors;
 
-  if (userId) {
-    const in14Days = new Date();
-    in14Days.setDate(in14Days.getDate() + 14);
-    const in14DaysStr = in14Days.toISOString().split('T')[0];
-
-    const [profileRes, vaccinesRes] = await Promise.all([
-      supabase
-        .from('profiles')
-        .select('avatar_url')
-        .eq('id', userId)
-        .single(),
-      supabase
-        .from('patient_vaccinations')
-        .select('id, patient_id, vaccine_name, next_due_date, next_dose_label, patients(id, name, tutors(name, phone))')
-        .eq('profile_id', userId)
-        .is('completed_by_vaccination_id', null)
-        .lte('next_due_date', in14DaysStr)
-        .order('next_due_date', { ascending: true })
-        .limit(10),
-    ]);
-      
-    if (profileRes.data?.avatar_url) {
-      avatarUrl = profileRes.data.avatar_url;
-    }
-
-    if (vaccinesRes.data && vaccinesRes.data.length > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      vaccinesRes.data.forEach((v: any) => {
-        const patientObj = Array.isArray(v.patients) ? v.patients[0] : v.patients;
-        const tutorObj = Array.isArray(patientObj?.tutors)
-          ? patientObj.tutors[0]
-          : patientObj?.tutors;
-
-        if (patientObj) {
-          upcomingVaccines.push({
-            id: v.id,
-            patientId: v.patient_id,
-            patientName: patientObj.name || 'Paciente',
-            tutorName: tutorObj?.name || 'Tutor(a)',
-            tutorPhone: tutorObj?.phone || null,
-            vaccineName: v.vaccine_name,
-            nextDueDate: v.next_due_date,
-            nextDoseLabel: v.next_dose_label || 'Reforço Vacinal',
-          });
-        }
-      });
-    }
+      if (patientObj) {
+        upcomingVaccines.push({
+          id: v.id,
+          patientId: v.patient_id,
+          patientName: patientObj.name || 'Paciente',
+          tutorName: tutorObj?.name || 'Tutor(a)',
+          tutorPhone: tutorObj?.phone || null,
+          vaccineName: v.vaccine_name,
+          nextDueDate: v.next_due_date,
+          nextDoseLabel: v.next_dose_label || 'Reforço Vacinal',
+        });
+      }
+    });
   }
 
   return (

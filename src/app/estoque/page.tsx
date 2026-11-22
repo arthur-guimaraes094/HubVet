@@ -1,4 +1,4 @@
-import { createClient } from '@/infrastructure/database/server';
+import { requireSession } from '@/infrastructure/auth/session';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { InventoryItemForm } from '@/components/features/InventoryItemForm';
@@ -14,12 +14,17 @@ export const metadata: Metadata = {
 };
 
 export default async function EstoquePage() {
-  const supabase = await createClient();
-  
+  const { supabase, userId } = await requireSession();
+
   const { data: rawInventory, error } = await supabase
     .from('inventory')
     .select('*')
+    .eq('profile_id', userId)
     .order('name', { ascending: true });
+
+  if (error) {
+    console.error('Erro ao buscar catálogo:', error.code);
+  }
 
   const inventory = rawInventory?.map(item => ({
     id: item.id,
@@ -47,7 +52,7 @@ export default async function EstoquePage() {
 
       {error ? (
         <Card className="bg-error/10 border-error/20">
-          <p className="text-red-500 font-bold">Erro ao buscar catálogo: {error.message}</p>
+          <p className="text-red-500 font-bold">Erro ao carregar catálogo de insumos. Tente novamente.</p>
         </Card>
       ) : !inventory || inventory.length === 0 ? (
         <Card className="text-center py-16 flex flex-col items-center gap-4">

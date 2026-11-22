@@ -9,10 +9,16 @@ const DEFAULT_KM_RATE = 2.5;
 const MAX_STRAIGHT_RADIUS_KM = 85;
 const MAX_DRIVING_ONE_WAY_KM = 110;
 const MAX_RECOMMENDED_FEE_BRL = 500;
+const EXTERNAL_FETCH_TIMEOUT_MS = 5000;
+const MAX_NOMINATIM_CALLS_PER_REQUEST = 4;
 
 interface Coords {
   lat: number;
   lng: number;
+}
+
+interface NominatimBudget {
+  remaining: number;
 }
 
 function extractCepDigits(text?: string | null): string | null {
@@ -41,11 +47,23 @@ function haversineRoadDistanceKm(a: Coords, b: Coords): number {
 }
 
 function isWithinCoverageRadius(origin: Coords, candidate: Coords): boolean {
+  if (!Number.isFinite(candidate.lat) || !Number.isFinite(candidate.lng)) {
+    return false;
+  }
   const distKm = haversineStraightKm(origin, candidate);
   return distKm <= MAX_STRAIGHT_RADIUS_KM;
 }
 
-async function queryNominatimBounded(query: string, center: Coords): Promise<Coords | null> {
+async function queryNominatimBounded(
+  query: string,
+  center: Coords,
+  budget: NominatimBudget
+): Promise<Coords | null> {
+  if (budget.remaining <= 0) {
+    return null;
+  }
+  budget.remaining -= 1;
+
   // Bounding box de ~70km ao redor da base da veterinária (ex: Grande Natal / RN)
   const delta = 0.65;
   const viewbox = `${center.lng - delta},${center.lat + delta},${center.lng + delta},${center.lat - delta}`;
@@ -54,6 +72,7 @@ async function queryNominatimBounded(query: string, center: Coords): Promise<Coo
     const url = `https://nominatim.openstreetmap.org/search?format=json&limit=3&countrycodes=br&viewbox=${viewbox}&bounded=1&q=${encodeURIComponent(query)}`;
     const res = await fetch(url, {
       headers: { 'User-Agent': 'HubVet-App/1.0 (vetgabrielasoares@gmail.com)' },
+      signal: AbortSignal.timeout(EXTERNAL_FETCH_TIMEOUT_MS),
       next: { revalidate: 86400 },
     });
     if (res.ok) {
@@ -79,9 +98,10 @@ async function queryNominatimBounded(query: string, center: Coords): Promise<Coo
 }
 
 async function geocodeAddress(
-  address?: string | null,
-  cep?: string | null,
-  referenceOrigin: Coords = DEFAULT_ORIGIN_COORDS
+  address: string | null | undefined,
+  cep: string | null | undefined,
+  referenceOrigin: Coords,
+  nominatimBudget: NominatimBudget
 ): Promise<Coords | null> {
   const cepDigits = extractCepDigits(cep) || extractCepDigits(address);
 
@@ -89,6 +109,7 @@ async function geocodeAddress(
   if (cepDigits) {
     try {
       const cepRes = await fetch(`https://cep.awesomeapi.com.br/json/${cepDigits}`, {
+        signal: AbortSignal.timeout(EXTERNAL_FETCH_TIMEOUT_MS),
         next: { revalidate: 86400 },
       });
       if (cepRes.ok) {
@@ -110,6 +131,7 @@ async function geocodeAddress(
     // 1b. Buscar endereço oficial no ViaCEP pelo CEP e geocodificar no Nominatim local
     try {
       const viaRes = await fetch(`https://viacep.com.br/ws/${cepDigits}/json/`, {
+        signal: AbortSignal.timeout(EXTERNAL_FETCH_TIMEOUT_MS),
         next: { revalidate: 86400 },
       });
       if (viaRes.ok) {
@@ -125,7 +147,8 @@ async function geocodeAddress(
             [viaData.localidade, viaData.uf, 'Brasil'].filter(Boolean).join(', '),
           ];
           for (const vq of viaQueries) {
-            const coords = await queryNominatimBounded(vq, referenceOrigin);
+            if (nominatimBudget.remaining <= 0) break;
+            const coords = await queryNominatimBounded(vq, referenceOrigin, nominatimBudget);
             if (coords) return coords;
           }
         }
@@ -136,7 +159,7 @@ async function geocodeAddress(
   }
 
   // 2. Tentar Nominatim (OpenStreetMap) restrito à região de cobertura (bounded=1)
-  if (address && address.trim()) {
+  if (address && address.trim() && nominatimBudget.remaining > 0) {
     const cleanQuery = address
       .replace(/CEP:\s*\d{5}-?\d{3}/gi, '')
       .replace(/\b\d{5}-?\d{3}\b/g, '')
@@ -166,7 +189,8 @@ async function geocodeAddress(
     const uniqueQueries = Array.from(new Set(candidateQueries.filter((q) => q.length >= 3)));
 
     for (const q of uniqueQueries) {
-      const coords = await queryNominatimBounded(q, referenceOrigin);
+      if (nominatimBudget.remaining <= 0) break;
+      const coords = await queryNominatimBounded(q, referenceOrigin, nominatimBudget);
       if (coords) return coords;
     }
   }
@@ -177,10 +201,18 @@ async function geocodeAddress(
 async function calculateDrivingDistanceKm(origin: Coords, dest: Coords): Promise<number> {
   try {
     const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${dest.lng},${dest.lat}?overview=false`;
-    const res = await fetch(osrmUrl, { next: { revalidate: 3600 } });
+    const res = await fetch(osrmUrl, {
+      signal: AbortSignal.timeout(EXTERNAL_FETCH_TIMEOUT_MS),
+      next: { revalidate: 3600 },
+    });
     if (res.ok) {
       const data = await res.json();
-      if (data.routes && data.routes.length > 0 && typeof data.routes[0].distance === 'number') {
+      if (
+        data.routes &&
+        data.routes.length > 0 &&
+        typeof data.routes[0].distance === 'number' &&
+        Number.isFinite(data.routes[0].distance)
+      ) {
         const osrmKm = data.routes[0].distance / 1000;
         if (osrmKm <= MAX_DRIVING_ONE_WAY_KM) {
           return osrmKm;
@@ -205,9 +237,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
     }
 
-    const body = (await request.json()) as Record<string, unknown>;
-    const rawAddress = body?.destinationAddress;
-    const rawCep = body?.destinationCep;
+    let body: Record<string, unknown>;
+    try {
+      const parsed = await request.json();
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return NextResponse.json({ error: 'Corpo da requisição inválido.' }, { status: 400 });
+      }
+      body = parsed as Record<string, unknown>;
+    } catch {
+      return NextResponse.json({ error: 'JSON inválido.' }, { status: 400 });
+    }
+
+    const rawAddress = body.destinationAddress;
+    const rawCep = body.destinationCep;
 
     if (
       (rawAddress !== undefined && rawAddress !== null && typeof rawAddress !== 'string') ||
@@ -246,32 +288,50 @@ export async function POST(request: Request) {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('*')
+      .select('base_address, base_cep, km_rate, base_lat, base_lng')
       .eq('id', user.id)
       .single();
 
-    const p = profile as Record<string, unknown> | null;
-    if (p) {
-      if (typeof p.base_address === 'string' && p.base_address.trim()) {
-        originAddress = p.base_address;
+    if (profile) {
+      if (typeof profile.base_address === 'string' && profile.base_address.trim()) {
+        originAddress = profile.base_address;
       }
-      if (typeof p.base_cep === 'string' && p.base_cep.trim()) {
-        originCep = p.base_cep;
+      if (typeof profile.base_cep === 'string' && profile.base_cep.trim()) {
+        originCep = profile.base_cep;
       }
-      if (typeof p.km_rate === 'number' && p.km_rate > 0 && p.km_rate <= 50) {
-        kmRate = p.km_rate;
+      if (
+        typeof profile.km_rate === 'number' &&
+        Number.isFinite(profile.km_rate) &&
+        profile.km_rate > 0 &&
+        profile.km_rate <= 50
+      ) {
+        kmRate = profile.km_rate;
       }
-      if (typeof p.base_lat === 'number' && typeof p.base_lng === 'number') {
-        cachedOriginCoords = { lat: p.base_lat, lng: p.base_lng };
+      if (
+        typeof profile.base_lat === 'number' &&
+        Number.isFinite(profile.base_lat) &&
+        typeof profile.base_lng === 'number' &&
+        Number.isFinite(profile.base_lng)
+      ) {
+        cachedOriginCoords = { lat: profile.base_lat, lng: profile.base_lng };
       }
     }
 
+    const nominatimBudget: NominatimBudget = {
+      remaining: MAX_NOMINATIM_CALLS_PER_REQUEST,
+    };
+
     const originCoords =
       cachedOriginCoords ||
-      (await geocodeAddress(originAddress, originCep, DEFAULT_ORIGIN_COORDS)) ||
+      (await geocodeAddress(originAddress, originCep, DEFAULT_ORIGIN_COORDS, nominatimBudget)) ||
       DEFAULT_ORIGIN_COORDS;
 
-    const destCoords = await geocodeAddress(destinationAddress, destinationCep, originCoords);
+    const destCoords = await geocodeAddress(
+      destinationAddress,
+      destinationCep,
+      originCoords,
+      nominatimBudget
+    );
 
     if (!destCoords) {
       return NextResponse.json(
@@ -311,7 +371,10 @@ export async function POST(request: Request) {
       recommendedFee,
     });
   } catch (err) {
-    console.error('Error calculating travel cost:', err);
+    console.error(
+      'Error calculating travel cost:',
+      err instanceof Error ? err.message : 'Unknown error'
+    );
     return NextResponse.json(
       { error: 'Erro ao calcular o custo de deslocamento.' },
       { status: 500 }

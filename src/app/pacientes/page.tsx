@@ -1,11 +1,12 @@
-import { createClient } from '@/infrastructure/database/server';
+import { requireSession } from '@/infrastructure/auth/session';
+import { signStorageUrls } from '@/infrastructure/storage/media';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { NewPatientForm } from '@/components/features/NewPatientForm';
 import { PatientSearchList } from '@/components/features/PatientSearchList';
-import { enrichPatientsListWithFallbackMeta } from '@/core/utils/patient-fallback-storage';
 import Link from 'next/link';
 import { Metadata } from 'next';
+import { z } from 'zod';
 
 export const revalidate = 0;
 
@@ -19,41 +20,71 @@ export default async function PacientesPage({
 }: {
   searchParams: Promise<{ tutorId?: string; tutorName?: string }>
 }) {
-  const { tutorId, tutorName } = await searchParams;
-  const supabase = await createClient();
-  
+  const rawParams = await searchParams;
+  const { supabase, userId } = await requireSession();
+
+  const tutorIdParse = rawParams?.tutorId
+    ? z.uuid().safeParse(rawParams.tutorId)
+    : null;
+  const validTutorId = tutorIdParse?.success ? tutorIdParse.data : undefined;
+
+  let verifiedTutorName: string | undefined;
+  if (validTutorId) {
+    const { data: tutorRow } = await supabase
+      .from('tutors')
+      .select('name')
+      .eq('id', validTutorId)
+      .eq('profile_id', userId)
+      .maybeSingle();
+    verifiedTutorName = tutorRow?.name || undefined;
+  }
+
   let query = supabase
     .from('patients')
     .select(`
       *,
-      tutors (
+      tutors!inner (
         name,
         phone
       )
-    `);
+    `)
+    .eq('tutors.profile_id', userId);
 
-  if (tutorId) {
-    query = query.eq('tutor_id', tutorId);
+  if (validTutorId) {
+    query = query.eq('tutor_id', validTutorId);
   }
 
   const { data: rawPatients, error } = await query.order('created_at', { ascending: false });
-  const patients = rawPatients
-    ? await enrichPatientsListWithFallbackMeta(supabase, rawPatients)
-    : [];
+  if (error) {
+    console.error('Erro ao buscar pacientes:', error.code);
+  }
+
+  const basePatients = rawPatients || [];
+
+  const signedPhotoUrls = await signStorageUrls(
+    supabase,
+    basePatients.map((p) => p.photo_url),
+    'patients'
+  );
+
+  const patients = basePatients.map((p, idx) => ({
+    ...p,
+    photo_url: signedPhotoUrls[idx] ?? null,
+  }));
 
   return (
     <main className="flex-1 flex flex-col p-8 gap-12 w-full max-w-5xl mx-auto">
       <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
         <div className="flex flex-col items-center sm:items-start">
           <h1 className="text-4xl font-black text-foreground tracking-tighter">
-            {tutorName ? `Pets de ${tutorName}` : 'Meus Pacientes'}
+            {verifiedTutorName ? `Pets de ${verifiedTutorName}` : 'Meus Pacientes'}
           </h1>
         </div>
         <div className="flex gap-4">
-          <NewPatientForm 
-            key={tutorId || 'all'} 
-            initialTutorId={tutorId} 
-            initialTutorName={tutorName} 
+          <NewPatientForm
+            key={verifiedTutorName && validTutorId ? validTutorId : 'all'}
+            initialTutorId={verifiedTutorName ? validTutorId : undefined}
+            initialTutorName={verifiedTutorName}
           />
           <Link href="/">
             <Button variant="secondary" className="px-6! py-2! text-sm">Voltar</Button>
@@ -63,7 +94,7 @@ export default async function PacientesPage({
 
       {error ? (
         <Card className="bg-error/10 border-error/20 p-6">
-          <p className="text-error font-bold text-center">Erro ao buscar pacientes: {error.message}</p>
+          <p className="text-error font-bold text-center">Erro ao carregar pacientes. Tente novamente.</p>
         </Card>
       ) : (
         <PatientSearchList initialPatients={patients || []} />

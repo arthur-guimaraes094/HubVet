@@ -1,10 +1,10 @@
+import { requireSession } from '@/infrastructure/auth/session';
 import { ConsultationForm } from '@/components/features/ConsultationForm';
 import { Button } from '@/components/ui/Button';
-import { createClient } from '@/infrastructure/database/server';
 import Link from 'next/link';
 import { ViewTransition } from "react";
+import { z } from 'zod';
 import { formatFullAddress } from '@/core/utils/cep';
-import { enrichPatientWithFallbackMeta } from '@/core/utils/patient-fallback-storage';
 
 export const revalidate = 0;
 
@@ -14,33 +14,26 @@ export default async function ProntuarioPage({
   searchParams: Promise<{ id?: string; type?: string; patient?: string; consultationId?: string; returnTo?: string }>
 }) {
   const params = await searchParams;
-  const supabase = await createClient();
+  const { supabase, userId } = await requireSession();
 
   const [
     { data: rawInventory },
-    { data: userData }
+    { data: profileData }
   ] = await Promise.all([
-    supabase.from('inventory').select('*').order('name'),
-    supabase.auth.getUser(),
-  ]);
-
-  let vetName: string | undefined;
-  let vetCrmv: string | undefined;
-  let vetPixKey: string | undefined;
-  let vetPixKeyType: string | undefined;
-  if (userData?.user) {
-    const { data: profileData } = await supabase
+    supabase.from('inventory').select('*').eq('profile_id', userId).order('name'),
+    supabase
       .from('profiles')
       .select('full_name, crmv, pix_key, pix_key_type')
-      .eq('id', userData.user.id)
-      .single();
-    const p = profileData as Record<string, unknown> | null;
-    vetName = (p?.full_name as string) || undefined;
-    vetCrmv = (p?.crmv as string) || undefined;
-    vetPixKey = (p?.pix_key as string) || undefined;
-    vetPixKeyType = (p?.pix_key_type as string) || undefined;
-  }
-  
+      .eq('id', userId)
+      .single(),
+  ]);
+
+  const p = profileData as Record<string, unknown> | null;
+  const vetName = (p?.full_name as string) || undefined;
+  const vetCrmv = (p?.crmv as string) || undefined;
+  const vetPixKey = (p?.pix_key as string) || undefined;
+  const vetPixKeyType = (p?.pix_key_type as string) || undefined;
+
   const inventory = rawInventory?.map(item => ({
     id: item.id,
     name: item.name,
@@ -49,8 +42,12 @@ export default async function ProntuarioPage({
     unitCost: item.unit_cost,
     salePrice: item.sale_price
   })) || [];
-  
-  const consultationId = params?.consultationId;
+
+  const rawConsultationId = params?.consultationId;
+  const validConsultationId =
+    rawConsultationId && z.uuid().safeParse(rawConsultationId).success
+      ? rawConsultationId
+      : undefined;
   const returnTo = params?.returnTo;
 
   let scheduledConsultation: {
@@ -65,16 +62,19 @@ export default async function ProntuarioPage({
     prescriptions?: unknown;
   } | null = null;
 
-  if (consultationId) {
+  if (validConsultationId) {
     const { data: consultData } = await supabase
       .from('consultations')
       .select('*')
-      .eq('id', consultationId)
-      .single();
+      .eq('id', validConsultationId)
+      .eq('profile_id', userId)
+      .maybeSingle();
     scheduledConsultation = consultData;
   }
 
-  const targetId = params?.id || params?.patient || scheduledConsultation?.patient_id || undefined;
+  const rawTargetId = params?.id || params?.patient || scheduledConsultation?.patient_id;
+  const targetId =
+    rawTargetId && z.uuid().safeParse(rawTargetId).success ? rawTargetId : undefined;
   const targetType = params?.type || (targetId ? 'Paciente' : null);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -82,10 +82,11 @@ export default async function ProntuarioPage({
   if (targetId && targetType === 'Paciente') {
     const { data } = await supabase
       .from('patients')
-      .select('*, tutors(*)')
+      .select('*, tutors!inner(*)')
       .eq('id', targetId)
-      .single();
-    patientData = data ? await enrichPatientWithFallbackMeta(supabase, data) : null;
+      .eq('tutors.profile_id', userId)
+      .maybeSingle();
+    patientData = data ?? null;
   }
 
   const tutorObj = Array.isArray(patientData?.tutors)
@@ -116,17 +117,17 @@ export default async function ProntuarioPage({
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-extrabold text-foreground">Prontuário</h1>
           <Link href={
-            returnTo === 'agenda' ? '/agenda' : 
-            returnTo === 'history' ? `/pacientes/${targetId}` : 
+            returnTo === 'agenda' ? '/agenda' :
+            returnTo === 'history' && patientData?.id ? `/pacientes/${patientData.id}` :
             '/'
           }>
             <Button variant="secondary" className="px-4! py-2! text-sm">Voltar</Button>
           </Link>
         </div>
 
-        <ConsultationForm 
-          inventory={inventory || []} 
-          patientId={patientData?.id} 
+        <ConsultationForm
+          inventory={inventory || []}
+          patientId={patientData?.id}
           patientName={patientData?.name}
           tutorName={tutorObj?.name}
           tutorPhone={tutorObj?.phone}
@@ -138,7 +139,7 @@ export default async function ProntuarioPage({
           fertilityStatus={patientData?.fertility_status || undefined}
           fertilityNotes={patientData?.fertility_notes || undefined}
           clinicalObservations={patientData?.clinical_observations || undefined}
-          consultationId={consultationId}
+          consultationId={scheduledConsultation?.id}
           lastWeight={scheduledConsultation?.weight_kg || patientData?.weight_kg || undefined}
           initialType={(scheduledConsultation?.type as 'Home' | 'Hospital') || 'Home'}
           initialTravelFee={scheduledConsultation?.travel_fee ?? undefined}

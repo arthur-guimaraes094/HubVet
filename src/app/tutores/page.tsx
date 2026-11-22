@@ -1,8 +1,11 @@
+import { requireSession } from '@/infrastructure/auth/session';
 import { TutorList } from '@/components/features/TutorList';
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
 
-export default function TutoresPage() {
+export default async function TutoresPage() {
+  await requireSession();
+
   return (
     <main className="flex-1 flex flex-col p-8 gap-12 w-full max-w-5xl mx-auto">
       <div className="flex flex-col sm:flex-row items-center justify-between gap-6">

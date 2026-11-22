@@ -1,8 +1,11 @@
+import { requireSession } from '@/infrastructure/auth/session';
 import { DoseCalculator } from '@/components/features/DoseCalculator';
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
 
-export default function CalculadoraPage() {
+export default async function CalculadoraPage() {
+  await requireSession();
+
   return (
     <main className="flex-1 flex flex-col p-8 gap-8 max-w-2xl mx-auto w-full">
       <div className="flex items-center justify-between">
