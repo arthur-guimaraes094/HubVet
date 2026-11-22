@@ -305,6 +305,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "patient_vaccinations_completed_by_vaccination_id_fkey"
+            columns: ["completed_by_vaccination_id"]
+            isOneToOne: false
+            referencedRelation: "patient_vaccinations"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "patient_vaccinations_patient_id_fkey"
             columns: ["patient_id"]
             isOneToOne: false
@@ -593,6 +600,37 @@ export type Database = {
       decrement_inventory: {
         Args: { amount: number; item_id: string }
         Returns: undefined
+      }
+      delete_patient_atomic: {
+        Args: {
+          p_delete_orphan_tutor?: boolean
+          p_patient_id: string
+        }
+        Returns: boolean
+      }
+      delete_tutor_atomic: {
+        Args: {
+          p_tutor_id: string
+        }
+        Returns: boolean
+      }
+      finalize_consultation_atomic: {
+        Args: {
+          p_address?: string | null
+          p_completion_date?: string
+          p_consultation_id?: string | null
+          p_images?: string[]
+          p_items?: Json
+          p_notes?: string
+          p_patient_id: string
+          p_prescriptions?: Json
+          p_travel_distance_km?: number | null
+          p_travel_fee?: number | null
+          p_type?: string
+          p_vaccinations?: Json
+          p_weight_kg?: number | null
+        }
+        Returns: string
       }
     }
     Enums: {
