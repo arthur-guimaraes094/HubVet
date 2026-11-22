@@ -4,139 +4,212 @@ import { createClient } from '@/infrastructure/database/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import type { ActionResponse } from '@/core/types/actions'
+import { assertPatientOwnership } from '@/infrastructure/auth/session'
 
-const uuidSchema = z.string().uuid('ID inválido')
+const uuidSchema = z.uuid('ID inválido')
 
 const agendaSchema = z.object({
-  patientId: z.string().min(1, 'Paciente é obrigatório'),
-  date: z.string().min(1, 'Data é obrigatória'),
+  patientId: z.uuid('Paciente inválido'),
+  date: z
+    .string()
+    .trim()
+    .min(1, 'Data é obrigatória')
+    .max(64)
+    .refine((val) => !Number.isNaN(Date.parse(val)), 'Data inválida'),
   type: z.enum(['Home', 'Hospital']),
-  address: z.string().optional(),
-  travelDistanceKm: z.number().optional().nullable(),
-  travelFee: z.number().optional().nullable(),
+  address: z.string().trim().max(500).optional(),
+  travelDistanceKm: z
+    .number()
+    .finite('Distância inválida')
+    .min(0, 'Distância não pode ser negativa')
+    .max(500, 'Distância máxima é 500 km')
+    .optional()
+    .nullable(),
+  travelFee: z
+    .number()
+    .finite('Taxa de deslocamento inválida')
+    .min(0, 'Taxa de deslocamento não pode ser negativa')
+    .max(500, 'Taxa de deslocamento máxima é R$ 500')
+    .optional()
+    .nullable(),
 })
 
 export async function agendarConsulta(rawData: unknown): Promise<ActionResponse> {
-  const result = agendaSchema.safeParse(rawData)
-  if (!result.success) {
-    return {
-      success: false,
-      error: 'Dados inválidos',
-      fieldErrors: result.error.flatten().fieldErrors,
+  try {
+    const result = agendaSchema.safeParse(rawData)
+    if (!result.success) {
+      return {
+        success: false,
+        error: 'Dados inválidos',
+        fieldErrors: result.error.flatten().fieldErrors,
+      }
     }
+    const data = result.data
+
+    const supabase = await createClient()
+    const { data: userData, error: userError } = await supabase.auth.getUser()
+    if (userError || !userData.user) {
+      return { success: false, error: 'Não autenticado' }
+    }
+
+    const ownership = await assertPatientOwnership(supabase, data.patientId, userData.user.id)
+    if (!ownership.owned) {
+      return { success: false, error: 'Paciente não encontrado ou sem permissão.' }
+    }
+
+    const { data: insertedRow, error } = await supabase
+      .from('consultations')
+      .insert({
+        profile_id: userData.user.id,
+        patient_id: data.patientId,
+        date: data.date,
+        type: data.type,
+        address: data.address || null,
+        travel_distance_km: data.type === 'Home' ? (data.travelDistanceKm ?? null) : null,
+        travel_fee: data.type === 'Home' ? (data.travelFee ?? 0) : 0,
+        status: 'Scheduled',
+      })
+      .select('id')
+      .maybeSingle()
+
+    if (error || !insertedRow) {
+      console.error('Erro ao agendar:', error)
+      return { success: false, error: 'Erro ao agendar consulta' }
+    }
+
+    revalidatePath('/agenda')
+    revalidatePath('/')
+    return { success: true }
+  } catch (err) {
+    console.error('Unexpected agendarConsulta error:', err)
+    return { success: false, error: 'Erro interno do servidor.' }
   }
-  const data = result.data
-
-  const supabase = await createClient()
-
-  const { data: userData, error: userError } = await supabase.auth.getUser()
-  if (userError || !userData.user) return { success: false, error: 'Não autenticado' }
-
-  let { error } = await supabase.from('consultations').insert({
-    profile_id: userData.user.id,
-    patient_id: data.patientId,
-    date: data.date,
-    type: data.type,
-    address: data.address,
-    travel_distance_km: data.travelDistanceKm ?? null,
-    travel_fee: data.travelFee ?? 0,
-    status: 'Scheduled',
-  })
-
-  if (error && (error.code === '42703' || error.code === 'PGRST204')) {
-    const fallback = await supabase.from('consultations').insert({
-      profile_id: userData.user.id,
-      patient_id: data.patientId,
-      date: data.date,
-      type: data.type,
-      address: data.address,
-      status: 'Scheduled',
-    })
-    error = fallback.error
-  }
-
-  if (error) {
-    console.error('Erro ao agendar:', error)
-    return { success: false, error: 'Erro ao agendar consulta' }
-  }
-
-  revalidatePath('/agenda')
-  return { success: true }
 }
 
 export async function cancelarConsulta(id: string): Promise<ActionResponse> {
-  if (!uuidSchema.safeParse(id).success) {
-    return { success: false, error: 'ID de consulta inválido' }
+  try {
+    if (!uuidSchema.safeParse(id).success) {
+      return { success: false, error: 'ID de consulta inválido' }
+    }
+
+    const supabase = await createClient()
+    const { data: userData, error: userError } = await supabase.auth.getUser()
+    if (userError || !userData.user) {
+      return { success: false, error: 'Não autenticado' }
+    }
+
+    const { data: updatedRow, error } = await supabase
+      .from('consultations')
+      .update({ status: 'Canceled' })
+      .eq('id', id)
+      .eq('profile_id', userData.user.id)
+      .neq('status', 'Completed')
+      .select('id')
+      .maybeSingle()
+
+    if (error) {
+      console.error('Erro ao cancelar consulta:', error)
+      return { success: false, error: 'Erro ao cancelar' }
+    }
+
+    if (!updatedRow) {
+      const { data: existing } = await supabase
+        .from('consultations')
+        .select('status')
+        .eq('id', id)
+        .eq('profile_id', userData.user.id)
+        .maybeSingle()
+
+      if (existing?.status === 'Completed') {
+        return {
+          success: false,
+          error: 'Consultas já finalizadas não podem ser canceladas.',
+        }
+      }
+      return { success: false, error: 'Consulta não encontrada.' }
+    }
+
+    revalidatePath('/agenda')
+    revalidatePath('/')
+    return { success: true }
+  } catch (err) {
+    console.error('Unexpected cancelarConsulta error:', err)
+    return { success: false, error: 'Erro interno do servidor.' }
   }
-
-  const supabase = await createClient()
-
-  const { data: userData, error: userError } = await supabase.auth.getUser()
-  if (userError || !userData.user) return { success: false, error: 'Não autenticado' }
-
-  const { error } = await supabase
-    .from('consultations')
-    .update({ status: 'Canceled' })
-    .eq('id', id)
-    .eq('profile_id', userData.user.id)
-
-  if (error) return { success: false, error: 'Erro ao cancelar' }
-
-  revalidatePath('/agenda')
-  return { success: true }
 }
 
 export async function atualizarConsulta(id: string, rawData: unknown): Promise<ActionResponse> {
-  if (!uuidSchema.safeParse(id).success) {
-    return { success: false, error: 'ID de consulta inválido' }
-  }
-
-  const result = agendaSchema.safeParse(rawData)
-  if (!result.success) {
-    return {
-      success: false,
-      error: 'Dados inválidos',
-      fieldErrors: result.error.flatten().fieldErrors,
+  try {
+    if (!uuidSchema.safeParse(id).success) {
+      return { success: false, error: 'ID de consulta inválido' }
     }
-  }
-  const data = result.data
 
-  const supabase = await createClient()
+    const result = agendaSchema.safeParse(rawData)
+    if (!result.success) {
+      return {
+        success: false,
+        error: 'Dados inválidos',
+        fieldErrors: result.error.flatten().fieldErrors,
+      }
+    }
+    const data = result.data
 
-  const { data: userData, error: userError } = await supabase.auth.getUser()
-  if (userError || !userData.user) return { success: false, error: 'Não autenticado' }
+    const supabase = await createClient()
+    const { data: userData, error: userError } = await supabase.auth.getUser()
+    if (userError || !userData.user) {
+      return { success: false, error: 'Não autenticado' }
+    }
 
-  let { error } = await supabase
-    .from('consultations')
-    .update({
-      patient_id: data.patientId,
-      date: data.date,
-      type: data.type,
-      address: data.address,
-      travel_distance_km: data.travelDistanceKm ?? null,
-      travel_fee: data.travelFee ?? undefined,
-    })
-    .eq('id', id)
-    .eq('profile_id', userData.user.id)
+    const ownership = await assertPatientOwnership(supabase, data.patientId, userData.user.id)
+    if (!ownership.owned) {
+      return { success: false, error: 'Paciente não encontrado ou sem permissão.' }
+    }
 
-  if (error && (error.code === '42703' || error.code === 'PGRST204')) {
-    const fallback = await supabase
+    const { data: updatedRow, error } = await supabase
       .from('consultations')
       .update({
         patient_id: data.patientId,
         date: data.date,
         type: data.type,
-        address: data.address,
+        address: data.address || null,
+        travel_distance_km: data.type === 'Home' ? (data.travelDistanceKm ?? null) : null,
+        travel_fee: data.type === 'Home' ? (data.travelFee ?? undefined) : 0,
       })
       .eq('id', id)
       .eq('profile_id', userData.user.id)
-    error = fallback.error
+      .neq('status', 'Completed')
+      .select('id')
+      .maybeSingle()
+
+    if (error) {
+      console.error('Erro ao atualizar consulta:', error)
+      return { success: false, error: 'Erro ao atualizar' }
+    }
+
+    if (!updatedRow) {
+      const { data: existing } = await supabase
+        .from('consultations')
+        .select('status')
+        .eq('id', id)
+        .eq('profile_id', userData.user.id)
+        .maybeSingle()
+
+      if (existing?.status === 'Completed') {
+        return {
+          success: false,
+          error: 'Consultas já finalizadas não podem ser alteradas pela agenda.',
+        }
+      }
+      return { success: false, error: 'Consulta não encontrada.' }
+    }
+
+    revalidatePath('/agenda')
+    revalidatePath('/')
+    return { success: true }
+  } catch (err) {
+    console.error('Unexpected atualizarConsulta error:', err)
+    return { success: false, error: 'Erro interno do servidor.' }
   }
-
-  if (error) return { success: false, error: 'Erro ao atualizar' }
-
-  revalidatePath('/agenda')
-  return { success: true }
 }
 
 export async function getConsultationDetails(id: string) {

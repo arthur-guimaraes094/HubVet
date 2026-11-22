@@ -8,6 +8,7 @@ import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { addPatientAndTutor, getTutors, uploadPetPhotoAction } from '@/app/pacientes/actions';
 import { useToast } from '@/components/ui/Toast';
 import { compressPetPhoto } from '@/core/utils/image-compress';
+import { validateImageUpload } from '@/core/utils/upload-validation';
 import { fetchAddressByCep, formatCep, formatFullAddress } from '@/core/utils/cep';
 import { estimateBirthDateFromAge, formatPatientAge } from '@/core/utils/age';
 import {
@@ -61,7 +62,8 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
   const [patientWeight, setPatientWeight] = useState('');
   const [patientBreed, setPatientBreed] = useState('');
   const [patientColor, setPatientColor] = useState('');
-  const [patientPhotoUrl, setPatientPhotoUrl] = useState<string | null>(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const [patientPhotoRef, setPatientPhotoRef] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   // Idade / Nascimento
@@ -166,33 +168,59 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const inputEl = e.currentTarget;
+    const file = inputEl.files?.[0];
     if (!file) return;
 
     if (file.size > 15 * 1024 * 1024) {
       error('A foto deve ter no máximo 15MB');
+      inputEl.value = '';
       return;
     }
 
+    const previousPreviewUrl = photoPreviewUrl;
+    const previousPhotoRef = patientPhotoRef;
+
     setUploadingPhoto(true);
     try {
+      const validation = await validateImageUpload(file, 15 * 1024 * 1024);
+      if (!validation.valid) {
+        error(validation.error);
+        return;
+      }
+
       const { blob, dataUrl } = await compressPetPhoto(file, 400, 0.82);
-      // Mostra prévia imediata
-      setPatientPhotoUrl(dataUrl);
+      // Mostra prévia imediata (somente preview; nunca salvo no banco)
+      setPhotoPreviewUrl(dataUrl);
 
       const formData = new FormData();
       formData.append('photo', new File([blob], 'pet-photo.jpg', { type: 'image/jpeg' }));
 
       const uploadRes = await uploadPetPhotoAction(formData);
-      if (uploadRes.success && uploadRes.data?.publicUrl) {
-        setPatientPhotoUrl(uploadRes.data.publicUrl);
+      if (!uploadRes.success) {
+        setPhotoPreviewUrl(previousPreviewUrl);
+        setPatientPhotoRef(previousPhotoRef);
+        error(uploadRes.error || 'Erro ao salvar foto do pet.');
+        return;
       }
+      if (!uploadRes.data?.storageRef) {
+        setPhotoPreviewUrl(previousPreviewUrl);
+        setPatientPhotoRef(previousPhotoRef);
+        error('Erro ao salvar foto do pet.');
+        return;
+      }
+
+      setPatientPhotoRef(uploadRes.data.storageRef);
+      setPhotoPreviewUrl(uploadRes.data.signedUrl || dataUrl);
       success('Foto do pet carregada!');
     } catch (err) {
       console.error(err);
+      setPhotoPreviewUrl(previousPreviewUrl);
+      setPatientPhotoRef(previousPhotoRef);
       error('Erro ao processar foto do pet.');
     } finally {
       setUploadingPhoto(false);
+      inputEl.value = '';
     }
   };
 
@@ -269,7 +297,7 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
             : 0,
         patientBreed,
         patientColor,
-        patientPhotoUrl,
+        patientPhotoUrl: patientPhotoRef,
         patientBirthDate: computedBirthDate,
         isBirthDateEstimated: ageMode === 'approx' && !!computedBirthDate,
         fertilityStatus: fertilityStatus || null,
@@ -303,7 +331,8 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
       setPatientWeight('');
       setPatientBreed('');
       setPatientColor('');
-      setPatientPhotoUrl(null);
+      setPhotoPreviewUrl(null);
+      setPatientPhotoRef(null);
       setApproxYears('');
       setApproxMonths('');
       setExactBirthDate('');
@@ -538,9 +567,9 @@ export function NewPatientForm({ initialTutorId, initialTutorName }: NewPatientF
             {/* Foto do Pet */}
             <div className="flex items-center gap-4 px-1">
               <label className="relative w-20 h-20 rounded-full bg-card border-2 border-dashed border-primary/30 hover:border-primary flex items-center justify-center cursor-pointer overflow-hidden shrink-0 group transition-all shadow-sm">
-                {patientPhotoUrl ? (
+                {photoPreviewUrl ? (
                   <Image
-                    src={patientPhotoUrl}
+                    src={photoPreviewUrl}
                     alt="Foto do Pet"
                     fill
                     sizes="80px"

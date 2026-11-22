@@ -9,6 +9,8 @@ import { updatePatient, uploadPetPhotoAction } from '@/app/pacientes/actions';
 import { useToast } from '@/components/ui/Toast';
 import { useRouter } from 'next/navigation';
 import { compressPetPhoto } from '@/core/utils/image-compress';
+import { validateImageUpload } from '@/core/utils/upload-validation';
+import { normalizeStorageRef } from '@/infrastructure/storage/media';
 import {
   calculateYearsAndMonths,
   estimateBirthDateFromAge,
@@ -56,7 +58,10 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
   const [patientWeight, setPatientWeight] = useState(patient.weight_kg?.toString() || '');
   const [patientBreed, setPatientBreed] = useState(patient.breed || '');
   const [patientColor, setPatientColor] = useState(patient.color || '');
-  const [patientPhotoUrl, setPatientPhotoUrl] = useState<string | null>(patient.photo_url || null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(patient.photo_url || null);
+  const [patientPhotoRef, setPatientPhotoRef] = useState<string | null>(() =>
+    patient.photo_url ? normalizeStorageRef(patient.photo_url, 'patients') : null
+  );
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const [ageMode, setAgeMode] = useState<'approx' | 'exact'>(
@@ -101,32 +106,58 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
   }, [patientSpecies]);
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const inputEl = e.currentTarget;
+    const file = inputEl.files?.[0];
     if (!file) return;
 
     if (file.size > 15 * 1024 * 1024) {
       error('A foto deve ter no máximo 15MB');
+      inputEl.value = '';
       return;
     }
 
+    const previousPreviewUrl = photoPreviewUrl;
+    const previousPhotoRef = patientPhotoRef;
+
     setUploadingPhoto(true);
     try {
+      const validation = await validateImageUpload(file, 15 * 1024 * 1024);
+      if (!validation.valid) {
+        error(validation.error);
+        return;
+      }
+
       const { blob, dataUrl } = await compressPetPhoto(file, 400, 0.82);
-      setPatientPhotoUrl(dataUrl);
+      setPhotoPreviewUrl(dataUrl);
 
       const formData = new FormData();
       formData.append('photo', new File([blob], 'pet-photo.jpg', { type: 'image/jpeg' }));
 
       const uploadRes = await uploadPetPhotoAction(formData);
-      if (uploadRes.success && uploadRes.data?.publicUrl) {
-        setPatientPhotoUrl(uploadRes.data.publicUrl);
+      if (!uploadRes.success) {
+        setPhotoPreviewUrl(previousPreviewUrl);
+        setPatientPhotoRef(previousPhotoRef);
+        error(uploadRes.error || 'Erro ao salvar foto do pet.');
+        return;
       }
+      if (!uploadRes.data?.storageRef) {
+        setPhotoPreviewUrl(previousPreviewUrl);
+        setPatientPhotoRef(previousPhotoRef);
+        error('Erro ao salvar foto do pet.');
+        return;
+      }
+
+      setPatientPhotoRef(uploadRes.data.storageRef);
+      setPhotoPreviewUrl(uploadRes.data.signedUrl || dataUrl);
       success('Foto atualizada!');
     } catch (err) {
       console.error(err);
+      setPhotoPreviewUrl(previousPreviewUrl);
+      setPatientPhotoRef(previousPhotoRef);
       error('Erro ao enviar foto.');
     } finally {
       setUploadingPhoto(false);
+      inputEl.value = '';
     }
   };
 
@@ -158,7 +189,7 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
         weight_kg: parseFloat(patientWeight.replace(',', '.')),
         breed: patientBreed,
         color: patientColor,
-        photo_url: patientPhotoUrl,
+        photo_url: patientPhotoRef,
         birth_date: computedBirthDate,
         is_birth_date_estimated: ageMode === 'approx' && !!computedBirthDate,
         fertility_status: fertilityStatus || null,
@@ -204,9 +235,9 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
 
           <div className="flex items-center gap-4 px-1">
             <label className="relative w-20 h-20 rounded-full bg-card border-2 border-dashed border-primary/30 hover:border-primary flex items-center justify-center cursor-pointer overflow-hidden shrink-0 group transition-all shadow-sm">
-              {patientPhotoUrl ? (
+              {photoPreviewUrl ? (
                 <Image
-                  src={patientPhotoUrl}
+                  src={photoPreviewUrl}
                   alt={patientName}
                   fill
                   sizes="80px"

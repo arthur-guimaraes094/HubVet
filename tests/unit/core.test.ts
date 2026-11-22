@@ -5,8 +5,14 @@ import { calculateDose } from '../../src/core/use-cases/calculateDose';
 import { formatPatientAge, calculateYearsAndMonths } from '../../src/core/utils/age';
 import { calculateVaccineSchedule } from '../../src/core/use-cases/vaccine-protocols';
 import { generatePixPayload, generatePixQrCodeSvg } from '../../src/core/utils/pix';
-import { validateImageUpload } from '../../src/core/utils/upload-validation';
+import { validateImageUpload, stripImageMetadata } from '../../src/core/utils/upload-validation';
 import { getBrazilDateString, getBrazilDayBoundsUtc } from '../../src/core/utils/timezone';
+import {
+  parseStorageRef,
+  isAllowedStorageRef,
+  normalizeStorageRef,
+} from '../../src/infrastructure/storage/media';
+import { isTrustedPushEndpoint } from '../../src/core/utils/push-endpoint';
 
 test('calculateDose - calcula corretamente o volume em mL', () => {
   // Cão de 10kg, dose 5mg/kg, concentração 50mg/mL -> 1mL
@@ -146,11 +152,11 @@ test('validateImageUpload - valida MIME, tamanho e magic bytes reais', async () 
   const webpRes = await validateImageUpload(validWebp);
   assert.deepEqual(webpRes, { valid: true, extension: 'webp', contentType: 'image/webp' });
 
-  const validGif = new File([new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61])], 'foto.gif', {
+  const rejectedGif = new File([new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61])], 'foto.gif', {
     type: 'image/gif',
   });
-  const gifRes = await validateImageUpload(validGif);
-  assert.deepEqual(gifRes, { valid: true, extension: 'gif', contentType: 'image/gif' });
+  const gifRes = await validateImageUpload(rejectedGif);
+  assert.equal(gifRes.valid, false);
 
   // HTML disfarçado com MIME de JPEG deve ser rejeitado
   const fakeJpg = new File([new TextEncoder().encode('<html><script>alert(1)</script></html>')], 'evil.jpg', {
@@ -188,4 +194,204 @@ test('timezone BRT - calcula corretamente a data e os limites UTC para America/F
   assert.equal(bounds.startOfDayUtc, '2026-11-21T03:00:00.000Z');
   assert.equal(bounds.endOfDayUtc, '2026-11-22T02:59:59.999Z');
   assert.equal(getBrazilDateString(lateNightUtc, 7), '2026-11-28');
+});
+
+function hasByteSequence(haystack: Uint8Array, needle: Uint8Array): boolean {
+  if (needle.length === 0 || needle.length > haystack.length) return false;
+  for (let i = 0; i <= haystack.length - needle.length; i++) {
+    let matched = true;
+    for (let j = 0; j < needle.length; j++) {
+      if (haystack[i + j] !== needle[j]) {
+        matched = false;
+        break;
+      }
+    }
+    if (matched) return true;
+  }
+  return false;
+}
+
+function crc32(bytes: Uint8Array): number {
+  let crc = 0xffffffff;
+  for (let i = 0; i < bytes.length; i++) {
+    crc ^= bytes[i];
+    for (let bit = 0; bit < 8; bit++) {
+      crc = (crc & 1) !== 0 ? (crc >>> 1) ^ 0xedb88320 : crc >>> 1;
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function makePngChunk(type: string, data: Uint8Array): Uint8Array {
+  const chunk = new Uint8Array(12 + data.length);
+  const view = new DataView(chunk.buffer);
+  view.setUint32(0, data.length, false);
+  for (let i = 0; i < 4; i++) {
+    chunk[4 + i] = type.charCodeAt(i);
+  }
+  chunk.set(data, 8);
+  const crc = crc32(chunk.subarray(4, 8 + data.length));
+  view.setUint32(8 + data.length, crc, false);
+  return chunk;
+}
+
+test('stripImageMetadata - remove metadados EXIF/tEXt/eXIf preservando estrutura JPEG, PNG e WebP', () => {
+  // JPEG com SOI + APP0 (JFIF) + APP1 (EXIF) + COM + SOS + EOI
+  const jpegBytes = Uint8Array.from([
+    0xff, 0xd8, // SOI
+    0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, // APP0 JFIF
+    0xff, 0xe1, 0x00, 0x0e, 0x45, 0x78, 0x69, 0x66, 0x00, 0x00, 0x47, 0x50, 0x53, 0x31, 0x32, 0x33, // APP1 Exif + GPS123
+    0xff, 0xfe, 0x00, 0x08, 0x4e, 0x6f, 0x74, 0x65, 0x31, 0x32, // COM Note12
+    0xff, 0xda, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3f, 0x00, // SOS header
+    0x11, 0x22, 0x33, // entropy stream
+    0xff, 0xd9, // EOI
+  ]);
+  const strippedJpeg = stripImageMetadata(jpegBytes, 'image/jpeg');
+  assert.equal(strippedJpeg[0], 0xff);
+  assert.equal(strippedJpeg[1], 0xd8);
+  assert.equal(strippedJpeg[2], 0xff);
+  assert.equal(strippedJpeg[strippedJpeg.length - 2], 0xff);
+  assert.equal(strippedJpeg[strippedJpeg.length - 1], 0xd9);
+  assert.ok(strippedJpeg.length < jpegBytes.length);
+  assert.equal(hasByteSequence(strippedJpeg, Uint8Array.of(0xff, 0xe1)), false);
+  assert.equal(hasByteSequence(strippedJpeg, new TextEncoder().encode('GPS123')), false);
+  assert.equal(hasByteSequence(strippedJpeg, Uint8Array.of(0xff, 0xfe)), false);
+  assert.equal(hasByteSequence(strippedJpeg, Uint8Array.of(0xff, 0xda)), true);
+
+  // PNG com assinatura + IHDR + eXIf + tEXt + IDAT + IEND
+  const pngSig = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  const ihdr = makePngChunk(
+    'IHDR',
+    Uint8Array.from([0, 0, 0, 1, 0, 0, 0, 1, 8, 2, 0, 0, 0])
+  );
+  const exif = makePngChunk('eXIf', new TextEncoder().encode('MM\0*\0\0\0\x08'));
+  const text = makePngChunk('tEXt', new TextEncoder().encode('Comment\0GPS-Loc'));
+  const idat = makePngChunk('IDAT', Uint8Array.from([0x78, 0x9c, 0x63, 0x00, 0x00, 0x00, 0x02, 0x00, 0x01]));
+  const iend = makePngChunk('IEND', new Uint8Array(0));
+  const pngBytes = new Uint8Array(
+    pngSig.length + ihdr.length + exif.length + text.length + idat.length + iend.length
+  );
+  let offset = 0;
+  for (const part of [pngSig, ihdr, exif, text, idat, iend]) {
+    pngBytes.set(part, offset);
+    offset += part.length;
+  }
+
+  const strippedPng = stripImageMetadata(pngBytes, 'image/png');
+  assert.deepEqual(strippedPng.subarray(0, 8), pngSig);
+  assert.equal(hasByteSequence(strippedPng, new TextEncoder().encode('IHDR')), true);
+  assert.equal(hasByteSequence(strippedPng, new TextEncoder().encode('IDAT')), true);
+  assert.equal(hasByteSequence(strippedPng, new TextEncoder().encode('IEND')), true);
+  assert.equal(hasByteSequence(strippedPng, new TextEncoder().encode('eXIf')), false);
+  assert.equal(hasByteSequence(strippedPng, new TextEncoder().encode('tEXt')), false);
+  assert.equal(hasByteSequence(strippedPng, new TextEncoder().encode('GPS-Loc')), false);
+  assert.deepEqual(strippedPng.subarray(strippedPng.length - iend.length), iend);
+
+  // WebP com VP8X (flags EXIF/XMP), VP8, EXIF e XMP
+  const vp8xPayload = Uint8Array.from([0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+  const webpSubchunks = [
+    new TextEncoder().encode('VP8X'), Uint8Array.from([10, 0, 0, 0]), vp8xPayload,
+    new TextEncoder().encode('VP8 '), Uint8Array.from([4, 0, 0, 0]), Uint8Array.from([1, 2, 3, 4]),
+    new TextEncoder().encode('EXIF'), Uint8Array.from([4, 0, 0, 0]), new TextEncoder().encode('GPS!'),
+    new TextEncoder().encode('XMP '), Uint8Array.from([4, 0, 0, 0]), new TextEncoder().encode('<x/>'),
+  ];
+  const subLen = webpSubchunks.reduce((sum, c) => sum + c.length, 0);
+  const webpBytes = new Uint8Array(12 + subLen);
+  webpBytes.set(new TextEncoder().encode('RIFF'), 0);
+  new DataView(webpBytes.buffer).setUint32(4, 4 + subLen, true);
+  webpBytes.set(new TextEncoder().encode('WEBP'), 8);
+  let wOff = 12;
+  for (const part of webpSubchunks) {
+    webpBytes.set(part, wOff);
+    wOff += part.length;
+  }
+
+  const strippedWebp = stripImageMetadata(webpBytes, 'image/webp');
+  assert.equal(new TextDecoder().decode(strippedWebp.subarray(0, 4)), 'RIFF');
+  assert.equal(new TextDecoder().decode(strippedWebp.subarray(8, 12)), 'WEBP');
+  assert.equal(new DataView(strippedWebp.buffer, strippedWebp.byteOffset).getUint32(4, true), strippedWebp.length - 8);
+  assert.equal(strippedWebp[20] & 0x0c, 0);
+  assert.equal(hasByteSequence(strippedWebp, new TextEncoder().encode('EXIF')), false);
+  assert.equal(hasByteSequence(strippedWebp, new TextEncoder().encode('XMP ')), false);
+});
+
+test('storage media refs - valida, faz parse e normaliza referências de Storage com segurança', () => {
+  const configuredUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  let supabaseHost = 'afggyuhfcbwocfcgxgkl.supabase.co';
+  if (configuredUrl) {
+    try {
+      supabaseHost = new URL(configuredUrl).hostname.toLowerCase();
+    } catch {
+      supabaseHost = 'afggyuhfcbwocfcgxgkl.supabase.co';
+    }
+  }
+
+  assert.deepEqual(parseStorageRef('storage://patients/abc.jpg'), {
+    bucket: 'patients',
+    path: 'abc.jpg',
+  });
+  assert.equal(isAllowedStorageRef('storage://patients/abc.jpg'), true);
+  assert.equal(normalizeStorageRef('storage://patients/abc.jpg'), 'storage://patients/abc.jpg');
+
+  const publicUrl = `https://${supabaseHost}/storage/v1/object/public/patients/user-1/pet.png`;
+  assert.deepEqual(parseStorageRef(publicUrl), {
+    bucket: 'patients',
+    path: 'user-1/pet.png',
+  });
+  assert.equal(normalizeStorageRef(publicUrl), 'storage://patients/user-1/pet.png');
+
+  const signedUrl = `https://${supabaseHost}/storage/v1/object/sign/consultations/u1-photo.webp?token=jwt.payload.sig&t=2026`;
+  assert.deepEqual(parseStorageRef(signedUrl), {
+    bucket: 'consultations',
+    path: 'u1-photo.webp',
+  });
+  assert.equal(isAllowedStorageRef(signedUrl), true);
+  assert.equal(normalizeStorageRef(signedUrl), 'storage://consultations/u1-photo.webp');
+
+  // Rejeita traversal, data URLs e domínios externos
+  assert.equal(parseStorageRef('storage://patients/../avatars/secret.jpg'), null);
+  assert.equal(isAllowedStorageRef('storage://patients/../avatars/secret.jpg'), false);
+  assert.equal(normalizeStorageRef('storage://patients/../avatars/secret.jpg'), null);
+
+  assert.equal(parseStorageRef('data:image/png;base64,iVBORw0KGgo='), null);
+  assert.equal(isAllowedStorageRef('data:image/png;base64,iVBORw0KGgo='), false);
+
+  assert.equal(
+    parseStorageRef('https://evil.com/storage/v1/object/public/patients/abc.jpg'),
+    null
+  );
+  assert.equal(
+    isAllowedStorageRef('https://evil.com/storage/v1/object/public/patients/abc.jpg'),
+    false
+  );
+  assert.equal(
+    normalizeStorageRef('https://evil.com/storage/v1/object/public/patients/abc.jpg'),
+    null
+  );
+});
+
+test('isTrustedPushEndpoint - aceita endpoints HTTPS confiáveis e bloqueia SSRF/credenciais', () => {
+  assert.equal(isTrustedPushEndpoint('https://fcm.googleapis.com/fcm/send/token-123'), true);
+  assert.equal(isTrustedPushEndpoint('https://android.googleapis.com/gcm/send/token-123'), true);
+  assert.equal(
+    isTrustedPushEndpoint('https://updates.push.services.mozilla.com/wpush/v2/token-123'),
+    true
+  );
+  assert.equal(
+    isTrustedPushEndpoint('https://updates-autopush.stage.mozaws.net/wpush/v2/token-123'),
+    true
+  );
+  assert.equal(isTrustedPushEndpoint('https://wns2-bl2p.notify.windows.com/w/?token=abc'), true);
+  assert.equal(isTrustedPushEndpoint('https://web.push.apple.com/Q123456'), true);
+  assert.equal(isTrustedPushEndpoint('https://sg2p.push.apple.com/3/device/abc'), true);
+
+  assert.equal(isTrustedPushEndpoint('http://fcm.googleapis.com/fcm/send/token-123'), false);
+  assert.equal(isTrustedPushEndpoint('https://127.0.0.1/push'), false);
+  assert.equal(isTrustedPushEndpoint('https://evil.com/push'), false);
+  assert.equal(
+    isTrustedPushEndpoint('https://user:pass@fcm.googleapis.com/fcm/send/token-123'),
+    false
+  );
+  assert.equal(isTrustedPushEndpoint('https://evilnotify.windows.com/w/?token=abc'), false);
+  assert.equal(isTrustedPushEndpoint('https://fcm.googleapis.com:8443/fcm/send/token-123'), false);
 });

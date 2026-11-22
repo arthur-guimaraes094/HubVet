@@ -4,133 +4,138 @@ import { createClient } from '@/infrastructure/database/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import type { ActionResponse } from '@/core/types/actions'
-import { validateImageUpload } from '@/core/utils/upload-validation'
+import { prepareValidatedImageUpload } from '@/core/utils/upload-validation'
+import { buildStorageRef, signStorageUrl } from '@/infrastructure/storage/media'
+
+const MAX_AVATAR_BYTES = 4 * 1024 * 1024
 
 const profileSchema = z.object({
-  fullName: z.string().min(1, 'Nome é obrigatório'),
-  crmv: z.string().optional(),
-  phone: z.string().optional(),
-  baseCep: z.string().optional(),
-  baseAddress: z.string().optional(),
+  fullName: z.string().trim().min(1, 'Nome é obrigatório').max(150),
+  crmv: z.string().trim().max(50).optional(),
+  phone: z.string().trim().max(30).optional(),
+  baseCep: z.string().trim().max(20).optional(),
+  baseAddress: z.string().trim().max(500).optional(),
   kmRate: z
     .number()
-    .finite()
+    .finite('Valor por km inválido')
     .min(0, 'Valor por km inválido')
     .max(50, 'Valor por km muito alto')
     .optional(),
-  pixKey: z.string().optional(),
-  pixKeyType: z.string().optional(),
+  pixKey: z.string().trim().max(150).optional(),
+  pixKeyType: z.string().trim().max(30).optional(),
 })
+
+function readFormString(formData: FormData, key: string): string {
+  const value = formData.get(key)
+  return typeof value === 'string' ? value : ''
+}
 
 export async function updateProfile(
   formData: FormData
 ): Promise<ActionResponse<{ avatarUrl?: string }>> {
-  const supabase = await createClient()
+  try {
+    const supabase = await createClient()
 
-  const { data: userData, error: userError } = await supabase.auth.getUser()
-  if (userError || !userData.user) {
-    return { success: false, error: 'Usuário não autenticado' }
-  }
-
-  const fullName = (formData.get('fullName') as string) || ''
-  const crmv = (formData.get('crmv') as string) || ''
-  const phone = (formData.get('phone') as string) || ''
-  const baseCep = (formData.get('baseCep') as string) || ''
-  const baseAddress = (formData.get('baseAddress') as string) || ''
-  const rawKmRate = (formData.get('kmRate') as string) || '2.5'
-  const kmRate = parseFloat(rawKmRate.replace(',', '.')) || 2.5
-  const pixKey = (formData.get('pixKey') as string) || ''
-  const pixKeyType = (formData.get('pixKeyType') as string) || 'CPF'
-
-  const result = profileSchema.safeParse({
-    fullName,
-    crmv,
-    phone,
-    baseCep,
-    baseAddress,
-    kmRate,
-    pixKey,
-    pixKeyType,
-  })
-  if (!result.success) {
-    return {
-      success: false,
-      error: 'Dados inválidos',
-      fieldErrors: result.error.flatten().fieldErrors,
+    const { data: userData, error: userError } = await supabase.auth.getUser()
+    if (userError || !userData.user) {
+      return { success: false, error: 'Usuário não autenticado' }
     }
-  }
 
-  const avatarFile = formData.get('avatar') as File | null
-  let avatarUrl = undefined
+    const fullName = readFormString(formData, 'fullName')
+    const crmv = readFormString(formData, 'crmv')
+    const phone = readFormString(formData, 'phone')
+    const baseCep = readFormString(formData, 'baseCep')
+    const baseAddress = readFormString(formData, 'baseAddress')
+    const rawKmRate = readFormString(formData, 'kmRate').trim()
+    const kmRate = rawKmRate === '' ? 2.5 : Number(rawKmRate.replace(',', '.'))
+    const pixKey = readFormString(formData, 'pixKey')
+    const pixKeyType = readFormString(formData, 'pixKeyType') || 'CPF'
 
-  if (avatarFile && avatarFile.size > 0) {
-    const validation = await validateImageUpload(avatarFile, 4 * 1024 * 1024)
-    if (!validation.valid) {
+    const result = profileSchema.safeParse({
+      fullName,
+      crmv,
+      phone,
+      baseCep,
+      baseAddress,
+      kmRate,
+      pixKey,
+      pixKeyType,
+    })
+    if (!result.success) {
       return {
         success: false,
-        error: validation.error,
+        error: 'Dados inválidos',
+        fieldErrors: result.error.flatten().fieldErrors,
       }
     }
 
-    const fileName = `${userData.user.id}-${crypto.randomUUID()}.${validation.extension}`
+    const rawAvatar = formData.get('avatar')
+    const avatarFile = rawAvatar instanceof File ? rawAvatar : null
+    let avatarStorageRef: string | undefined
+    let signedAvatarUrl: string | undefined
 
-    const { error: uploadError } = await supabase.storage
-      .from('avatars')
-      .upload(fileName, avatarFile, { contentType: validation.contentType })
+    if (avatarFile && avatarFile.size > 0) {
+      const validation = await prepareValidatedImageUpload(avatarFile, MAX_AVATAR_BYTES)
+      if (!validation.valid) {
+        return {
+          success: false,
+          error: validation.error,
+        }
+      }
 
-    if (uploadError) {
-      return { success: false, error: 'Erro ao fazer upload da imagem' }
+      const fileName = `${userData.user.id}-avatar-${crypto.randomUUID()}.${validation.extension}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, validation.bytes, {
+          upsert: false,
+          contentType: validation.contentType,
+        })
+
+      if (uploadError) {
+        console.error('Upload avatar error:', uploadError)
+        return { success: false, error: 'Erro ao fazer upload da imagem' }
+      }
+
+      avatarStorageRef = buildStorageRef('avatars', fileName)
+      signedAvatarUrl = (await signStorageUrl(supabase, avatarStorageRef, 'avatars')) ?? undefined
     }
 
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from('avatars').getPublicUrl(fileName)
-
-    avatarUrl = publicUrl
-  }
-
-  const fullPayload = {
-    full_name: result.data.fullName,
-    crmv: result.data.crmv || '',
-    phone: result.data.phone || '',
-    base_cep: result.data.baseCep || null,
-    base_address: result.data.baseAddress || null,
-    base_lat: null,
-    base_lng: null,
-    km_rate: result.data.kmRate ?? 2.5,
-    pix_key: result.data.pixKey || null,
-    pix_key_type: result.data.pixKeyType || 'CPF',
-    ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
-  }
-
-  let { error } = await supabase
-    .from('profiles')
-    .update(fullPayload)
-    .eq('id', userData.user.id)
-
-  // Fallback se as colunas de deslocamento ainda não estiverem criadas no banco
-  if (error && (error.code === '42703' || error.code === 'PGRST204')) {
-    const basePayload: { full_name: string; crmv: string; phone: string; avatar_url?: string } = {
-      full_name: result.data.fullName,
-      crmv: result.data.crmv || '',
-      phone: result.data.phone || '',
-    }
-    if (avatarUrl) basePayload.avatar_url = avatarUrl
-
-    const fallback = await supabase
+    const { data: updatedProfile, error } = await supabase
       .from('profiles')
-      .update(basePayload)
+      .update({
+        full_name: result.data.fullName,
+        crmv: result.data.crmv || '',
+        phone: result.data.phone || '',
+        base_cep: result.data.baseCep || null,
+        base_address: result.data.baseAddress || null,
+        base_lat: null,
+        base_lng: null,
+        km_rate: result.data.kmRate ?? 2.5,
+        pix_key: result.data.pixKey || null,
+        pix_key_type: result.data.pixKeyType || 'CPF',
+        ...(avatarStorageRef ? { avatar_url: avatarStorageRef } : {}),
+      })
       .eq('id', userData.user.id)
-    error = fallback.error
-  }
+      .select('id')
+      .maybeSingle()
 
-  if (error) {
-    return { success: false, error: 'Erro ao atualizar o perfil. Tente novamente.' }
-  }
+    if (error) {
+      console.error('Update profile error:', error)
+      return { success: false, error: 'Erro ao atualizar o perfil. Tente novamente.' }
+    }
 
-  revalidatePath('/perfil')
-  revalidatePath('/')
-  return { success: true, data: { avatarUrl } }
+    if (!updatedProfile) {
+      return { success: false, error: 'Perfil não encontrado.' }
+    }
+
+    revalidatePath('/perfil')
+    revalidatePath('/')
+    return { success: true, data: { avatarUrl: signedAvatarUrl } }
+  } catch (err) {
+    console.error('Unexpected updateProfile error:', err)
+    return { success: false, error: 'Erro interno do servidor.' }
+  }
 }
 
 export async function signOut() {

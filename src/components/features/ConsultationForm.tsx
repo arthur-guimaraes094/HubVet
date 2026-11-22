@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { salvarProntuario } from '@/app/prontuario/actions';
+import { salvarProntuario, uploadConsultationImageAction } from '@/app/prontuario/actions';
 import {
   gerarPDFReceituario,
   gerarPDFRelatorioAtendimento,
@@ -16,9 +16,9 @@ import { buildGoogleMapsUrl } from '@/core/utils/cep';
 import { formatPatientAge, formatFertilityStatus } from '@/core/utils/age';
 import { translateSpecies } from '@/core/utils/translations';
 import { validateImageUpload } from '@/core/utils/upload-validation';
+import { compressPetPhoto } from '@/core/utils/image-compress';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/ui/Toast';
-import { createClient } from '@/infrastructure/database/client';
 import Image from 'next/image';
 import { ConsultationSuccessView } from './consultation/ConsultationSuccessView';
 import { ConsultationPrescriptionSection } from './consultation/ConsultationPrescriptionSection';
@@ -32,6 +32,11 @@ import {
 } from './consultation/ConsultationSuppliesSection';
 
 export type { InventoryItem };
+
+interface UploadedConsultationImage {
+  storageRef: string;
+  previewUrl: string;
+}
 
 interface ConsultationFormProps {
   inventory: InventoryItem[];
@@ -120,7 +125,7 @@ export function ConsultationForm({
   });
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [images, setImages] = useState<string[]>([]);
+  const [images, setImages] = useState<UploadedConsultationImage[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [consultationType, setConsultationType] = useState<'Home' | 'Hospital'>(initialType);
 
@@ -262,41 +267,47 @@ export function ConsultationForm({
   const totalValue = itemsTotalValue + parsedTravelFee;
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const inputEl = e.currentTarget;
+    const file = inputEl.files?.[0];
     if (!file) return;
-
-    const validation = await validateImageUpload(file, 5 * 1024 * 1024);
-    if (!validation.valid) {
-      error(validation.error);
-      return;
-    }
 
     setUploadingImage(true);
     try {
-      const supabase = createClient();
-      const uniqueId =
-        typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-          ? crypto.randomUUID()
-          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      const fileName = `${uniqueId}.${validation.extension}`;
+      const validation = await validateImageUpload(file, 15 * 1024 * 1024);
+      if (!validation.valid) {
+        error(validation.error);
+        return;
+      }
 
-      const { error: uploadError } = await supabase.storage
-        .from('consultations')
-        .upload(fileName, file, { contentType: validation.contentType });
+      const { blob, dataUrl } = await compressPetPhoto(file, 1280, 0.85);
+      const formData = new FormData();
+      formData.append('image', new File([blob], 'consultation.jpg', { type: 'image/jpeg' }));
 
-      if (uploadError) throw uploadError;
+      const uploadRes = await uploadConsultationImageAction(formData);
+      if (!uploadRes.success) {
+        error(uploadRes.error);
+        return;
+      }
+      if (!uploadRes.data?.storageRef) {
+        error('Erro ao subir imagem');
+        return;
+      }
 
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from('consultations').getPublicUrl(fileName);
-
-      setImages((prev) => [...prev, publicUrl]);
+      const { storageRef, signedUrl } = uploadRes.data;
+      setImages((prev) => [
+        ...prev,
+        {
+          storageRef,
+          previewUrl: signedUrl || dataUrl,
+        },
+      ]);
       success('Imagem adicionada!');
     } catch (err) {
       console.error(err);
       error('Erro ao subir imagem');
     } finally {
       setUploadingImage(false);
+      inputEl.value = '';
     }
   };
 
@@ -384,7 +395,7 @@ export function ConsultationForm({
         })),
         consultationId: consultationId,
         completionDate: new Date().toISOString(),
-        images: images,
+        images: images.map((img) => img.storageRef),
         type: consultationType,
         address: consultationType === 'Home' ? address : undefined,
         travelDistanceKm:
@@ -705,15 +716,23 @@ export function ConsultationForm({
           )}
         </h4>
         <div className="flex flex-wrap gap-4">
-          {images.map((url, i) => (
+          {images.map((img, i) => (
             <div
-              key={i}
+              key={`${img.storageRef}-${i}`}
               className="relative group w-24 h-24 rounded-2xl overflow-hidden shadow-inner border border-border bg-foreground/5"
             >
-              <Image src={url} alt="Anexo" fill sizes="96px" className="object-cover" />
+              <Image
+                src={img.previewUrl}
+                alt={`Anexo ${i + 1}`}
+                fill
+                sizes="96px"
+                unoptimized
+                className="object-cover"
+              />
               <button
                 type="button"
                 onClick={() => removeImage(i)}
+                aria-label={`Remover anexo ${i + 1}`}
                 className="absolute inset-0 bg-error/80 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -798,7 +817,7 @@ export function ConsultationForm({
       <Button
         variant="primary"
         onClick={handleFinalize}
-        disabled={loading || !patientId}
+        disabled={loading || uploadingImage || !patientId}
         className="mt-2 py-4 text-lg font-black"
       >
         {loading ? 'Salvando Prontuário...' : 'Finalizar Atendimento & Gerar Documentos'}

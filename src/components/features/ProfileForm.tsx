@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
 import { updateProfile, signOut } from '@/app/perfil/actions';
 import { fetchAddressByCep, formatCep } from '@/core/utils/cep';
+import { compressPetPhoto } from '@/core/utils/image-compress';
+import { validateImageUpload } from '@/core/utils/upload-validation';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 
@@ -59,6 +61,23 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
     initialData.avatar_url || null
   );
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const blobPreviewUrlRef = useRef<string | null>(null);
+
+  const revokeBlobPreview = () => {
+    if (blobPreviewUrlRef.current) {
+      URL.revokeObjectURL(blobPreviewUrlRef.current);
+      blobPreviewUrlRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (blobPreviewUrlRef.current) {
+        URL.revokeObjectURL(blobPreviewUrlRef.current);
+        blobPreviewUrlRef.current = null;
+      }
+    };
+  }, []);
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, '');
@@ -97,11 +116,25 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
     }
   };
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const inputEl = e.currentTarget;
+    const file = inputEl.files?.[0];
+    if (!file) return;
+
+    try {
+      const validation = await validateImageUpload(file, 15 * 1024 * 1024);
+      if (!validation.valid) {
+        error(validation.error);
+        return;
+      }
+
+      revokeBlobPreview();
+      const objectUrl = URL.createObjectURL(file);
+      blobPreviewUrlRef.current = objectUrl;
       setAvatarFile(file);
-      setAvatarPreview(URL.createObjectURL(file));
+      setAvatarPreview(objectUrl);
+    } finally {
+      inputEl.value = '';
     }
   };
 
@@ -124,7 +157,8 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
         localStorage.setItem('hubvet_pix_key_type', pixKeyType);
       }
       if (avatarFile) {
-        formData.append('avatar', avatarFile);
+        const { blob } = await compressPetPhoto(avatarFile, 512, 0.85);
+        formData.append('avatar', new File([blob], 'avatar.jpg', { type: 'image/jpeg' }));
       }
 
       const result = await updateProfile(formData);
@@ -133,6 +167,11 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
         setSubmitError(result.error);
         return;
       }
+      if (result.data?.avatarUrl) {
+        revokeBlobPreview();
+        setAvatarPreview(result.data.avatarUrl);
+      }
+      setAvatarFile(null);
       success('Perfil atualizado com sucesso!');
     } catch {
       error('Erro ao atualizar perfil.');
@@ -168,6 +207,7 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
                   alt="Avatar"
                   width={128}
                   height={128}
+                  unoptimized
                   className="w-full h-full object-cover"
                   priority
                 />

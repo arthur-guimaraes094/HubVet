@@ -9,37 +9,67 @@ import {
   calculateVaccineSchedule,
   type VaccineProtocolCode,
 } from '@/core/use-cases/vaccine-protocols'
-import { savePatientExtendedMeta } from '@/core/utils/patient-fallback-storage'
-import { validateImageUpload } from '@/core/utils/upload-validation'
+import { prepareValidatedImageUpload } from '@/core/utils/upload-validation'
+import { buildStorageRef, normalizeStorageRef, signStorageUrl } from '@/infrastructure/storage/media'
+import {
+  assertConsultationOwnership,
+  assertPatientOwnership,
+  assertTutorOwnership,
+} from '@/infrastructure/auth/session'
 
-const uuidSchema = z.string().uuid('ID inválido')
+const MAX_PET_PHOTO_BYTES = 4 * 1024 * 1024
+const uuidSchema = z.uuid('ID inválido')
+
+function isValidCalendarDate(dateStr: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false
+  const [y, m, d] = dateStr.split('-').map(Number)
+  if (!y || !m || !d) return false
+  const date = new Date(Date.UTC(y, m - 1, d))
+  return (
+    date.getUTCFullYear() === y &&
+    date.getUTCMonth() === m - 1 &&
+    date.getUTCDate() === d
+  )
+}
+
+const optionalBirthDateSchema = z
+  .string()
+  .trim()
+  .max(32)
+  .refine((v) => !v || isValidCalendarDate(v), 'Data de nascimento inválida')
+  .optional()
+  .nullable()
 
 const updateTutorSchema = z.object({
-  name: z.string().trim().min(1, 'Nome do tutor é obrigatório'),
-  phone: z.string().optional().nullable(),
-  cpf: z.string().optional().nullable(),
-  address: z.string().optional().nullable(),
-  cep: z.string().optional().nullable(),
-  street: z.string().optional().nullable(),
-  number: z.string().optional().nullable(),
-  complement: z.string().optional().nullable(),
-  neighborhood: z.string().optional().nullable(),
-  city: z.string().optional().nullable(),
-  state: z.string().optional().nullable(),
+  name: z.string().trim().min(1, 'Nome do tutor é obrigatório').max(150),
+  phone: z.string().trim().max(30).optional().nullable(),
+  cpf: z.string().trim().max(20).optional().nullable(),
+  address: z.string().trim().max(500).optional().nullable(),
+  cep: z.string().trim().max(20).optional().nullable(),
+  street: z.string().trim().max(200).optional().nullable(),
+  number: z.string().trim().max(30).optional().nullable(),
+  complement: z.string().trim().max(150).optional().nullable(),
+  neighborhood: z.string().trim().max(150).optional().nullable(),
+  city: z.string().trim().max(150).optional().nullable(),
+  state: z.string().trim().max(50).optional().nullable(),
 })
 
 const updatePatientSchema = z.object({
-  name: z.string().trim().min(1, 'Nome do paciente é obrigatório'),
-  species: z.string().trim().min(1, 'Espécie é obrigatória'),
-  weight_kg: z.number().finite('Peso inválido').min(0, 'Peso não pode ser negativo'),
-  breed: z.string().optional().nullable(),
-  color: z.string().optional().nullable(),
-  photo_url: z.string().optional().nullable(),
-  birth_date: z.string().optional().nullable(),
+  name: z.string().trim().min(1, 'Nome do paciente é obrigatório').max(150),
+  species: z.string().trim().min(1, 'Espécie é obrigatória').max(50),
+  weight_kg: z
+    .number()
+    .finite('Peso inválido')
+    .positive('Peso deve ser maior que zero')
+    .max(300, 'Peso máximo é 300 kg'),
+  breed: z.string().trim().max(120).optional().nullable(),
+  color: z.string().trim().max(120).optional().nullable(),
+  photo_url: z.string().max(1024).optional().nullable(),
+  birth_date: optionalBirthDateSchema,
   is_birth_date_estimated: z.boolean().optional(),
-  fertility_status: z.string().optional().nullable(),
-  fertility_notes: z.string().optional().nullable(),
-  clinical_observations: z.string().optional().nullable(),
+  fertility_status: z.string().trim().max(100).optional().nullable(),
+  fertility_notes: z.string().trim().max(500).optional().nullable(),
+  clinical_observations: z.string().trim().max(5000).optional().nullable(),
 })
 
 const addVaccinationSchema = z.object({
@@ -49,90 +79,100 @@ const addVaccinationSchema = z.object({
     uuidSchema.optional()
   ),
   protocolCode: z.enum(['V10_VANGUARD', 'ANTIRRABICA', 'V5_FELINA', 'GRIPE_ORAL', 'CUSTOM']),
-  customVaccineName: z.string().optional(),
+  customVaccineName: z.string().trim().max(120).optional(),
   doseStage: z.enum(['dose_1', 'dose_2', 'dose_3', 'annual']),
-  appliedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data de aplicação inválida'),
-  batchNumber: z.string().optional(),
-  notes: z.string().optional(),
+  appliedDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Data de aplicação inválida')
+    .refine(isValidCalendarDate, 'Data de aplicação inválida'),
+  batchNumber: z.string().trim().max(80).optional(),
+  notes: z.string().trim().max(1000).optional(),
   customIntervalDays: z.preprocess(
     (v) => (typeof v === 'number' && Number.isNaN(v) ? undefined : v),
-    z.number().int().positive().max(3650).optional()
+    z.number().int().min(1).max(3650).optional()
   ),
 })
 
 export async function uploadPetPhotoAction(
   formData: FormData
-): Promise<ActionResponse<{ publicUrl: string }>> {
+): Promise<ActionResponse<{ storageRef: string; signedUrl: string }>> {
   try {
     const supabase = await createClient()
     const {
       data: { user },
+      error: userError,
     } = await supabase.auth.getUser()
-    if (!user) return { success: false, error: 'Não autenticado' }
+    if (userError || !user) {
+      return { success: false, error: 'Não autenticado' }
+    }
 
-    const file = formData.get('photo') as File | null
-    const validation = await validateImageUpload(file, 4 * 1024 * 1024)
+    const rawFile = formData.get('photo')
+    const file = rawFile instanceof File ? rawFile : null
+    const validation = await prepareValidatedImageUpload(file, MAX_PET_PHOTO_BYTES)
     if (!validation.valid) {
       return { success: false, error: validation.error }
     }
 
     const fileName = `${user.id}-pet-${crypto.randomUUID()}.${validation.extension}`
-
-    const bucketsToTry = ['patients', 'avatars', 'consultations']
-    let usedBucket = 'consultations'
-    let uploadSucceeded = false
-
-    for (const bucket of bucketsToTry) {
-      const { error } = await supabase.storage.from(bucket).upload(fileName, file!, {
-        upsert: true,
+    const { error: uploadError } = await supabase.storage
+      .from('patients')
+      .upload(fileName, validation.bytes, {
+        upsert: false,
         contentType: validation.contentType,
       })
-      if (!error) {
-        usedBucket = bucket
-        uploadSucceeded = true
-        break
-      }
+
+    if (uploadError) {
+      console.error('Upload pet photo error:', uploadError)
+      return { success: false, error: 'Não foi possível salvar a foto no Storage.' }
     }
 
-    if (!uploadSucceeded) {
-      return { success: false, error: 'Não foi possível salvar a foto no Storage' }
+    const storageRef = buildStorageRef('patients', fileName)
+    const signedUrl = await signStorageUrl(supabase, storageRef, 'patients')
+
+    return {
+      success: true,
+      data: {
+        storageRef,
+        signedUrl: signedUrl || '',
+      },
     }
-
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from(usedBucket).getPublicUrl(fileName)
-
-    return { success: true, data: { publicUrl } }
   } catch (err) {
     console.error('Upload pet photo error:', err)
-    return { success: false, error: 'Erro ao fazer upload da foto' }
+    return { success: false, error: 'Erro ao fazer upload da foto.' }
   }
 }
 
 const patientSchema = z.object({
-  tutorId: z.string().optional(),
-  tutorName: z.string().optional(),
-  tutorPhone: z.string().optional(),
-  tutorCpf: z.string().optional(),
-  tutorCep: z.string().optional(),
-  tutorStreet: z.string().optional(),
-  tutorNumber: z.string().optional(),
-  tutorComplement: z.string().optional(),
-  tutorNeighborhood: z.string().optional(),
-  tutorCity: z.string().optional(),
-  tutorState: z.string().optional(),
-  tutorAddress: z.string().optional(),
-  patientName: z.string().min(1, 'Nome do paciente é obrigatório'),
-  patientSpecies: z.string().min(1, 'Espécie é obrigatória'),
-  patientWeight: z.number().min(0, 'Peso não pode ser negativo'),
-  patientBreed: z.string().optional(),
-  patientColor: z.string().optional(),
-  patientPhotoUrl: z.string().optional().nullable(),
-  patientBirthDate: z.string().optional().nullable(),
+  tutorId: z.preprocess(
+    (v) => (v === '' || v === null ? undefined : v),
+    uuidSchema.optional()
+  ),
+  tutorName: z.string().trim().max(150).optional(),
+  tutorPhone: z.string().trim().max(30).optional(),
+  tutorCpf: z.string().trim().max(20).optional(),
+  tutorCep: z.string().trim().max(20).optional(),
+  tutorStreet: z.string().trim().max(200).optional(),
+  tutorNumber: z.string().trim().max(30).optional(),
+  tutorComplement: z.string().trim().max(150).optional(),
+  tutorNeighborhood: z.string().trim().max(150).optional(),
+  tutorCity: z.string().trim().max(150).optional(),
+  tutorState: z.string().trim().max(50).optional(),
+  tutorAddress: z.string().trim().max(500).optional(),
+  patientName: z.string().trim().min(1, 'Nome do paciente é obrigatório').max(150),
+  patientSpecies: z.string().trim().min(1, 'Espécie é obrigatória').max(50),
+  patientWeight: z
+    .number()
+    .finite('Peso inválido')
+    .positive('Peso deve ser maior que zero')
+    .max(300, 'Peso máximo é 300 kg'),
+  patientBreed: z.string().trim().max(120).optional(),
+  patientColor: z.string().trim().max(120).optional(),
+  patientPhotoUrl: z.string().max(1024).optional().nullable(),
+  patientBirthDate: optionalBirthDateSchema,
   isBirthDateEstimated: z.boolean().optional(),
-  fertilityStatus: z.string().optional().nullable(),
-  fertilityNotes: z.string().optional().nullable(),
-  clinicalObservations: z.string().optional().nullable(),
+  fertilityStatus: z.string().trim().max(100).optional().nullable(),
+  fertilityNotes: z.string().trim().max(500).optional().nullable(),
+  clinicalObservations: z.string().trim().max(5000).optional().nullable(),
 })
 
 export async function addPatientAndTutor(rawData: unknown): Promise<ActionResponse> {
@@ -147,22 +187,37 @@ export async function addPatientAndTutor(rawData: unknown): Promise<ActionRespon
     }
     const data = result.data
 
-    const supabase = await createClient()
+    let normalizedPhotoUrl: string | null = null
+    const rawPhotoUrl = data.patientPhotoUrl?.trim()
+    if (rawPhotoUrl) {
+      normalizedPhotoUrl = normalizeStorageRef(rawPhotoUrl, 'patients')
+      if (!normalizedPhotoUrl) {
+        return { success: false, error: 'URL de foto inválida.' }
+      }
+    }
 
+    const supabase = await createClient()
     const { data: userData, error: userError } = await supabase.auth.getUser()
-    if (userError || !userData.user) return { success: false, error: 'Não autenticado' }
+    if (userError || !userData.user) {
+      return { success: false, error: 'Não autenticado' }
+    }
 
     const profileId = userData.user.id
     let tutorId: string | undefined = data.tutorId
+    let createdNewTutorId: string | null = null
 
-    // 1. Lidar com Tutor (Existente ou Novo)
-    if (!tutorId) {
+    if (tutorId) {
+      const ownsTutor = await assertTutorOwnership(supabase, tutorId, profileId)
+      if (!ownsTutor) {
+        return { success: false, error: 'Tutor não encontrado ou sem permissão.' }
+      }
+    } else {
       if (!data.tutorName) {
         return { success: false, error: 'Nome do tutor é obrigatório para novo cadastro' }
       }
 
       const formattedAddress =
-        data.tutorAddress?.trim() ||
+        data.tutorAddress ||
         formatFullAddress({
           cep: data.tutorCep,
           street: data.tutorStreet,
@@ -174,46 +229,27 @@ export async function addPatientAndTutor(rawData: unknown): Promise<ActionRespon
         }) ||
         null
 
-      const fullTutorPayload = {
-        profile_id: profileId,
-        name: data.tutorName,
-        phone: data.tutorPhone?.trim() || null,
-        cpf: data.tutorCpf?.trim() || null,
-        address: formattedAddress,
-        cep: data.tutorCep?.trim() || null,
-        street: data.tutorStreet?.trim() || null,
-        number: data.tutorNumber?.trim() || null,
-        complement: data.tutorComplement?.trim() || null,
-        neighborhood: data.tutorNeighborhood?.trim() || null,
-        city: data.tutorCity?.trim() || null,
-        state: data.tutorState?.trim() || null,
-      }
-
-      let { data: newTutor, error: tutorError } = await supabase
+      const { data: newTutor, error: tutorError } = await supabase
         .from('tutors')
-        .insert(fullTutorPayload)
+        .insert({
+          profile_id: profileId,
+          name: data.tutorName,
+          phone: data.tutorPhone || null,
+          cpf: data.tutorCpf || null,
+          address: formattedAddress,
+          cep: data.tutorCep || null,
+          street: data.tutorStreet || null,
+          number: data.tutorNumber || null,
+          complement: data.tutorComplement || null,
+          neighborhood: data.tutorNeighborhood || null,
+          city: data.tutorCity || null,
+          state: data.tutorState || null,
+        })
         .select('id')
         .single()
 
-      // Fallback caso a migration de colunas extras de endereço ainda não tenha sido rodada no banco
-      if (tutorError && (tutorError.code === '42703' || tutorError.code === 'PGRST204')) {
-        const fallbackRes = await supabase
-          .from('tutors')
-          .insert({
-            profile_id: profileId,
-            name: data.tutorName,
-            phone: data.tutorPhone?.trim() || null,
-            cpf: data.tutorCpf?.trim() || null,
-            address: formattedAddress,
-          })
-          .select('id')
-          .single()
-        newTutor = fallbackRes.data
-        tutorError = fallbackRes.error
-      }
-
-      if (tutorError) {
-        if (tutorError.code === '23505') {
+      if (tutorError || !newTutor) {
+        if (tutorError?.code === '23505') {
           if (tutorError.message.includes('cpf')) {
             return { success: false, error: 'Já existe um tutor cadastrado com este CPF.' }
           }
@@ -225,61 +261,41 @@ export async function addPatientAndTutor(rawData: unknown): Promise<ActionRespon
         console.error('Tutor creation error:', tutorError)
         return { success: false, error: 'Erro ao cadastrar o tutor.' }
       }
-      tutorId = (newTutor as { id: string }).id
+
+      tutorId = newTutor.id
+      createdNewTutorId = newTutor.id
     }
 
-    // 2. Inserir Paciente
-    const fullPatientPayload = {
-      tutor_id: tutorId,
-      name: data.patientName,
-      species: data.patientSpecies,
-      weight_kg: data.patientWeight,
-      breed: data.patientBreed || null,
-      color: data.patientColor || null,
-      birth_date: data.patientBirthDate || null,
-      photo_url: data.patientPhotoUrl || null,
-      is_birth_date_estimated: data.isBirthDateEstimated ?? false,
-      fertility_status: data.fertilityStatus || null,
-      fertility_notes: data.fertilityNotes || null,
-      clinical_observations: data.clinicalObservations || null,
-    }
-
-    let { data: createdPatient, error: patientError } = await supabase
+    const { error: patientError } = await supabase
       .from('patients')
-      .insert(fullPatientPayload)
+      .insert({
+        tutor_id: tutorId,
+        name: data.patientName,
+        species: data.patientSpecies,
+        weight_kg: data.patientWeight,
+        breed: data.patientBreed || null,
+        color: data.patientColor || null,
+        birth_date: data.patientBirthDate || null,
+        photo_url: normalizedPhotoUrl,
+        is_birth_date_estimated: data.isBirthDateEstimated ?? false,
+        fertility_status: data.fertilityStatus || null,
+        fertility_notes: data.fertilityNotes || null,
+        clinical_observations: data.clinicalObservations || null,
+      })
       .select('id')
       .single()
 
-    // Fallback caso a migration das novas colunas em patients ainda não tenha sido executada
-    if (patientError && (patientError.code === '42703' || patientError.code === 'PGRST204')) {
-      const fallbackPatient = await supabase
-        .from('patients')
-        .insert({
-          tutor_id: tutorId,
-          name: data.patientName,
-          species: data.patientSpecies,
-          weight_kg: data.patientWeight,
-          breed: data.patientBreed || null,
-          color: data.patientColor || null,
-          birth_date: data.patientBirthDate || null,
-        })
-        .select('id')
-        .single()
-      createdPatient = fallbackPatient.data
-      patientError = fallbackPatient.error
-
-      if (!patientError && createdPatient?.id) {
-        await savePatientExtendedMeta(supabase, createdPatient.id, {
-          photo_url: data.patientPhotoUrl || null,
-          is_birth_date_estimated: data.isBirthDateEstimated ?? false,
-          fertility_status: data.fertilityStatus || null,
-          fertility_notes: data.fertilityNotes || null,
-          clinical_observations: data.clinicalObservations || null,
-        })
-      }
-    }
-
     if (patientError) {
+      if (createdNewTutorId) {
+        const { error: rollbackError } = await supabase
+          .from('tutors')
+          .delete()
+          .eq('id', createdNewTutorId)
+          .eq('profile_id', profileId)
+        if (rollbackError) {
+          console.error('Compensating tutor delete error:', rollbackError)
+        }
+      }
       console.error('Patient creation error:', patientError)
       return { success: false, error: 'Erro ao cadastrar o paciente.' }
     }
@@ -288,9 +304,8 @@ export async function addPatientAndTutor(rawData: unknown): Promise<ActionRespon
     revalidatePath('/tutores')
     return { success: true }
   } catch (err: unknown) {
-    const errorMessage = err instanceof Error ? err.message : 'Erro interno do servidor'
     console.error('CRITICAL PATIENT ACTION ERROR:', err)
-    return { success: false, error: errorMessage }
+    return { success: false, error: 'Erro interno do servidor.' }
   }
 }
 
@@ -305,59 +320,36 @@ export async function deletePatient(
 
     const supabase = await createClient()
     const { data: userData, error: userError } = await supabase.auth.getUser()
-    if (userError || !userData.user) return { success: false, error: 'Não autenticado' }
-
-    const { data: invoices } = await supabase
-      .from('invoices')
-      .select('id')
-      .eq('patient_id', patientId)
-    if (invoices && invoices.length > 0) {
-      const invoiceIds = invoices.map((i) => i.id)
-      await supabase.from('invoice_items').delete().in('invoice_id', invoiceIds)
-      await supabase.from('invoices').delete().in('id', invoiceIds)
+    if (userError || !userData.user) {
+      return { success: false, error: 'Não autenticado' }
     }
 
-    const { data: consultations } = await supabase
-      .from('consultations')
-      .select('id')
-      .eq('patient_id', patientId)
-    if (consultations && consultations.length > 0) {
-      const consultationIds = consultations.map((c) => c.id)
-      await supabase.from('transactions').delete().in('consultation_id', consultationIds)
-      await supabase.from('consultation_items').delete().in('consultation_id', consultationIds)
-      await supabase.from('consultations').delete().in('id', consultationIds)
-    }
+    const { data, error } = await supabase.rpc('delete_patient_atomic', {
+      p_patient_id: patientId,
+      p_delete_orphan_tutor: Boolean(options?.deleteOrphanTutor),
+    })
 
-    const { data: patientData } = await supabase
-      .from('patients')
-      .select('tutor_id')
-      .eq('id', patientId)
-      .single()
-
-    const tutorId = patientData?.tutor_id
-
-    const { error: patientError } = await supabase.from('patients').delete().eq('id', patientId)
-    if (patientError) {
-      console.error('Delete patient error:', patientError)
+    if (error || !data) {
+      if (error) {
+        console.error('delete_patient_atomic error:', error)
+        const msg = error.message || ''
+        if (msg.includes('UNAUTHORIZED')) {
+          return { success: false, error: 'Não autenticado' }
+        }
+        if (msg.includes('FORBIDDEN_PATIENT')) {
+          return { success: false, error: 'Paciente não encontrado ou sem permissão.' }
+        }
+      }
       return { success: false, error: 'Erro ao excluir o paciente.' }
     }
 
-    if (tutorId && options?.deleteOrphanTutor === true) {
-      const { count } = await supabase
-        .from('patients')
-        .select('*', { count: 'exact', head: true })
-        .eq('tutor_id', tutorId)
-
-      if (count === 0) {
-        await supabase
-          .from('tutors')
-          .delete()
-          .eq('id', tutorId)
-          .eq('profile_id', userData.user.id)
-        revalidatePath('/tutores')
-      }
-    }
     revalidatePath('/pacientes')
+    if (options?.deleteOrphanTutor) {
+      revalidatePath('/tutores')
+    }
+    revalidatePath('/agenda')
+    revalidatePath('/financeiro')
+    revalidatePath('/')
     return { success: true }
   } catch (err: unknown) {
     console.error('CRITICAL DELETE PATIENT ERROR:', err)
@@ -365,7 +357,7 @@ export async function deletePatient(
   }
 }
 
-export async function deleteTutor(tutorId: string) {
+export async function deleteTutor(tutorId: string): Promise<ActionResponse> {
   try {
     if (!uuidSchema.safeParse(tutorId).success) {
       return { success: false, error: 'ID de tutor inválido.' }
@@ -373,62 +365,33 @@ export async function deleteTutor(tutorId: string) {
 
     const supabase = await createClient()
     const { data: userData, error: userError } = await supabase.auth.getUser()
-    if (userError || !userData.user) return { success: false, error: 'Não autenticado' }
-
-    const { data: ownedTutor } = await supabase
-      .from('tutors')
-      .select('id')
-      .eq('id', tutorId)
-      .eq('profile_id', userData.user.id)
-      .single()
-
-    if (!ownedTutor) {
-      return { success: false, error: 'Tutor não encontrado.' }
+    if (userError || !userData.user) {
+      return { success: false, error: 'Não autenticado' }
     }
 
-    const { data: patients } = await supabase
-      .from('patients')
-      .select('id')
-      .eq('tutor_id', tutorId)
+    const { data, error } = await supabase.rpc('delete_tutor_atomic', {
+      p_tutor_id: tutorId,
+    })
 
-    if (patients && patients.length > 0) {
-      const patientIds = patients.map((p) => p.id)
-
-      const { data: invoices } = await supabase
-        .from('invoices')
-        .select('id')
-        .in('patient_id', patientIds)
-      if (invoices && invoices.length > 0) {
-        const invoiceIds = invoices.map((i) => i.id)
-        await supabase.from('invoice_items').delete().in('invoice_id', invoiceIds)
-        await supabase.from('invoices').delete().in('id', invoiceIds)
+    if (error || !data) {
+      if (error) {
+        console.error('delete_tutor_atomic error:', error)
+        const msg = error.message || ''
+        if (msg.includes('UNAUTHORIZED')) {
+          return { success: false, error: 'Não autenticado' }
+        }
+        if (msg.includes('FORBIDDEN_TUTOR')) {
+          return { success: false, error: 'Tutor não encontrado.' }
+        }
       }
-
-      const { data: consultations } = await supabase
-        .from('consultations')
-        .select('id')
-        .in('patient_id', patientIds)
-      if (consultations && consultations.length > 0) {
-        const consultationIds = consultations.map((c) => c.id)
-        await supabase.from('transactions').delete().in('consultation_id', consultationIds)
-        await supabase.from('consultation_items').delete().in('consultation_id', consultationIds)
-        await supabase.from('consultations').delete().in('id', consultationIds)
-      }
-
-      await supabase.from('patients').delete().in('id', patientIds)
-    }
-
-    const { error: tutorError } = await supabase
-      .from('tutors')
-      .delete()
-      .eq('id', tutorId)
-      .eq('profile_id', userData.user.id)
-    if (tutorError) {
-      console.error('Delete tutor error:', tutorError)
       return { success: false, error: 'Erro ao excluir o tutor.' }
     }
 
     revalidatePath('/tutores')
+    revalidatePath('/pacientes')
+    revalidatePath('/agenda')
+    revalidatePath('/financeiro')
+    revalidatePath('/')
     return { success: true }
   } catch (err: unknown) {
     console.error('Unexpected delete tutor error:', err)
@@ -439,17 +402,20 @@ export async function deleteTutor(tutorId: string) {
 export async function getTutors() {
   try {
     const supabase = await createClient()
-    const { data: userData } = await supabase.auth.getUser()
-    if (!userData.user) return []
+    const { data: userData, error: userError } = await supabase.auth.getUser()
+    if (userError || !userData.user) return []
 
     const { data, error } = await supabase
       .from('tutors')
-      .select('*')
+      .select('id, name, phone, cpf, address, cep, street, number, complement, neighborhood, city, state')
       .eq('profile_id', userData.user.id)
       .order('name')
 
-    if (error) throw error
-    return data
+    if (error) {
+      console.error('Error fetching tutors:', error)
+      return []
+    }
+    return data ?? []
   } catch (err) {
     console.error('Error fetching tutors:', err)
     return []
@@ -471,7 +437,7 @@ export async function updateTutor(
     city?: string
     state?: string
   }
-) {
+): Promise<ActionResponse> {
   try {
     if (!uuidSchema.safeParse(tutorId).success) {
       return { success: false, error: 'ID de tutor inválido.' }
@@ -485,10 +451,17 @@ export async function updateTutor(
 
     const supabase = await createClient()
     const { data: userData, error: userError } = await supabase.auth.getUser()
-    if (userError || !userData.user) return { success: false, error: 'Não autenticado' }
+    if (userError || !userData.user) {
+      return { success: false, error: 'Não autenticado' }
+    }
+
+    const ownsTutor = await assertTutorOwnership(supabase, tutorId, userData.user.id)
+    if (!ownsTutor) {
+      return { success: false, error: 'Tutor não encontrado ou sem permissão.' }
+    }
 
     const formattedAddress =
-      validData.address?.trim() ||
+      validData.address ||
       formatFullAddress({
         cep: validData.cep ?? undefined,
         street: validData.street ?? undefined,
@@ -500,46 +473,41 @@ export async function updateTutor(
       }) ||
       null
 
-    let { error } = await supabase
+    const { data: updatedRow, error } = await supabase
       .from('tutors')
       .update({
         name: validData.name,
-        phone: validData.phone?.trim() || null,
-        cpf: validData.cpf?.trim() || null,
+        phone: validData.phone || null,
+        cpf: validData.cpf || null,
         address: formattedAddress,
-        cep: validData.cep?.trim() || null,
-        street: validData.street?.trim() || null,
-        number: validData.number?.trim() || null,
-        complement: validData.complement?.trim() || null,
-        neighborhood: validData.neighborhood?.trim() || null,
-        city: validData.city?.trim() || null,
-        state: validData.state?.trim() || null,
+        cep: validData.cep || null,
+        street: validData.street || null,
+        number: validData.number || null,
+        complement: validData.complement || null,
+        neighborhood: validData.neighborhood || null,
+        city: validData.city || null,
+        state: validData.state || null,
       })
       .eq('id', tutorId)
       .eq('profile_id', userData.user.id)
-
-    if (error && (error.code === '42703' || error.code === 'PGRST204')) {
-      const fallback = await supabase
-        .from('tutors')
-        .update({
-          name: validData.name,
-          phone: validData.phone?.trim() || null,
-          cpf: validData.cpf?.trim() || null,
-          address: formattedAddress,
-        })
-        .eq('id', tutorId)
-        .eq('profile_id', userData.user.id)
-      error = fallback.error
-    }
+      .select('id')
+      .maybeSingle()
 
     if (error) {
       if (error.code === '23505') {
-        if (error.message?.includes('cpf'))
+        if (error.message?.includes('cpf')) {
           return { success: false, error: 'CPF já cadastrado para outro tutor.' }
-        if (error.message?.includes('phone'))
+        }
+        if (error.message?.includes('phone')) {
           return { success: false, error: 'Telefone já cadastrado para outro tutor.' }
+        }
       }
-      throw error
+      console.error('Update tutor error:', error)
+      return { success: false, error: 'Erro ao atualizar tutor.' }
+    }
+
+    if (!updatedRow) {
+      return { success: false, error: 'Tutor não encontrado.' }
     }
 
     revalidatePath('/tutores')
@@ -567,7 +535,7 @@ export async function updatePatient(
     fertility_notes?: string | null
     clinical_observations?: string | null
   }
-) {
+): Promise<ActionResponse> {
   try {
     if (!uuidSchema.safeParse(patientId).success) {
       return { success: false, error: 'ID de paciente inválido.' }
@@ -579,11 +547,32 @@ export async function updatePatient(
     }
     const validData = parsed.data
 
+    let photoUpdate: string | null | undefined = undefined
+    if (validData.photo_url !== undefined) {
+      const trimmed = validData.photo_url?.trim()
+      if (!trimmed) {
+        photoUpdate = null
+      } else {
+        const normalized = normalizeStorageRef(trimmed, 'patients')
+        if (!normalized) {
+          return { success: false, error: 'URL de foto inválida.' }
+        }
+        photoUpdate = normalized
+      }
+    }
+
     const supabase = await createClient()
     const { data: userData, error: userError } = await supabase.auth.getUser()
-    if (userError || !userData.user) return { success: false, error: 'Não autenticado' }
+    if (userError || !userData.user) {
+      return { success: false, error: 'Não autenticado' }
+    }
 
-    let { error } = await supabase
+    const ownership = await assertPatientOwnership(supabase, patientId, userData.user.id)
+    if (!ownership.owned) {
+      return { success: false, error: 'Paciente não encontrado ou sem permissão.' }
+    }
+
+    const { data: updatedRow, error } = await supabase
       .from('patients')
       .update({
         name: validData.name,
@@ -591,46 +580,30 @@ export async function updatePatient(
         weight_kg: validData.weight_kg,
         breed: validData.breed || null,
         color: validData.color || null,
-        photo_url: validData.photo_url !== undefined ? validData.photo_url : undefined,
-        birth_date: validData.birth_date !== undefined ? validData.birth_date : undefined,
+        photo_url: photoUpdate,
+        birth_date: validData.birth_date !== undefined ? validData.birth_date || null : undefined,
         is_birth_date_estimated: validData.is_birth_date_estimated,
         fertility_status:
-          validData.fertility_status !== undefined ? validData.fertility_status : undefined,
+          validData.fertility_status !== undefined ? validData.fertility_status || null : undefined,
         fertility_notes:
-          validData.fertility_notes !== undefined ? validData.fertility_notes : undefined,
+          validData.fertility_notes !== undefined ? validData.fertility_notes || null : undefined,
         clinical_observations:
           validData.clinical_observations !== undefined
-            ? validData.clinical_observations
+            ? validData.clinical_observations || null
             : undefined,
       })
       .eq('id', patientId)
+      .select('id')
+      .maybeSingle()
 
-    if (error && (error.code === '42703' || error.code === 'PGRST204')) {
-      const fallback = await supabase
-        .from('patients')
-        .update({
-          name: validData.name,
-          species: validData.species,
-          weight_kg: validData.weight_kg,
-          breed: validData.breed || null,
-          color: validData.color || null,
-          birth_date: validData.birth_date !== undefined ? validData.birth_date : undefined,
-        })
-        .eq('id', patientId)
-      error = fallback.error
-
-      if (!error) {
-        await savePatientExtendedMeta(supabase, patientId, {
-          photo_url: validData.photo_url ?? null,
-          is_birth_date_estimated: validData.is_birth_date_estimated ?? false,
-          fertility_status: validData.fertility_status ?? null,
-          fertility_notes: validData.fertility_notes ?? null,
-          clinical_observations: validData.clinical_observations ?? null,
-        })
-      }
+    if (error) {
+      console.error('Update patient error:', error)
+      return { success: false, error: 'Erro ao atualizar paciente.' }
     }
 
-    if (error) throw error
+    if (!updatedRow) {
+      return { success: false, error: 'Paciente não encontrado.' }
+    }
 
     revalidatePath('/pacientes')
     revalidatePath(`/pacientes/${patientId}`)
@@ -662,8 +635,31 @@ export async function addPatientVaccination(input: {
     const supabase = await createClient()
     const {
       data: { user },
+      error: userError,
     } = await supabase.auth.getUser()
-    if (!user) return { success: false, error: 'Não autenticado' }
+    if (userError || !user) {
+      return { success: false, error: 'Não autenticado' }
+    }
+
+    const patientOwnership = await assertPatientOwnership(
+      supabase,
+      validInput.patientId,
+      user.id
+    )
+    if (!patientOwnership.owned) {
+      return { success: false, error: 'Paciente não encontrado ou sem permissão.' }
+    }
+
+    if (validInput.consultationId) {
+      const ownsConsultation = await assertConsultationOwnership(
+        supabase,
+        validInput.consultationId,
+        user.id
+      )
+      if (!ownsConsultation) {
+        return { success: false, error: 'Consulta não encontrada ou sem permissão.' }
+      }
+    }
 
     const schedule = calculateVaccineSchedule({
       protocolCode: validInput.protocolCode,
@@ -687,8 +683,8 @@ export async function addPatientVaccination(input: {
         applied_date: schedule.appliedDate,
         next_due_date: schedule.nextDueDate,
         next_dose_label: schedule.nextDoseLabel,
-        batch_number: validInput.batchNumber?.trim() || null,
-        notes: validInput.notes?.trim() || null,
+        batch_number: validInput.batchNumber || null,
+        notes: validInput.notes || null,
       })
       .select('id')
       .single()
@@ -697,20 +693,69 @@ export async function addPatientVaccination(input: {
       console.error('Add vaccination error:', insertError)
       return {
         success: false,
-        error:
-          'Erro ao registrar vacina. Verifique se a migration de banco (patient_vaccinations) foi aplicada.',
+        error: 'Erro ao registrar vacina.',
       }
     }
 
-    // Marcar registros anteriores abertos do mesmo protocolo para este pet como concluídos
     if (inserted?.id) {
-      await supabase
-        .from('patient_vaccinations')
-        .update({ completed_by_vaccination_id: inserted.id })
-        .eq('patient_id', validInput.patientId)
-        .eq('protocol_code', schedule.protocolCode)
-        .is('completed_by_vaccination_id', null)
-        .neq('id', inserted.id)
+      if (schedule.protocolCode === 'CUSTOM') {
+        const normalizedTargetName = schedule.vaccineName.trim().toLowerCase()
+        const { data: openCustomRows, error: fetchPrevError } = await supabase
+          .from('patient_vaccinations')
+          .select('id, vaccine_name')
+          .eq('patient_id', validInput.patientId)
+          .eq('profile_id', user.id)
+          .eq('protocol_code', 'CUSTOM')
+          .is('completed_by_vaccination_id', null)
+          .lte('applied_date', schedule.appliedDate)
+          .neq('id', inserted.id)
+
+        if (fetchPrevError) {
+          console.error('Fetch previous custom vaccinations error:', fetchPrevError)
+          return {
+            success: false,
+            error: 'Vacina registrada, mas houve erro ao atualizar doses anteriores.',
+          }
+        }
+
+        const matchingIds = (openCustomRows ?? [])
+          .filter((row) => row.vaccine_name.trim().toLowerCase() === normalizedTargetName)
+          .map((row) => row.id)
+
+        if (matchingIds.length > 0) {
+          const { error: closeError } = await supabase
+            .from('patient_vaccinations')
+            .update({ completed_by_vaccination_id: inserted.id })
+            .in('id', matchingIds)
+            .eq('profile_id', user.id)
+
+          if (closeError) {
+            console.error('Close previous custom vaccinations error:', closeError)
+            return {
+              success: false,
+              error: 'Vacina registrada, mas houve erro ao atualizar doses anteriores.',
+            }
+          }
+        }
+      } else {
+        const { error: closeError } = await supabase
+          .from('patient_vaccinations')
+          .update({ completed_by_vaccination_id: inserted.id })
+          .eq('patient_id', validInput.patientId)
+          .eq('profile_id', user.id)
+          .eq('protocol_code', schedule.protocolCode)
+          .is('completed_by_vaccination_id', null)
+          .lte('applied_date', schedule.appliedDate)
+          .neq('id', inserted.id)
+
+        if (closeError) {
+          console.error('Close previous vaccinations error:', closeError)
+          return {
+            success: false,
+            error: 'Vacina registrada, mas houve erro ao atualizar doses anteriores.',
+          }
+        }
+      }
     }
 
     revalidatePath(`/pacientes/${validInput.patientId}`)
@@ -737,15 +782,27 @@ export async function deletePatientVaccination(
       data: { user },
       error: userError,
     } = await supabase.auth.getUser()
-    if (userError || !user) return { success: false, error: 'Não autenticado' }
+    if (userError || !user) {
+      return { success: false, error: 'Não autenticado' }
+    }
 
-    const { error } = await supabase
+    const { data: deletedRow, error } = await supabase
       .from('patient_vaccinations')
       .delete()
       .eq('id', vaccinationId)
+      .eq('patient_id', patientId)
       .eq('profile_id', user.id)
+      .select('id')
+      .maybeSingle()
 
-    if (error) throw error
+    if (error) {
+      console.error('Delete vaccination error:', error)
+      return { success: false, error: 'Erro ao remover registro vacinal.' }
+    }
+
+    if (!deletedRow) {
+      return { success: false, error: 'Registro vacinal não encontrado.' }
+    }
 
     revalidatePath(`/pacientes/${patientId}`)
     revalidatePath('/agenda')

@@ -42,6 +42,9 @@ export async function compressPetPhoto(
           return;
         }
 
+        // Fill white background so transparent PNG/WebP areas do not turn black when exported as JPEG
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
         ctx.drawImage(img, 0, 0, width, height);
         const dataUrl = canvas.toDataURL('image/jpeg', quality);
 
