@@ -1,12 +1,46 @@
-name: Auto Create PR
+name: Quality & Auto Create PR
 
 on:
   push:
     branches:
       - dev
+  pull_request:
+    branches:
+      - main
 
 jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 12
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm exec tsc --noEmit
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Unit tests
+        run: pnpm dlx tsx --test tests/unit/core.test.ts
+
   create-pr:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    needs: quality
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -21,7 +55,7 @@ jobs:
         run: |
           # Verifica se já existe um PR aberto da branch 'dev' para a branch 'main'
           existing_pr=$(gh pr list --head dev --base main --state open --json number -q '.[0].number')
-          
+
           if [ -z "$existing_pr" ]; then
             echo "Nenhum PR aberto detectado. Criando novo Pull Request de dev para main..."
             gh pr create \

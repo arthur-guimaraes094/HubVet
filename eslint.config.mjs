@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     ".agents/**",
     "node_modules/**",
+    // Biblioteca vendored do Project Nayuki (padrão namespace/let)
+    "src/core/utils/qrcodegen.ts",
   ]),
 ]);
 
