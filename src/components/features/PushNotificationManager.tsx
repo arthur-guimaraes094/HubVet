@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useId } from 'react';
+import { useToast } from '@/components/ui/Toast';
 
 function urlBase64ToUint8Array(base64String: string) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding)
     .replace(/\-/g, '+')
     .replace(/_/g, '/');
@@ -19,79 +20,89 @@ function urlBase64ToUint8Array(base64String: string) {
 
 export function PushNotificationManager() {
   const labelId = useId();
+  const { success, error } = useToast();
   const [isSupported, setIsSupported] = useState(false);
   const [subscription, setSubscription] = useState<PushSubscription | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  async function registerServiceWorker() {
-    try {
-      await navigator.serviceWorker.register('/sw.js');
-    } catch (error) {
-      console.error('Service Worker registration failed:', error);
-    }
-  }
-
-  async function checkSubscription() {
-    try {
-      const registration = await navigator.serviceWorker.ready;
-      const sub = await registration.pushManager.getSubscription();
-      setSubscription(sub);
-    } catch (error) {
-      console.error('Error checking subscription:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
   useEffect(() => {
-    if ('serviceWorker' in navigator && 'PushManager' in window) {
-      Promise.resolve().then(() => {
-        setIsSupported(true);
-        checkSubscription();
-        registerServiceWorker();
-      });
-    } else {
-      Promise.resolve().then(() => {
-        setIsLoading(false);
-      });
+    let active = true;
+
+    async function initPushNotifications() {
+      if (!('serviceWorker' in navigator && 'PushManager' in window)) {
+        if (active) setIsLoading(false);
+        return;
+      }
+
+      if (active) setIsSupported(true);
+
+      try {
+        await navigator.serviceWorker.register('/sw.js');
+        const registration = await Promise.race([
+          navigator.serviceWorker.ready,
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
+        ]);
+        const sub = await registration?.pushManager.getSubscription();
+        if (active) {
+          setSubscription(sub ?? null);
+        }
+      } catch (err) {
+        console.error('Error initializing push notifications:', err);
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
     }
+
+    initPushNotifications();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   async function subscribeToPush() {
     setIsLoading(true);
     try {
       const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-        const registration = await navigator.serviceWorker.ready;
-        const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-
-        if (!vapidPublicKey) {
-          throw new Error('VAPID public key not found');
-        }
-
-        const sub = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
-        });
-
-        setSubscription(sub);
-
-        const res = await fetch('/api/push/subscribe', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(sub),
-        });
-
-        if (!res.ok) {
-          await sub.unsubscribe().catch(() => {});
-          setSubscription(null);
-          throw new Error('Falha ao salvar inscrição de notificação');
-        }
+      if (permission !== 'granted') {
+        error('Permissão de notificações negada no navegador.');
+        return;
       }
-    } catch (error) {
-      console.error('Failed to subscribe:', error);
+
+      const registration = await navigator.serviceWorker.ready;
+      const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+
+      if (!vapidPublicKey) {
+        throw new Error('VAPID public key not found');
+      }
+
+      const sub = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+      });
+
+      setSubscription(sub);
+
+      const res = await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(sub),
+      });
+
+      if (!res.ok) {
+        await sub.unsubscribe().catch(() => {});
+        setSubscription(null);
+        throw new Error('Falha ao salvar inscrição de notificação');
+      }
+
+      success('Notificações ativadas com sucesso!');
+    } catch (err) {
+      console.error('Failed to subscribe:', err);
+      error('Não foi possível ativar as notificações neste dispositivo.');
     } finally {
       setIsLoading(false);
     }
@@ -105,14 +116,21 @@ export function PushNotificationManager() {
         await subscription.unsubscribe();
         setSubscription(null);
 
-        await fetch('/api/push/unsubscribe', {
+        const res = await fetch('/api/push/unsubscribe', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ endpoint }),
         });
+
+        if (!res.ok) {
+          throw new Error('Falha ao remover inscrição de notificação');
+        }
+
+        success('Notificações desativadas.');
       }
-    } catch (error) {
-      console.error('Failed to unsubscribe:', error);
+    } catch (err) {
+      console.error('Failed to unsubscribe:', err);
+      error('Erro ao desativar notificações.');
     } finally {
       setIsLoading(false);
     }

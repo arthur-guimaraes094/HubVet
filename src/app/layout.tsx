@@ -3,6 +3,7 @@ import { Nunito } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/Toast";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { ServiceWorkerRegistrar } from "@/components/providers/ServiceWorkerRegistrar";
 import { Analytics } from "@vercel/analytics/react";
 
 const nunito = Nunito({
@@ -11,7 +12,10 @@ const nunito = Nunito({
 });
 
 export const viewport: Viewport = {
-  themeColor: "#E0E5EC",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#F9FAFB" },
+    { media: "(prefers-color-scheme: dark)", color: "#090D16" },
+  ],
 };
 
 export const metadata: Metadata = {
@@ -56,6 +60,7 @@ export default function RootLayout({
             {children}
           </ToastProvider>
         </ThemeProvider>
+        <ServiceWorkerRegistrar />
         <Analytics />
       </body>
     </html>

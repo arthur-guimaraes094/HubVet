@@ -4,8 +4,8 @@
   "description": "Sistema de gestão e cálculos clínicos para veterinários.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#E0E5EC",
-  "theme_color": "#3B82F6",
+  "background_color": "#F9FAFB",
+  "theme_color": "#C22756",
   "icons": [
     {
       "src": "/icons/icon-192x192.png",

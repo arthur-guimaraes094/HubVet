@@ -1,4 +1,4 @@
-import { jsPDF } from 'jspdf';
+import type { jsPDF } from 'jspdf';
 import { formatPatientAge, formatFertilityStatus } from '@/core/utils/age';
 
 export interface PrescriptionItem {
@@ -356,7 +356,10 @@ function renderSignatureAndDateFooter(doc: jsPDF, data: VetDocumentData) {
  * Gera o RECEITUÁRIO VETERINÁRIO sobre o papel timbrado oficial da Dra. Gabriela Soares.
  */
 export async function gerarPDFReceituario(data: VetDocumentData) {
-  const templateDataUrl = await loadStationeryTemplate();
+  const [{ jsPDF }, templateDataUrl] = await Promise.all([
+    import('jspdf'),
+    loadStationeryTemplate(),
+  ]);
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
   const addNewStationeryPage = () => {
@@ -632,7 +635,10 @@ export async function gerarPDFReceituario(data: VetDocumentData) {
  * Gera o RELATÓRIO DE ATENDIMENTO CLÍNICO sobre o papel timbrado oficial da Dra. Gabriela Soares.
  */
 export async function gerarPDFRelatorioAtendimento(data: VetDocumentData) {
-  const templateDataUrl = await loadStationeryTemplate();
+  const [{ jsPDF }, templateDataUrl] = await Promise.all([
+    import('jspdf'),
+    loadStationeryTemplate(),
+  ]);
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
   const addNewStationeryPage = () => {
