@@ -1,5 +1,7 @@
-import { test } from 'node:test';
+import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { calculateDose } from '../../src/core/use-cases/calculateDose';
 import {
@@ -853,3 +855,55 @@ test('timezone BRT - formata data calendário sem recuo UTC e extrai HH:mm em Fo
   assert.equal(getBrazilTimeString(new Date('2026-11-22T03:05:00.000Z')), '00:05');
   assert.equal(getBrazilTimeString(new Date('invalid')), '');
 });
+
+describe('PWA & Offline Assets Integrity (Wave D)', () => {
+  test('public/manifest.json é JSON válido com cores alinhadas ao tema HubVet', () => {
+    const manifestPath = join(process.cwd(), 'public', 'manifest.json');
+    const raw = readFileSync(manifestPath, 'utf-8');
+    const manifest = JSON.parse(raw) as {
+      theme_color?: string;
+      background_color?: string;
+      icons?: Array<{ src?: string; sizes?: string; type?: string }>;
+    };
+
+    assert.equal(manifest.theme_color, '#C22756');
+    assert.equal(manifest.background_color, '#F9FAFB');
+    assert.ok(Array.isArray(manifest.icons));
+    assert.equal(manifest.icons.length, 2);
+  });
+
+  test('public/sw.js registra install, activate, fetch e valida self.location.origin no notificationclick', () => {
+    const swPath = join(process.cwd(), 'public', 'sw.js');
+    const swContent = readFileSync(swPath, 'utf-8');
+
+    assert.ok(swContent.includes("addEventListener('install'"));
+    assert.ok(swContent.includes("addEventListener('activate'"));
+    assert.ok(swContent.includes("addEventListener('fetch'"));
+    assert.ok(swContent.includes("addEventListener('notificationclick'"));
+
+    const notificationClickSection = swContent.slice(
+      swContent.indexOf("addEventListener('notificationclick'")
+    );
+    assert.ok(notificationClickSection.includes('self.location.origin'));
+  });
+
+  test('public/icons/icon-192x192.png e icon-512x512.png possuem assinatura PNG válida e dimensões IHDR exatas', () => {
+    const expectedSignature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const specs = [
+      { file: 'icon-192x192.png', width: 192, height: 192 },
+      { file: 'icon-512x512.png', width: 512, height: 512 },
+    ];
+
+    for (const spec of specs) {
+      const iconPath = join(process.cwd(), 'public', 'icons', spec.file);
+      const buf = readFileSync(iconPath);
+
+      assert.ok(buf.length >= 24, `${spec.file} menor que cabeçalho PNG mínimo`);
+      assert.deepEqual(buf.subarray(0, 8), expectedSignature, `Assinatura PNG inválida em ${spec.file}`);
+      assert.equal(buf.subarray(12, 16).toString('ascii'), 'IHDR', `Chunk IHDR ausente em ${spec.file}`);
+      assert.equal(buf.readUInt32BE(16), spec.width, `Largura IHDR incorreta em ${spec.file}`);
+      assert.equal(buf.readUInt32BE(20), spec.height, `Altura IHDR incorreta em ${spec.file}`);
+    }
+  });
+});
+
