@@ -4,6 +4,7 @@ import { createClient } from '@/infrastructure/database/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import type { ActionResponse } from '@/core/types/actions'
+import { validateImageUpload } from '@/core/utils/upload-validation'
 
 const profileSchema = z.object({
   fullName: z.string().min(1, 'Nome é obrigatório'),
@@ -11,7 +12,12 @@ const profileSchema = z.object({
   phone: z.string().optional(),
   baseCep: z.string().optional(),
   baseAddress: z.string().optional(),
-  kmRate: z.number().optional(),
+  kmRate: z
+    .number()
+    .finite()
+    .min(0, 'Valor por km inválido')
+    .max(50, 'Valor por km muito alto')
+    .optional(),
   pixKey: z.string().optional(),
   pixKeyType: z.string().optional(),
 })
@@ -58,24 +64,19 @@ export async function updateProfile(
   let avatarUrl = undefined
 
   if (avatarFile && avatarFile.size > 0) {
-    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
-    if (!allowedMimeTypes.includes(avatarFile.type)) {
+    const validation = await validateImageUpload(avatarFile, 4 * 1024 * 1024)
+    if (!validation.valid) {
       return {
         success: false,
-        error: 'Formato de imagem não suportado. Use JPG, PNG, WebP ou GIF.',
+        error: validation.error,
       }
     }
 
-    if (avatarFile.size > 4 * 1024 * 1024) {
-      return { success: false, error: 'A imagem deve ter no máximo 4MB.' }
-    }
-
-    const fileExt = avatarFile.name.split('.').pop()
-    const fileName = `${userData.user.id}-${Math.random()}.${fileExt}`
+    const fileName = `${userData.user.id}-${crypto.randomUUID()}.${validation.extension}`
 
     const { error: uploadError } = await supabase.storage
       .from('avatars')
-      .upload(fileName, avatarFile)
+      .upload(fileName, avatarFile, { contentType: validation.contentType })
 
     if (uploadError) {
       return { success: false, error: 'Erro ao fazer upload da imagem' }
@@ -94,6 +95,8 @@ export async function updateProfile(
     phone: result.data.phone || '',
     base_cep: result.data.baseCep || null,
     base_address: result.data.baseAddress || null,
+    base_lat: null,
+    base_lng: null,
     km_rate: result.data.kmRate ?? 2.5,
     pix_key: result.data.pixKey || null,
     pix_key_type: result.data.pixKeyType || 'CPF',

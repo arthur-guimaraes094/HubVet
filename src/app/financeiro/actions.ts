@@ -18,6 +18,11 @@ export async function updateInvoiceStatus(invoiceId: string, status: 'pending' |
 
   const supabase = await createClient()
 
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData.user) {
+    return { success: false, error: 'Não autenticado' }
+  }
+
   const { error } = await supabase
     .from('invoices')
     .update({ status })

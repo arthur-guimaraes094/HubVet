@@ -63,16 +63,15 @@ export default async function PatientHistoryPage({
   }
 
   // 2. Buscar dados do perfil da veterinária para assinatura dos PDFs
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const userId = claimsData?.claims?.sub;
   let vetName = 'Dra. Gabriela Soares';
   let vetCrmv = '';
-  if (session?.user) {
+  if (userId) {
     const { data: profile } = await supabase
       .from('profiles')
       .select('full_name, crmv')
-      .eq('id', session.user.id)
+      .eq('id', userId)
       .single();
     if (profile?.full_name) vetName = profile.full_name;
     if (profile?.crmv) vetCrmv = profile.crmv;

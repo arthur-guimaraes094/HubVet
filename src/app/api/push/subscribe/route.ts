@@ -1,35 +1,50 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/infrastructure/database/server'
+import { z } from 'zod'
+
+const subscribeSchema = z.object({
+  endpoint: z
+    .string()
+    .url('Endpoint inválido')
+    .refine((u) => u.startsWith('https://'), 'Endpoint deve usar HTTPS'),
+  keys: z.object({
+    p256dh: z.string().min(1),
+    auth: z.string().min(1),
+  }),
+})
 
 export async function POST(request: Request) {
   try {
-    const subscription = await request.json()
     const supabase = await createClient()
 
-    const { data: { session }, error: authError } = await supabase.auth.getSession()
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
 
-    if (authError || !session?.user) {
+    if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // A assinatura do web-push tem chaves (keys) de autenticação que precisam ser salvas
-    const endpoint = subscription.endpoint
-    const p256dh = subscription.keys.p256dh
-    const auth = subscription.keys.auth
+    const rawBody = await request.json()
+    const parsed = subscribeSchema.safeParse(rawBody)
 
-    if (!endpoint || !p256dh || !auth) {
+    if (!parsed.success) {
       return NextResponse.json({ error: 'Invalid subscription object' }, { status: 400 })
     }
 
+    const { endpoint, keys } = parsed.data
+
     // Salva ou atualiza a subscription baseada no endpoint (que é único)
-    const { error: dbError } = await supabase
-      .from('push_subscriptions')
-      .upsert({
-        profile_id: session.user.id,
-        endpoint: endpoint,
-        p256dh: p256dh,
-        auth: auth,
-      }, { onConflict: 'endpoint' })
+    const { error: dbError } = await supabase.from('push_subscriptions').upsert(
+      {
+        profile_id: user.id,
+        endpoint,
+        p256dh: keys.p256dh,
+        auth: keys.auth,
+      },
+      { onConflict: 'endpoint' }
+    )
 
     if (dbError) {
       console.error('Database error saving subscription:', dbError)

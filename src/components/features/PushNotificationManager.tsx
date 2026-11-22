@@ -75,13 +75,19 @@ export function PushNotificationManager() {
         setSubscription(sub);
 
         // Enviar a inscrição para o backend
-        await fetch('/api/push/subscribe', {
+        const res = await fetch('/api/push/subscribe', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(sub),
         });
+
+        if (!res.ok) {
+          await sub.unsubscribe().catch(() => {});
+          setSubscription(null);
+          throw new Error('Falha ao salvar inscrição de notificação');
+        }
 
         // alert('Notificações ativadas com sucesso!');
       } else {
@@ -99,12 +105,16 @@ export function PushNotificationManager() {
     setIsLoading(true);
     try {
       if (subscription) {
+        const endpoint = subscription.endpoint;
         await subscription.unsubscribe();
         setSubscription(null);
-        
-        // Em um app real, você também chamaria o backend para remover a inscrição do banco.
-        // fetch('/api/push/unsubscribe', { method: 'POST', body: JSON.stringify({ endpoint: subscription.endpoint }) });
-        
+
+        await fetch('/api/push/unsubscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ endpoint }),
+        });
+
         // alert('Notificações desativadas.');
       }
     } catch (error) {

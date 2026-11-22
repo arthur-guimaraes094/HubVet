@@ -2,7 +2,6 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { login } from './actions'
-import Link from 'next/link'
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -56,12 +55,6 @@ export default async function LoginPage({
             <Button formAction={login} variant="primary" className="w-full">
               Entrar
             </Button>
-            
-            <Link href="/cadastro" className="w-full text-center">
-              <span className="text-[10px] font-black uppercase text-foreground/40 hover:text-primary tracking-widest transition-colors cursor-pointer py-2 block mt-2">
-                Primeiro acesso? Cadastre-se
-              </span>
-            </Link>
           </div>
         </form>
       </Card>

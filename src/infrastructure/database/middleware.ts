@@ -11,12 +11,21 @@ export async function updateSession(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-  // Evita crash 500 (Internal Server Error) caso a branch de Preview na Vercel
-  // ainda não tenha as Environment Variables liberadas
+  // Fail-closed caso as Environment Variables de ambiente ainda não estejam disponíveis
   if (!supabaseUrl || !supabaseAnonKey) {
     console.error(
       'Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY in this Vercel environment/branch.'
     )
+    const isLogin = request.nextUrl.pathname.startsWith('/login')
+    const isApi = request.nextUrl.pathname.startsWith('/api')
+    if (!isLogin && !isApi) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      url.search = ''
+      const redirectResponse = NextResponse.redirect(url)
+      redirectResponse.headers.set('Content-Type', 'text/html; charset=utf-8')
+      return redirectResponse
+    }
     return NextResponse.next({ request })
   }
 
@@ -45,16 +54,13 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
+  const { data: claimsData } = await supabase.auth.getClaims()
+  const isAuthenticated = Boolean(claimsData?.claims?.sub)
 
-  const isAuthRoute =
-    request.nextUrl.pathname.startsWith('/login') ||
-    request.nextUrl.pathname.startsWith('/cadastro')
+  const isAuthRoute = request.nextUrl.pathname.startsWith('/login')
   const isApiRoute = request.nextUrl.pathname.startsWith('/api')
 
-  if (!session && !isAuthRoute && !isApiRoute) {
+  if (!isAuthenticated && !isAuthRoute && !isApiRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     url.search = ''
@@ -71,7 +77,7 @@ export async function updateSession(request: NextRequest) {
     return redirectResponse
   }
 
-  if (session && isAuthRoute) {
+  if (isAuthenticated && isAuthRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/'
     url.search = ''

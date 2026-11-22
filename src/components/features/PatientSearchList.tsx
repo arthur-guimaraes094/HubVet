@@ -41,6 +41,7 @@ export function PatientSearchList({ initialPatients }: PatientSearchListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
   const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
+  const [deleteTutorAlso, setDeleteTutorAlso] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [menuPatient, setMenuPatient] = useState<Patient | null>(null);
   const [patientToEdit, setPatientToEdit] = useState<Patient | null>(null);
@@ -98,12 +99,20 @@ export function PatientSearchList({ initialPatients }: PatientSearchListProps) {
   const handleDelete = async () => {
     if (!patientToDelete) return;
 
+    const shouldDeleteTutor = isLastPatient && deleteTutorAlso;
     setIsDeleting(true);
     try {
-      const result = await deletePatient(patientToDelete.id);
+      const result = await deletePatient(patientToDelete.id, {
+        deleteOrphanTutor: shouldDeleteTutor,
+      });
       if (result.success) {
-        success('Paciente excluído com sucesso!');
+        success(
+          shouldDeleteTutor
+            ? 'Paciente e tutor excluídos com sucesso!'
+            : 'Paciente excluído com sucesso!'
+        );
         setPatientToDelete(null);
+        setDeleteTutorAlso(false);
         router.refresh();
       } else {
         error(result.error || 'Erro ao excluir paciente');
@@ -402,7 +411,12 @@ export function PatientSearchList({ initialPatients }: PatientSearchListProps) {
       {/* Confirmation Modal */}
       <Modal
         isOpen={!!patientToDelete}
-        onClose={() => !isDeleting && setPatientToDelete(null)}
+        onClose={() => {
+          if (!isDeleting) {
+            setPatientToDelete(null);
+            setDeleteTutorAlso(false);
+          }
+        }}
         title="Confirmar Exclusão?"
       >
         <div className="flex flex-col items-center gap-6 py-4">
@@ -418,11 +432,22 @@ export function PatientSearchList({ initialPatients }: PatientSearchListProps) {
             </p>
 
             {isLastPatient && (
-              <div className="bg-amber-50 border-2 border-amber-200 p-4 rounded-2xl">
-                <p className="text-amber-700 text-sm font-black leading-tight">
-                  Atenção: Este é o único pet de {patientToDelete?.tutors?.name}. Ao excluí-lo, o
-                  cadastro do tutor também será removido.
+              <div className="bg-amber-50 dark:bg-amber-950/30 border-2 border-amber-200 dark:border-amber-800/50 p-4 rounded-2xl text-left flex flex-col gap-3">
+                <p className="text-amber-800 dark:text-amber-200 text-xs sm:text-sm font-black leading-tight">
+                  Este é o único pet cadastrado de {patientToDelete?.tutors?.name}.
                 </p>
+                <label className="flex items-start gap-2.5 cursor-pointer text-xs font-bold text-amber-900 dark:text-amber-100">
+                  <input
+                    type="checkbox"
+                    checked={deleteTutorAlso}
+                    onChange={(e) => setDeleteTutorAlso(e.target.checked)}
+                    disabled={isDeleting}
+                    className="mt-0.5 rounded border-amber-400 text-error focus:ring-error w-4 h-4 shrink-0"
+                  />
+                  <span>
+                    Excluir também o cadastro do tutor ({patientToDelete?.tutors?.name})
+                  </span>
+                </label>
               </div>
             )}
 
@@ -447,7 +472,10 @@ export function PatientSearchList({ initialPatients }: PatientSearchListProps) {
               )}
             </button>
             <button
-              onClick={() => setPatientToDelete(null)}
+              onClick={() => {
+                setPatientToDelete(null);
+                setDeleteTutorAlso(false);
+              }}
               disabled={isDeleting}
               className="w-full bg-foreground/5 text-foreground/60 font-black py-4 rounded-2xl hover:bg-foreground/10 active:scale-[0.98] transition-all disabled:opacity-50"
             >
@@ -502,6 +530,7 @@ export function PatientSearchList({ initialPatients }: PatientSearchListProps) {
               </button>
               <button
                 onClick={() => {
+                  setDeleteTutorAlso(false);
                   setPatientToDelete(menuPatient);
                   handleCloseMenu();
                 }}

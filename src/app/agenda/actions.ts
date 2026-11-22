@@ -5,6 +5,8 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import type { ActionResponse } from '@/core/types/actions'
 
+const uuidSchema = z.string().uuid('ID inválido')
+
 const agendaSchema = z.object({
   patientId: z.string().min(1, 'Paciente é obrigatório'),
   date: z.string().min(1, 'Data é obrigatória'),
@@ -63,6 +65,10 @@ export async function agendarConsulta(rawData: unknown): Promise<ActionResponse>
 }
 
 export async function cancelarConsulta(id: string): Promise<ActionResponse> {
+  if (!uuidSchema.safeParse(id).success) {
+    return { success: false, error: 'ID de consulta inválido' }
+  }
+
   const supabase = await createClient()
 
   const { data: userData, error: userError } = await supabase.auth.getUser()
@@ -72,6 +78,7 @@ export async function cancelarConsulta(id: string): Promise<ActionResponse> {
     .from('consultations')
     .update({ status: 'Canceled' })
     .eq('id', id)
+    .eq('profile_id', userData.user.id)
 
   if (error) return { success: false, error: 'Erro ao cancelar' }
 
@@ -80,6 +87,10 @@ export async function cancelarConsulta(id: string): Promise<ActionResponse> {
 }
 
 export async function atualizarConsulta(id: string, rawData: unknown): Promise<ActionResponse> {
+  if (!uuidSchema.safeParse(id).success) {
+    return { success: false, error: 'ID de consulta inválido' }
+  }
+
   const result = agendaSchema.safeParse(rawData)
   if (!result.success) {
     return {
@@ -106,6 +117,7 @@ export async function atualizarConsulta(id: string, rawData: unknown): Promise<A
       travel_fee: data.travelFee ?? undefined,
     })
     .eq('id', id)
+    .eq('profile_id', userData.user.id)
 
   if (error && (error.code === '42703' || error.code === 'PGRST204')) {
     const fallback = await supabase
@@ -117,6 +129,7 @@ export async function atualizarConsulta(id: string, rawData: unknown): Promise<A
         address: data.address,
       })
       .eq('id', id)
+      .eq('profile_id', userData.user.id)
     error = fallback.error
   }
 
@@ -127,6 +140,10 @@ export async function atualizarConsulta(id: string, rawData: unknown): Promise<A
 }
 
 export async function getConsultationDetails(id: string) {
+  if (!uuidSchema.safeParse(id).success) {
+    throw new Error('ID de consulta inválido')
+  }
+
   const supabase = await createClient()
 
   const { data: userData, error: userError } = await supabase.auth.getUser()
@@ -165,6 +182,7 @@ export async function getConsultationDetails(id: string) {
     `
     )
     .eq('id', id)
+    .eq('profile_id', userData.user.id)
     .single()
 
   if (error) throw new Error('Erro ao buscar detalhes da consulta')

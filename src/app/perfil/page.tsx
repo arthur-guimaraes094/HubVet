@@ -8,14 +8,12 @@ export default async function PerfilPage() {
   const supabase = await createClient()
 
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  if (!session?.user) {
+  if (!user) {
     redirect('/login')
   }
-
-  const user = session.user
 
   const { data: profile } = await supabase
     .from('profiles')

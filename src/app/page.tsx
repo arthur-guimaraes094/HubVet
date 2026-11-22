@@ -11,12 +11,13 @@ import { SettingsModal } from "@/components/features/SettingsModal";
 
 export default async function Home() {
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const userId = claimsData?.claims?.sub;
   
   let avatarUrl = null;
   const upcomingVaccines: UpcomingVaccineItem[] = [];
 
-  if (session?.user) {
+  if (userId) {
     const in14Days = new Date();
     in14Days.setDate(in14Days.getDate() + 14);
     const in14DaysStr = in14Days.toISOString().split('T')[0];
@@ -25,12 +26,12 @@ export default async function Home() {
       supabase
         .from('profiles')
         .select('avatar_url')
-        .eq('id', session.user.id)
+        .eq('id', userId)
         .single(),
       supabase
         .from('patient_vaccinations')
         .select('id, patient_id, vaccine_name, next_due_date, next_dose_label, patients(id, name, tutors(name, phone))')
-        .eq('profile_id', session.user.id)
+        .eq('profile_id', userId)
         .is('completed_by_vaccination_id', null)
         .lte('next_due_date', in14DaysStr)
         .order('next_due_date', { ascending: true })

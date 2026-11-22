@@ -16,7 +16,14 @@ export async function login(formData: FormData) {
   })
 
   if (error) {
-    return redirect('/login?message=E-mail ou senha incorretos')
+    console.error('Supabase login error:', error.status, error.code)
+    const isInvalidCreds =
+      error.status === 400 ||
+      error.message?.toLowerCase().includes('invalid login credentials')
+    const msg = isInvalidCreds
+      ? 'E-mail ou senha incorretos'
+      : 'Erro de conexão com o servidor de autenticação. Tente novamente.'
+    return redirect(`/login?message=${encodeURIComponent(msg)}`)
   }
 
   revalidatePath('/', 'layout')

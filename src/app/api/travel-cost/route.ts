@@ -195,9 +195,42 @@ async function calculateDrivingDistanceKm(origin: Coords, dest: Coords): Promise
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const destinationAddress: string | undefined = body.destinationAddress;
-    const destinationCep: string | undefined = body.destinationCep;
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
+    }
+
+    const body = (await request.json()) as Record<string, unknown>;
+    const rawAddress = body?.destinationAddress;
+    const rawCep = body?.destinationCep;
+
+    if (
+      (rawAddress !== undefined && rawAddress !== null && typeof rawAddress !== 'string') ||
+      (rawCep !== undefined && rawCep !== null && typeof rawCep !== 'string')
+    ) {
+      return NextResponse.json(
+        { error: 'Formato inválido para endereço ou CEP de destino.' },
+        { status: 400 }
+      );
+    }
+
+    const destinationAddress = typeof rawAddress === 'string' ? rawAddress.trim() : undefined;
+    const destinationCep = typeof rawCep === 'string' ? rawCep.trim() : undefined;
+
+    if (
+      (destinationAddress && destinationAddress.length > 300) ||
+      (destinationCep && destinationCep.length > 20)
+    ) {
+      return NextResponse.json(
+        { error: 'Endereço ou CEP excede o limite de caracteres permitido.' },
+        { status: 400 }
+      );
+    }
 
     if (!destinationAddress && !destinationCep) {
       return NextResponse.json(
@@ -206,37 +239,30 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
     let originAddress = DEFAULT_ORIGIN_ADDRESS;
     let originCep: string | null = '59152-250';
     let kmRate = DEFAULT_KM_RATE;
     let cachedOriginCoords: Coords | null = null;
 
-    if (user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
 
-      const p = profile as Record<string, unknown> | null;
-      if (p) {
-        if (typeof p.base_address === 'string' && p.base_address.trim()) {
-          originAddress = p.base_address;
-        }
-        if (typeof p.base_cep === 'string' && p.base_cep.trim()) {
-          originCep = p.base_cep;
-        }
-        if (typeof p.km_rate === 'number' && p.km_rate > 0 && p.km_rate <= 50) {
-          kmRate = p.km_rate;
-        }
-        if (typeof p.base_lat === 'number' && typeof p.base_lng === 'number') {
-          cachedOriginCoords = { lat: p.base_lat, lng: p.base_lng };
-        }
+    const p = profile as Record<string, unknown> | null;
+    if (p) {
+      if (typeof p.base_address === 'string' && p.base_address.trim()) {
+        originAddress = p.base_address;
+      }
+      if (typeof p.base_cep === 'string' && p.base_cep.trim()) {
+        originCep = p.base_cep;
+      }
+      if (typeof p.km_rate === 'number' && p.km_rate > 0 && p.km_rate <= 50) {
+        kmRate = p.km_rate;
+      }
+      if (typeof p.base_lat === 'number' && typeof p.base_lng === 'number') {
+        cachedOriginCoords = { lat: p.base_lat, lng: p.base_lng };
       }
     }
 

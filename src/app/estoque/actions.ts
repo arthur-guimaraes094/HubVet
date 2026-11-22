@@ -5,6 +5,8 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import type { ActionResponse } from '@/core/types/actions'
 
+const uuidSchema = z.string().uuid('ID inválido')
+
 const inventoryItemSchema = z.object({
   name: z.string().min(1, 'Nome do item é obrigatório'),
   type: z.string().min(1, 'Tipo do item é obrigatório'),
@@ -47,6 +49,10 @@ export async function addInventoryItem(rawData: unknown): Promise<ActionResponse
 }
 
 export async function updateInventoryItem(id: string, rawData: unknown): Promise<ActionResponse> {
+  if (!uuidSchema.safeParse(id).success) {
+    return { success: false, error: 'ID de item inválido.' }
+  }
+
   const result = inventoryItemSchema.safeParse(rawData)
   if (!result.success) {
     return { success: false, error: 'Dados inválidos', fieldErrors: result.error.flatten().fieldErrors }
@@ -64,7 +70,7 @@ export async function updateInventoryItem(id: string, rawData: unknown): Promise
     concentration: data.concentration,
     unit_cost: data.unitCost,
     sale_price: data.salePrice,
-  }).eq('id', id)
+  }).eq('id', id).eq('profile_id', userData.user.id)
 
   if (error) {
     return { success: false, error: 'Erro ao atualizar item.' }
@@ -76,12 +82,20 @@ export async function updateInventoryItem(id: string, rawData: unknown): Promise
 }
 
 export async function deleteInventoryItem(id: string): Promise<ActionResponse> {
+  if (!uuidSchema.safeParse(id).success) {
+    return { success: false, error: 'ID de item inválido.' }
+  }
+
   const supabase = await createClient()
 
   const { data: userData, error: userError } = await supabase.auth.getUser()
   if (userError || !userData.user) return { success: false, error: 'Não autenticado' }
 
-  const { error } = await supabase.from('inventory').delete().eq('id', id)
+  const { error } = await supabase
+    .from('inventory')
+    .delete()
+    .eq('id', id)
+    .eq('profile_id', userData.user.id)
 
   if (error) {
     return { success: false, error: 'Erro ao excluir item.' }

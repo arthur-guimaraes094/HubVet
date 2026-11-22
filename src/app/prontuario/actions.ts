@@ -32,9 +32,9 @@ const prontuarioSchema = z.object({
   items: z.array(z.object({
     id: z.string(),
     name: z.string(),
-    quantity: z.number(),
-    unitCost: z.number(),
-    price: z.number()
+    quantity: z.number().positive('Quantidade deve ser maior que zero'),
+    unitCost: z.number().min(0, 'Custo unitário não pode ser negativo'),
+    price: z.number().min(0, 'Preço não pode ser negativo')
   })).optional().default([]),
   prescriptionText: z.string().optional().default(''),
   prescriptions: z.array(prescriptionItemSchema).optional().default([]),
@@ -88,11 +88,31 @@ export async function salvarProntuario(rawData: unknown): Promise<ActionResponse
     }
 
     if (consultationId) {
+      if (!z.string().uuid().safeParse(consultationId).success) {
+        return { success: false, error: 'ID de consulta inválido.' }
+      }
+
+      const { data: existingConsultation, error: fetchError } = await supabase
+        .from('consultations')
+        .select('id, status')
+        .eq('id', consultationId)
+        .eq('profile_id', profileId)
+        .single()
+
+      if (fetchError || !existingConsultation) {
+        return { success: false, error: 'Consulta não encontrada.' }
+      }
+
+      if (existingConsultation.status === 'Completed') {
+        return { success: false, error: 'Este atendimento já foi finalizado anteriormente.' }
+      }
+
       // 1a. Atualizar consulta existente (vinda da agenda)
       let { error: updateError } = await supabase
         .from('consultations')
         .update(extendedPayload)
         .eq('id', consultationId)
+        .eq('profile_id', profileId)
 
       if (
         updateError &&
@@ -102,6 +122,7 @@ export async function salvarProntuario(rawData: unknown): Promise<ActionResponse
           .from('consultations')
           .update(basePayload)
           .eq('id', consultationId)
+          .eq('profile_id', profileId)
         updateError = fallback.error
       }
 
@@ -145,8 +166,16 @@ export async function salvarProntuario(rawData: unknown): Promise<ActionResponse
 
     // Atualizar o peso atual do paciente
     if (data.weightKg) {
-      await supabase.from('patients').update({ weight_kg: data.weightKg }).eq('id', data.patientId)
+      const { error: weightError } = await supabase
+        .from('patients')
+        .update({ weight_kg: data.weightKg })
+        .eq('id', data.patientId)
+      if (weightError) {
+        console.error('Patient weight update error:', weightError)
+      }
     }
+
+    const criticalErrors: string[] = []
 
     // 1c. Registrar protocolos vacinais aplicados nesta consulta (se houver)
     if (data.vaccinations && data.vaccinations.length > 0) {
@@ -188,12 +217,17 @@ export async function salvarProntuario(rawData: unknown): Promise<ActionResponse
           .select('id')
           .single()
 
-        if (!vacError && insertedVac && openPrevious && openPrevious.length > 0) {
+        if (vacError) {
+          console.error('Vaccination insert error:', vacError)
+        } else if (insertedVac && openPrevious && openPrevious.length > 0) {
           const prevIds = openPrevious.map(r => r.id)
-          await supabase
+          const { error: closePrevError } = await supabase
             .from('patient_vaccinations')
             .update({ completed_by_vaccination_id: insertedVac.id })
             .in('id', prevIds)
+          if (closePrevError) {
+            console.error('Close previous vaccination error:', closePrevError)
+          }
         }
       }
     }
@@ -210,7 +244,13 @@ export async function salvarProntuario(rawData: unknown): Promise<ActionResponse
       }))
 
     if (itemsToInsert.length > 0) {
-      await supabase.from('consultation_items').insert(itemsToInsert)
+      const { error: itemsInsertError } = await supabase
+        .from('consultation_items')
+        .insert(itemsToInsert)
+      if (itemsInsertError) {
+        console.error('Consultation items insert error:', itemsInsertError)
+        criticalErrors.push('consultation_items')
+      }
     }
 
     const totalCost = data.items.reduce(
@@ -218,8 +258,8 @@ export async function salvarProntuario(rawData: unknown): Promise<ActionResponse
       0
     )
 
-    // 3. Salvar transações financeiras em paralelo
-    const totalServiceIncome = (data.baseFee || 0) + (data.travelFee && data.travelFee > 0 ? data.travelFee : 0)
+    // 3. Salvar transações financeiras em paralelo (baseFee já inclui travelFee)
+    const totalServiceIncome = data.baseFee || 0
     const transactionPromises = [
       supabase.from('transactions').insert({
         profile_id: profileId,
@@ -244,10 +284,16 @@ export async function salvarProntuario(rawData: unknown): Promise<ActionResponse
       )
     }
 
-    await Promise.all(transactionPromises)
+    const transactionResults = await Promise.all(transactionPromises)
+    transactionResults.forEach((res, idx) => {
+      if (res.error) {
+        console.error(`Transaction insert error (#${idx}):`, res.error)
+        criticalErrors.push('transactions')
+      }
+    })
 
-    // 4. Criar a Fatura (Invoice) para o Cliente
-    const effectiveInvoiceTotal = (data.baseFee || 0) + (data.travelFee && data.travelFee > 0 ? data.travelFee : 0)
+    // 4. Criar a Fatura (Invoice) para o Cliente (baseFee já inclui travelFee)
+    const effectiveInvoiceTotal = data.baseFee || 0
     if (effectiveInvoiceTotal > 0) {
       const { data: invoice, error: invoiceError } = await supabase
         .from('invoices')
@@ -261,6 +307,7 @@ export async function salvarProntuario(rawData: unknown): Promise<ActionResponse
 
       if (invoiceError) {
         console.error('Invoice creation error:', invoiceError)
+        criticalErrors.push('invoices')
       }
 
       if (invoice && invoice.id) {
@@ -289,7 +336,8 @@ export async function salvarProntuario(rawData: unknown): Promise<ActionResponse
         if (invoiceItemsToInsert.length > 0) {
           const { error: itemsError } = await supabase.from('invoice_items').insert(invoiceItemsToInsert)
           if (itemsError) {
-             console.error('Invoice items error:', itemsError)
+            console.error('Invoice items error:', itemsError)
+            criticalErrors.push('invoice_items')
           }
         }
       }
@@ -298,7 +346,17 @@ export async function salvarProntuario(rawData: unknown): Promise<ActionResponse
     revalidatePath('/')
     revalidatePath('/prontuario')
     revalidatePath('/agenda')
+    revalidatePath('/financeiro')
     if (data.patientId) revalidatePath(`/pacientes/${data.patientId}`)
+
+    if (criticalErrors.length > 0) {
+      return {
+        success: false,
+        error:
+          'Prontuário salvo, mas houve erro ao gravar itens ou faturamento. Confira no Financeiro antes de tentar novamente.',
+      }
+    }
+
     return { success: true, data: { consultationId } }
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : 'Erro interno do servidor'
