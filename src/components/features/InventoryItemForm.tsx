@@ -5,9 +5,20 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { addInventoryItem, updateInventoryItem, deleteInventoryItem } from '@/app/estoque/actions';
-import { VET_SUPPLIES_CATALOG } from '@/core/data/vet-supplies-catalog';
+import {
+  getCatalogOptionLabels,
+  findCatalogItemByLabel,
+} from '@/core/data/vet-supplies-catalog';
 import { useToast } from '@/components/ui/Toast';
 import { Modal } from '@/components/ui/Modal';
+
+function parseNonNegativePrice(raw: string): number | null {
+  const normalized = raw.trim().replace(',', '.');
+  if (!normalized) return null;
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100000) return null;
+  return parsed;
+}
 
 interface InventoryItemFormProps {
   itemToEdit?: {
@@ -32,21 +43,22 @@ export function InventoryItemForm({ itemToEdit, onClose }: InventoryItemFormProp
   const [name, setName] = useState(itemToEdit?.name || '');
   const [type, setType] = useState(itemToEdit?.type || 'Medication');
   const [concentration, setConcentration] = useState(itemToEdit?.concentration || '');
-  const [salePrice, setSalePrice] = useState(itemToEdit?.salePrice?.toString() || '');
-
-  const catalogOptions = useMemo(
-    () => Array.from(new Set(VET_SUPPLIES_CATALOG.map((c) => c.name))),
-    []
+  const [salePrice, setSalePrice] = useState(
+    itemToEdit?.salePrice !== undefined && itemToEdit?.salePrice !== null
+      ? String(itemToEdit.salePrice)
+      : ''
   );
 
+  const catalogOptions = useMemo(() => getCatalogOptionLabels(), []);
+
   const handleNameChange = (val: string) => {
-    setName(val);
-    const match = VET_SUPPLIES_CATALOG.find(
-      (c) => c.name.toLowerCase() === val.toLowerCase()
-    );
+    const match = findCatalogItemByLabel(val);
     if (match) {
-      if (match.concentration) setConcentration(match.concentration);
+      setName(match.name);
+      setConcentration(match.concentration || '');
       setType(match.category);
+    } else {
+      setName(val);
     }
   };
 
@@ -56,19 +68,31 @@ export function InventoryItemForm({ itemToEdit, onClose }: InventoryItemFormProp
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !salePrice) {
+    const trimmedName = name.trim();
+    if (!trimmedName || !salePrice.trim()) {
       error('Preencha os campos obrigatórios');
       return;
     }
-    
+
+    const parsedSalePrice = parseNonNegativePrice(salePrice);
+    if (parsedSalePrice === null) {
+      error('Informe um valor de aplicação válido (maior ou igual a zero).');
+      return;
+    }
+
     setLoading(true);
     try {
+      const preservedUnitCost =
+        isEdit && itemToEdit && Number.isFinite(itemToEdit.unitCost) && itemToEdit.unitCost >= 0
+          ? itemToEdit.unitCost
+          : 0;
+
       const data = {
-        name,
+        name: trimmedName,
         type,
-        concentration: concentration || undefined,
-        unitCost: 0,
-        salePrice: parseFloat(salePrice)
+        concentration: concentration.trim() || undefined,
+        unitCost: preservedUnitCost,
+        salePrice: parsedSalePrice,
       };
 
       if (isEdit && itemToEdit) {
@@ -212,9 +236,9 @@ export function InventoryItemForm({ itemToEdit, onClose }: InventoryItemFormProp
 
             <Input 
               label="Valor Aplicação (R$)" 
-              type="number" 
-              step="0.01" 
-              placeholder="0.00" 
+              type="text"
+              inputMode="decimal"
+              placeholder="0,00" 
               value={salePrice} 
               onChange={e => setSalePrice(e.target.value)} 
               required 

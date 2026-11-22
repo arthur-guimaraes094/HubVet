@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -16,7 +16,21 @@ import {
   buildWhatsAppVaccineReminderUrl,
   type VaccineProtocolCode,
 } from '@/core/use-cases/vaccine-protocols';
+import { getBrazilDateString } from '@/core/utils/timezone';
 import { useRouter } from 'next/navigation';
+
+function parseClampedIntervalDays(raw: string): number {
+  const parsed = parseInt(raw, 10);
+  if (!Number.isFinite(parsed)) return 365;
+  return Math.min(3650, Math.max(1, parsed));
+}
+
+function isValidYmdDate(dateStr: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+}
 
 export interface PatientVaccinationRecord {
   id: string;
@@ -52,6 +66,7 @@ export function VaccinationSection({
 }: VaccinationSectionProps) {
   const { success, error } = useToast();
   const router = useRouter();
+  const protocolSelectId = useId();
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -61,41 +76,72 @@ export function VaccinationSection({
   const [protocolCode, setProtocolCode] = useState<VaccineProtocolCode>(defaultProtocol);
   const [customVaccineName, setCustomVaccineName] = useState('');
   const [doseStage, setDoseStage] = useState<'dose_1' | 'dose_2' | 'dose_3' | 'annual'>('dose_1');
-  const [appliedDate, setAppliedDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [appliedDate, setAppliedDate] = useState(() => getBrazilDateString());
   const [batchNumber, setBatchNumber] = useState('');
   const [notes, setNotes] = useState('');
   const [customIntervalDays, setCustomIntervalDays] = useState('365');
 
   const isMultiDoseProtocol =
     protocolCode === 'V10_VANGUARD' || protocolCode === 'V5_FELINA';
+  const isSingleAnnualProtocol =
+    protocolCode === 'ANTIRRABICA' || protocolCode === 'GRIPE_ORAL';
+
+  const getSuggestedStageForProtocol = (
+    code: VaccineProtocolCode
+  ): 'dose_1' | 'dose_2' | 'dose_3' | 'annual' => {
+    if (code === 'CUSTOM') return 'dose_1';
+    if (code === 'ANTIRRABICA' || code === 'GRIPE_ORAL') {
+      const hasPrior = vaccinations.some((v) => v.protocol_code === code);
+      return hasPrior ? 'annual' : 'dose_1';
+    }
+    const activeSameProtocol = vaccinations.find(
+      (v) => v.protocol_code === code && !v.completed_by_vaccination_id
+    );
+    if (activeSameProtocol) {
+      if (
+        !activeSameProtocol.is_annual_booster &&
+        activeSameProtocol.dose_number === 1 &&
+        activeSameProtocol.total_initial_doses === 3
+      ) {
+        return 'dose_2';
+      }
+      if (
+        !activeSameProtocol.is_annual_booster &&
+        activeSameProtocol.dose_number === 2 &&
+        activeSameProtocol.total_initial_doses === 3
+      ) {
+        return 'dose_3';
+      }
+      return 'annual';
+    }
+    return 'dose_1';
+  };
+
+  const effectiveDoseStage: 'dose_1' | 'dose_2' | 'dose_3' | 'annual' = isMultiDoseProtocol
+    ? doseStage
+    : isSingleAnnualProtocol
+    ? doseStage === 'annual'
+      ? 'annual'
+      : 'dose_1'
+    : 'dose_1';
+
+  const clampedCustomInterval = parseClampedIntervalDays(customIntervalDays);
 
   const previewSchedule = React.useMemo(() => {
-    const effectiveStage = isMultiDoseProtocol ? doseStage : 'dose_1';
+    const safeAppliedDate = isValidYmdDate(appliedDate) ? appliedDate : getBrazilDateString();
     return calculateVaccineSchedule({
       protocolCode,
       customVaccineName,
-      doseStage: effectiveStage,
-      appliedDate: appliedDate || new Date().toISOString().split('T')[0],
-      customIntervalDays: parseInt(customIntervalDays || '365', 10),
+      doseStage: effectiveDoseStage,
+      appliedDate: safeAppliedDate,
+      customIntervalDays: clampedCustomInterval,
     });
-  }, [protocolCode, customVaccineName, doseStage, appliedDate, customIntervalDays, isMultiDoseProtocol]);
+  }, [protocolCode, customVaccineName, effectiveDoseStage, appliedDate, clampedCustomInterval]);
 
   const handleOpenModal = () => {
-    // Sugerir automaticamente a próxima dose caso o pet já tenha tomado a 1ª ou 2ª dose
-    const activeSameProtocol = vaccinations.find(
-      (v) => v.protocol_code === defaultProtocol && !v.completed_by_vaccination_id
-    );
-    if (activeSameProtocol) {
-      if (!activeSameProtocol.is_annual_booster && activeSameProtocol.dose_number === 1 && activeSameProtocol.total_initial_doses === 3) {
-        setDoseStage('dose_2');
-      } else if (!activeSameProtocol.is_annual_booster && activeSameProtocol.dose_number === 2 && activeSameProtocol.total_initial_doses === 3) {
-        setDoseStage('dose_3');
-      } else {
-        setDoseStage('annual');
-      }
-    } else {
-      setDoseStage('dose_1');
-    }
+    setProtocolCode(defaultProtocol);
+    setDoseStage(getSuggestedStageForProtocol(defaultProtocol));
+    setAppliedDate(getBrazilDateString());
     setIsOpen(true);
   };
 
@@ -105,6 +151,10 @@ export function VaccinationSection({
       error('Informe o nome da vacina personalizada.');
       return;
     }
+    if (!isValidYmdDate(appliedDate)) {
+      error('Informe uma data de aplicação válida.');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -112,11 +162,11 @@ export function VaccinationSection({
         patientId,
         protocolCode,
         customVaccineName,
-        doseStage: isMultiDoseProtocol ? doseStage : 'dose_1',
+        doseStage: effectiveDoseStage,
         appliedDate,
         batchNumber,
         notes,
-        customIntervalDays: parseInt(customIntervalDays || '365', 10),
+        customIntervalDays: clampedCustomInterval,
       });
 
       if (!result.success) {
@@ -128,6 +178,7 @@ export function VaccinationSection({
       setIsOpen(false);
       setBatchNumber('');
       setNotes('');
+      setAppliedDate(getBrazilDateString());
       router.refresh();
     } catch {
       error('Erro ao registrar vacinação.');
@@ -154,12 +205,11 @@ export function VaccinationSection({
         daysDiff: 999,
       };
     }
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const [ty, tm, td] = getBrazilDateString().split('-').map(Number);
+    const todayUtc = Date.UTC(ty, tm - 1, td);
     const [y, m, d] = nextDueDateStr.split('-').map(Number);
-    const due = new Date(y, (m || 1) - 1, d || 1);
-    const diffMs = due.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    const dueUtc = Date.UTC(y, (m || 1) - 1, d || 1);
+    const diffDays = Math.round((dueUtc - todayUtc) / (1000 * 60 * 60 * 24));
 
     if (diffDays < 0) {
       return {
@@ -297,23 +347,28 @@ export function VaccinationSection({
                   </span>
                 )}
 
-                {!isCompleted && tutorPhone && (
-                  <a
-                    href={buildWhatsAppVaccineReminderUrl({
-                      tutorPhone,
-                      tutorName: tutorName || 'Tutor(a)',
-                      patientName,
-                      vaccineName: v.vaccine_name,
-                      nextDoseLabel: v.next_dose_label,
-                      nextDueDate: v.next_due_date,
-                    })}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full py-2 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 border border-emerald-500/20 text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors"
-                  >
-                    📲 Avisar Tutor no WhatsApp
-                  </a>
-                )}
+                {(() => {
+                  if (isCompleted || !tutorPhone) return null;
+                  const reminderUrl = buildWhatsAppVaccineReminderUrl({
+                    tutorPhone,
+                    tutorName: tutorName || 'Tutor(a)',
+                    patientName,
+                    vaccineName: v.vaccine_name,
+                    nextDoseLabel: v.next_dose_label,
+                    nextDueDate: v.next_due_date,
+                  });
+                  if (!reminderUrl) return null;
+                  return (
+                    <a
+                      href={reminderUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-2 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 border border-emerald-500/20 text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors"
+                    >
+                      📲 Avisar Tutor no WhatsApp
+                    </a>
+                  );
+                })()}
               </div>
             );
           })}
@@ -333,17 +388,19 @@ export function VaccinationSection({
 
         <form onSubmit={handleSave} className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
-            <label className="text-[10px] font-black text-foreground/30 uppercase tracking-[0.2em] pl-4">
+            <label
+              htmlFor={protocolSelectId}
+              className="text-[10px] font-black text-foreground/30 uppercase tracking-[0.2em] pl-4"
+            >
               Protocolo Vacinal *
             </label>
             <select
+              id={protocolSelectId}
               value={protocolCode}
               onChange={(e) => {
                 const code = e.target.value as VaccineProtocolCode;
                 setProtocolCode(code);
-                if (code === 'ANTIRRABICA' || code === 'GRIPE_ORAL') {
-                  setDoseStage('dose_1');
-                }
+                setDoseStage(getSuggestedStageForProtocol(code));
               }}
               className="w-full bg-card rounded-xl px-4 py-3 shadow-sm outline-none focus:ring-2 focus:ring-primary/40 font-bold text-sm transition-all border border-border text-foreground"
             >
@@ -380,6 +437,8 @@ export function VaccinationSection({
               <Input
                 label="Intervalo Retorno (dias)"
                 type="number"
+                min={1}
+                max={3650}
                 value={customIntervalDays}
                 onChange={(e) => setCustomIntervalDays(e.target.value)}
               />
@@ -406,6 +465,33 @@ export function VaccinationSection({
                     }
                     className={`py-2.5 px-3 rounded-xl text-xs font-black transition-all border ${
                       doseStage === stage.id
+                        ? 'bg-primary text-white border-primary shadow-sm'
+                        : 'bg-card text-foreground/70 border-border hover:border-primary/30'
+                    }`}
+                  >
+                    {stage.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {isSingleAnnualProtocol && (
+            <div className="flex flex-col gap-2">
+              <span className="text-[10px] font-black text-foreground/30 uppercase tracking-[0.2em] pl-4">
+                Etapa do Protocolo Aplicada Hoje
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: 'dose_1', label: 'Dose Única (Inicial)' },
+                  { id: 'annual', label: 'Reforço Anual (+1 ano)' },
+                ].map((stage) => (
+                  <button
+                    key={stage.id}
+                    type="button"
+                    onClick={() => setDoseStage(stage.id as 'dose_1' | 'annual')}
+                    className={`py-2.5 px-3 rounded-xl text-xs font-black transition-all border ${
+                      effectiveDoseStage === stage.id
                         ? 'bg-primary text-white border-primary shadow-sm'
                         : 'bg-card text-foreground/70 border-border hover:border-primary/30'
                     }`}

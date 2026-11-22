@@ -1,12 +1,19 @@
 "use client";
 
-import React, { useMemo, useState } from 'react';
+import React, { useId, useMemo, useState } from 'react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import {
   VaccineProtocolCode,
   calculateVaccineSchedule,
 } from '@/core/use-cases/vaccine-protocols';
+import { getBrazilDateString } from '@/core/utils/timezone';
+
+function parseClampedIntervalDays(raw: string): number {
+  const parsed = parseInt(raw, 10);
+  if (!Number.isFinite(parsed)) return 365;
+  return Math.min(3650, Math.max(1, parsed));
+}
 
 export interface ConsultationVaccinationDraft {
   id: string;
@@ -32,6 +39,8 @@ export function ConsultationVaccinationSection({
   onNotifySuccess,
   onNotifyError,
 }: ConsultationVaccinationSectionProps) {
+  const protocolSelectId = useId();
+  const stageSelectId = useId();
   const [showVacForm, setShowVacForm] = useState(false);
   const [vacProtocol, setVacProtocol] = useState<VaccineProtocolCode>(
     species === 'Feline' ? 'V5_FELINA' : 'V10_VANGUARD'
@@ -42,16 +51,27 @@ export function ConsultationVaccinationSection({
   const [vacCustomName, setVacCustomName] = useState('');
   const [vacCustomInterval, setVacCustomInterval] = useState('365');
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getBrazilDateString();
+  const isMultiDoseProtocol = vacProtocol === 'V10_VANGUARD' || vacProtocol === 'V5_FELINA';
+  const isSingleAnnualProtocol = vacProtocol === 'ANTIRRABICA' || vacProtocol === 'GRIPE_ORAL';
+  const effectiveDoseStage: 'dose_1' | 'dose_2' | 'dose_3' | 'annual' = isMultiDoseProtocol
+    ? vacDoseStage
+    : isSingleAnnualProtocol
+    ? vacDoseStage === 'annual'
+      ? 'annual'
+      : 'dose_1'
+    : 'dose_1';
+  const clampedCustomInterval = parseClampedIntervalDays(vacCustomInterval);
+
   const previewSchedule = useMemo(() => {
     return calculateVaccineSchedule({
       protocolCode: vacProtocol,
       customVaccineName: vacCustomName || 'Vacina Personalizada',
-      doseStage: vacDoseStage,
+      doseStage: effectiveDoseStage,
       appliedDate: todayStr,
-      customIntervalDays: parseInt(vacCustomInterval, 10) || 365,
+      customIntervalDays: clampedCustomInterval,
     });
-  }, [vacProtocol, vacCustomName, vacDoseStage, todayStr, vacCustomInterval]);
+  }, [vacProtocol, vacCustomName, effectiveDoseStage, todayStr, clampedCustomInterval]);
 
   const handleAddVaccinationDraft = () => {
     if (vacProtocol === 'CUSTOM' && !vacCustomName.trim()) {
@@ -62,9 +82,8 @@ export function ConsultationVaccinationSection({
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       protocolCode: vacProtocol,
       customVaccineName: vacProtocol === 'CUSTOM' ? vacCustomName.trim() : undefined,
-      doseStage: vacDoseStage,
-      customIntervalDays:
-        vacProtocol === 'CUSTOM' ? parseInt(vacCustomInterval, 10) || 365 : undefined,
+      doseStage: effectiveDoseStage,
+      customIntervalDays: vacProtocol === 'CUSTOM' ? clampedCustomInterval : undefined,
     };
     onVaccinationsChange((prev) => [...prev, draft]);
     setShowVacForm(false);
@@ -105,15 +124,21 @@ export function ConsultationVaccinationSection({
         <div className="p-4 rounded-2xl bg-card border border-primary/20 flex flex-col gap-3 mt-1 animate-in fade-in">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-semibold text-foreground/85">
+              <label
+                htmlFor={protocolSelectId}
+                className="text-sm font-semibold text-foreground/85"
+              >
                 Protocolo Vacinal
               </label>
               <select
+                id={protocolSelectId}
                 value={vacProtocol}
                 onChange={(e) => {
                   const code = e.target.value as VaccineProtocolCode;
                   setVacProtocol(code);
                   if (code === 'ANTIRRABICA' || code === 'GRIPE_ORAL') {
+                    setVacDoseStage((prev) => (prev === 'annual' ? 'annual' : 'dose_1'));
+                  } else if (code === 'CUSTOM') {
                     setVacDoseStage('dose_1');
                   }
                 }}
@@ -127,12 +152,16 @@ export function ConsultationVaccinationSection({
               </select>
             </div>
 
-            {(vacProtocol === 'V10_VANGUARD' || vacProtocol === 'V5_FELINA') && (
+            {isMultiDoseProtocol && (
               <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-semibold text-foreground/85">
+                <label
+                  htmlFor={stageSelectId}
+                  className="text-sm font-semibold text-foreground/85"
+                >
                   Etapa do Protocolo
                 </label>
                 <select
+                  id={stageSelectId}
                   value={vacDoseStage}
                   onChange={(e) =>
                     setVacDoseStage(
@@ -149,11 +178,23 @@ export function ConsultationVaccinationSection({
               </div>
             )}
 
-            {(vacProtocol === 'ANTIRRABICA' || vacProtocol === 'GRIPE_ORAL') && (
-              <div className="flex flex-col justify-end">
-                <div className="p-2.5 rounded-xl bg-primary/5 border border-primary/15 text-xs font-bold text-primary">
-                  Dose única • Próximo reforço programado para +1 ano (365 dias)
-                </div>
+            {isSingleAnnualProtocol && (
+              <div className="flex flex-col gap-1.5">
+                <label
+                  htmlFor={stageSelectId}
+                  className="text-sm font-semibold text-foreground/85"
+                >
+                  Etapa do Protocolo
+                </label>
+                <select
+                  id={stageSelectId}
+                  value={effectiveDoseStage}
+                  onChange={(e) => setVacDoseStage(e.target.value as 'dose_1' | 'annual')}
+                  className="w-full bg-card border border-border rounded-xl px-3.5 py-2.5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                >
+                  <option value="dose_1">Dose Única (Inicial)</option>
+                  <option value="annual">Reforço Anual (+1 ano)</option>
+                </select>
               </div>
             )}
           </div>
@@ -169,6 +210,8 @@ export function ConsultationVaccinationSection({
               <Input
                 label="Intervalo Próxima Dose (dias)"
                 type="number"
+                min={1}
+                max={3650}
                 value={vacCustomInterval}
                 onChange={(e) => setVacCustomInterval(e.target.value)}
                 placeholder="Ex: 21 ou 365"

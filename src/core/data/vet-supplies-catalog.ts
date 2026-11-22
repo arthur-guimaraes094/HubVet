@@ -13,6 +13,8 @@ export interface VetCatalogSuggestion {
   protocolCode?: 'V10_VANGUARD' | 'ANTIRRABICA' | 'V5_FELINA' | 'GRIPE_ORAL';
 }
 
+export type VetSupplyCatalogItem = VetCatalogSuggestion;
+
 export const VET_SUPPLIES_CATALOG: VetCatalogSuggestion[] = [
   // Protocolos Vacinais Principais
   {
@@ -285,3 +287,32 @@ export const VET_SUPPLIES_CATALOG: VetCatalogSuggestion[] = [
     defaultDuration: 'Durante 7 dias',
   },
 ];
+
+const CATALOG_NAME_COUNTS = VET_SUPPLIES_CATALOG.reduce<Map<string, number>>((acc, item) => {
+  const key = item.name.trim().toLowerCase();
+  acc.set(key, (acc.get(key) ?? 0) + 1);
+  return acc;
+}, new Map());
+
+export function formatCatalogOptionLabel(item: VetSupplyCatalogItem): string {
+  const count = CATALOG_NAME_COUNTS.get(item.name.trim().toLowerCase()) ?? 0;
+  if (count > 1 && item.concentration) {
+    return `${item.name} — ${item.concentration}`;
+  }
+  return item.name;
+}
+
+export function getCatalogOptionLabels(): string[] {
+  return Array.from(new Set(VET_SUPPLIES_CATALOG.map(formatCatalogOptionLabel)));
+}
+
+export function findCatalogItemByLabel(label: string): VetSupplyCatalogItem | undefined {
+  const normalized = label.trim().toLowerCase();
+  if (!normalized) return undefined;
+
+  return (
+    VET_SUPPLIES_CATALOG.find(
+      (item) => formatCatalogOptionLabel(item).toLowerCase() === normalized
+    ) ?? VET_SUPPLIES_CATALOG.find((item) => item.name.trim().toLowerCase() === normalized)
+  );
+}

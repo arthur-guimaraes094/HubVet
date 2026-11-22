@@ -1,12 +1,20 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { addInventoryItem } from '@/app/estoque/actions';
-import { VET_SUPPLIES_CATALOG } from '@/core/data/vet-supplies-catalog';
+import { findCatalogItemByLabel } from '@/core/data/vet-supplies-catalog';
 import { useRouter } from 'next/navigation';
+
+function parseNonNegativePrice(raw: string): number | null {
+  const normalized = raw.trim().replace(',', '.');
+  if (!normalized) return null;
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100000) return null;
+  return parsed;
+}
 
 export type InventoryItem = {
   id: string;
@@ -39,6 +47,7 @@ export function ConsultationSuppliesSection({
   onNotifyError,
 }: ConsultationSuppliesSectionProps) {
   const router = useRouter();
+  const categorySelectId = useId();
   const [searchTerm, setSearchTerm] = useState('');
   const [showNewItemForm, setShowNewItemForm] = useState(false);
   const [newItemName, setNewItemName] = useState('');
@@ -48,37 +57,44 @@ export function ConsultationSuppliesSection({
   const [savingNewItem, setSavingNewItem] = useState(false);
 
   const handleSelectCatalogForNewItem = (val: string) => {
-    setNewItemName(val);
-    const match = VET_SUPPLIES_CATALOG.find(
-      (c) => c.name.toLowerCase() === val.toLowerCase()
-    );
+    const match = findCatalogItemByLabel(val);
     if (match) {
-      if (match.concentration) setNewItemConcentration(match.concentration);
+      setNewItemName(match.name);
+      setNewItemConcentration(match.concentration || '');
       if (match.category === 'Vaccine') setNewItemCategory('Vaccine');
       else if (match.category === 'Medication') setNewItemCategory('Medication');
       else if (match.category === 'Consultation') setNewItemCategory('Consultation');
       else setNewItemCategory('Supply');
+    } else {
+      setNewItemName(val);
     }
   };
 
   const handleAddNewInventoryItem = async () => {
-    if (!newItemName || !newItemPrice) {
+    const trimmedName = newItemName.trim();
+    if (!trimmedName || !newItemPrice.trim()) {
       onNotifyError('Preencha nome e valor de aplicação do novo item.');
+      return;
+    }
+
+    const parsedPrice = parseNonNegativePrice(newItemPrice);
+    if (parsedPrice === null) {
+      onNotifyError('Informe um valor de aplicação válido (maior ou igual a zero).');
       return;
     }
 
     try {
       setSavingNewItem(true);
       const result = await addInventoryItem({
-        name: newItemName,
+        name: trimmedName,
         type: newItemCategory as 'Medication' | 'Vaccine' | 'Supply' | 'Material' | 'Consultation',
-        concentration: newItemConcentration,
-        unitCost: parseFloat(newItemPrice) * 0.5,
-        salePrice: parseFloat(newItemPrice),
+        concentration: newItemConcentration.trim() || undefined,
+        unitCost: 0,
+        salePrice: parsedPrice,
       });
 
       if (result.success) {
-        onNotifySuccess(`${newItemName} cadastrado no catálogo!`);
+        onNotifySuccess(`${trimmedName} cadastrado no catálogo!`);
         setNewItemName('');
         setNewItemPrice('');
         setNewItemConcentration('');
@@ -135,10 +151,14 @@ export function ConsultationSuppliesSection({
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-black text-foreground/30 uppercase tracking-widest pl-1">
+              <label
+                htmlFor={categorySelectId}
+                className="text-[10px] font-black text-foreground/30 uppercase tracking-widest pl-1"
+              >
                 Categoria
               </label>
               <select
+                id={categorySelectId}
                 value={newItemCategory}
                 onChange={(e) => setNewItemCategory(e.target.value)}
                 className="w-full bg-card rounded-xl px-4 py-3 shadow-inner border border-border focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm font-bold text-foreground"
@@ -159,10 +179,11 @@ export function ConsultationSuppliesSection({
             </div>
             <Input
               label="Valor Aplicação (R$)"
-              type="number"
+              type="text"
+              inputMode="decimal"
               value={newItemPrice}
               onChange={(e) => setNewItemPrice(e.target.value)}
-              placeholder="Ex: 50.00"
+              placeholder="Ex: 50,00"
             />
           </div>
           <Button

@@ -9,10 +9,35 @@ interface PixPayloadParams {
   txId?: string;
 }
 
+const utf8Encoder = new TextEncoder();
+
+/**
+ * Trunca uma string para no máximo `maxBytes` bytes UTF-8 sem partir caracteres multibyte.
+ */
+function capUtf8Bytes(value: string, maxBytes: number): { text: string; byteLength: number } {
+  const encoded = utf8Encoder.encode(value);
+  if (encoded.length <= maxBytes) {
+    return { text: value, byteLength: encoded.length };
+  }
+
+  let text = '';
+  let byteLength = 0;
+  for (const char of value) {
+    const charByteLength = utf8Encoder.encode(char).length;
+    if (byteLength + charByteLength > maxBytes) {
+      break;
+    }
+    text += char;
+    byteLength += charByteLength;
+  }
+
+  return { text, byteLength: utf8Encoder.encode(text).length };
+}
+
 /**
  * Normaliza a chave PIX conforme o padrão DICT/EMVCo do Banco Central:
  * - CPF/CNPJ: apenas dígitos
- * - Telefone: formato E.164 com +55 (ex: +5584986365455)
+ * - Telefone: formato E.164 com +55 (ex: +5584986365455), removendo zero de tronco
  * - E-mail: minúsculas
  */
 function normalizePixKey(key: string, keyType?: string): string {
@@ -27,9 +52,11 @@ function normalizePixKey(key: string, keyType?: string): string {
 
   if (type === 'telefone' || type === 'phone') {
     if (trimmed.startsWith('+')) {
-      return `+${trimmed.slice(1).replace(/\D/g, '')}`;
+      const intlDigits = trimmed.slice(1).replace(/\D/g, '');
+      return intlDigits ? `+${intlDigits}` : '';
     }
-    const digits = trimmed.replace(/\D/g, '');
+    const digits = trimmed.replace(/\D/g, '').replace(/^0+/, '');
+    if (!digits) return '';
     if (digits.length === 10 || digits.length === 11) {
       return `+55${digits}`;
     }
@@ -46,19 +73,28 @@ function normalizePixKey(key: string, keyType?: string): string {
   return trimmed;
 }
 
+function normalizeTxId(txId?: string): string {
+  const trimmed = (txId ?? '').trim();
+  if (!trimmed || trimmed === '***') return '***';
+  const sanitized = trimmed.replace(/[^A-Za-z0-9]/g, '').slice(0, 25);
+  return sanitized || '***';
+}
+
 function formatField(id: string, value: string): string {
-  const len = String(value.length).padStart(2, '0');
-  return `${id}${len}${value}`;
+  const { text, byteLength } = capUtf8Bytes(value, 99);
+  const len = String(byteLength).padStart(2, '0');
+  return `${id}${len}${text}`;
 }
 
 /**
  * Calcula o checksum CRC16-CCITT (polinômio 0x1021, valor inicial 0xFFFF)
- * conforme a especificação do Banco Central do Brasil para o padrão EMVCo do PIX.
+ * sobre os bytes UTF-8 conforme a especificação do Banco Central do Brasil para o padrão EMVCo do PIX.
  */
 function crc16Ccitt(str: string): string {
+  const bytes = utf8Encoder.encode(str);
   let crc = 0xffff;
-  for (let i = 0; i < str.length; i++) {
-    crc ^= str.charCodeAt(i) << 8;
+  for (let i = 0; i < bytes.length; i++) {
+    crc ^= bytes[i] << 8;
     for (let j = 0; j < 8; j++) {
       if ((crc & 0x8000) !== 0) {
         crc = ((crc << 1) ^ 0x1021) & 0xffff;
@@ -84,7 +120,9 @@ export function generatePixPayload({
   const cleanKey = normalizePixKey(key, keyType);
   if (!cleanKey) return '';
 
-  const sub26 = formatField('00', 'br.gov.bcb.pix') + formatField('01', cleanKey);
+  // Tag 26 comporta até 99 bytes: '0014br.gov.bcb.pix' (18) + '01LL' (4) = 22 bytes fixos -> até 77 bytes para a chave
+  const { text: safeKey } = capUtf8Bytes(cleanKey, 77);
+  const sub26 = formatField('00', 'br.gov.bcb.pix') + formatField('01', safeKey);
 
   let payload =
     formatField('00', '01') +
@@ -92,7 +130,12 @@ export function generatePixPayload({
     formatField('52', '0000') +
     formatField('53', '986');
 
-  if (amount && amount > 0) {
+  if (
+    typeof amount === 'number' &&
+    Number.isFinite(amount) &&
+    amount >= 0.01 &&
+    amount <= 99999999.99
+  ) {
     payload += formatField('54', amount.toFixed(2));
   }
 
@@ -120,7 +163,7 @@ export function generatePixPayload({
   payload += formatField('59', normName);
   payload += formatField('60', normCity);
 
-  const sub62 = formatField('05', txId || '***');
+  const sub62 = formatField('05', normalizeTxId(txId));
   payload += formatField('62', sub62);
 
   payload += '6304';

@@ -5,12 +5,34 @@ export interface DoseCalculationParams {
 }
 
 export function calculateDose(params: DoseCalculationParams): number {
-  if (params.concentrationMgPerMl <= 0) return 0;
-  if (params.weightKg <= 0 || params.doseMgPerKg <= 0) return 0;
+  const { weightKg, doseMgPerKg, concentrationMgPerMl } = params;
 
-  const totalMg = params.weightKg * params.doseMgPerKg;
-  const volumeMl = totalMg / params.concentrationMgPerMl;
+  if (
+    !Number.isFinite(weightKg) ||
+    !Number.isFinite(doseMgPerKg) ||
+    !Number.isFinite(concentrationMgPerMl) ||
+    weightKg <= 0 ||
+    doseMgPerKg <= 0 ||
+    concentrationMgPerMl <= 0
+  ) {
+    return 0;
+  }
 
-  // Arredonda para 2 casas decimais
-  return Math.round(volumeMl * 100) / 100;
+  const totalMg = weightKg * doseMgPerKg;
+  const rawVolume = totalMg / concentrationMgPerMl;
+
+  if (!Number.isFinite(rawVolume) || rawVolume <= 0) {
+    return 0;
+  }
+
+  if (rawVolume < 0.001) {
+    return Number(rawVolume.toFixed(4));
+  }
+
+  if (rawVolume < 0.1) {
+    return Number(rawVolume.toFixed(3));
+  }
+
+  // Arredonda para 2 casas decimais para volumes >= 0.1 mL
+  return Math.round(rawVolume * 100) / 100;
 }
