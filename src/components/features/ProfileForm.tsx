@@ -42,20 +42,8 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
   );
   const [kmRate, setKmRate] = useState((initialData.km_rate ?? 2.5).toString());
   const [loadingCep, setLoadingCep] = useState(false);
-  const [pixKey, setPixKey] = useState<string>(() => {
-    if (initialData.pix_key) return initialData.pix_key;
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('hubvet_pix_key') || '';
-    }
-    return '';
-  });
-  const [pixKeyType, setPixKeyType] = useState<string>(() => {
-    if (initialData.pix_key_type) return initialData.pix_key_type;
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('hubvet_pix_key_type') || 'CPF';
-    }
-    return 'CPF';
-  });
+  const [pixKey, setPixKey] = useState<string>(initialData.pix_key || '');
+  const [pixKeyType, setPixKeyType] = useState<string>(initialData.pix_key_type || 'CPF');
 
   const [avatarPreview, setAvatarPreview] = useState<string | null>(
     initialData.avatar_url || null
@@ -152,10 +140,6 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
       formData.append('kmRate', kmRate);
       formData.append('pixKey', pixKey);
       formData.append('pixKeyType', pixKeyType);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('hubvet_pix_key', pixKey);
-        localStorage.setItem('hubvet_pix_key_type', pixKeyType);
-      }
       if (avatarFile) {
         const { blob } = await compressPetPhoto(avatarFile, 512, 0.85);
         formData.append('avatar', new File([blob], 'avatar.jpg', { type: 'image/jpeg' }));
@@ -182,6 +166,22 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
   };
 
   const handleSignOut = async () => {
+    if (typeof window !== 'undefined') {
+      try {
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('hubvet_')) {
+            keysToRemove.push(key);
+          }
+        }
+        for (const key of keysToRemove) {
+          localStorage.removeItem(key);
+        }
+      } catch {
+        // ignore storage errors on sign-out
+      }
+    }
     await signOut();
     router.push('/login');
     router.refresh();

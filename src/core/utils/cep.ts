@@ -58,7 +58,9 @@ export async function fetchAddressByCep(rawCep: string): Promise<{
   if (digits.length !== 8) return null;
 
   try {
-    const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+    const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`, {
+      signal: AbortSignal.timeout(8000),
+    });
     if (!res.ok) return null;
     const data = await res.json();
     if (data.erro) return null;

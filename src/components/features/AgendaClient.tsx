@@ -19,6 +19,7 @@ import { buildGoogleMapsUrl } from '@/core/utils/cep';
 import { buildWazeUrl, buildWhatsAppOnMyWayUrl } from '@/core/utils/whatsapp';
 import { Edit2, Trash2, MoreVertical } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
+import { formatBrazilDate, getBrazilDateString } from '@/core/utils/timezone';
 
 export interface Consultation {
   id: string;
@@ -58,9 +59,51 @@ interface AgendaClientProps {
 
 type ViewType = 'day' | 'week' | 'month' | 'year';
 
+function parseYmd(ymd: string): { year: number; month: number; day: number } {
+  const [year, month, day] = ymd.split('-').map(Number);
+  return { year, month, day };
+}
+
+function formatYmd(year: number, month: number, day: number): string {
+  return new Date(Date.UTC(year, month - 1, day)).toISOString().split('T')[0];
+}
+
+function addDaysYmd(ymd: string, deltaDays: number): string {
+  const { year, month, day } = parseYmd(ymd);
+  return formatYmd(year, month, day + deltaDays);
+}
+
+function addMonthsYmd(ymd: string, deltaMonths: number): string {
+  const { year, month, day } = parseYmd(ymd);
+  const targetMonthIndex = month - 1 + deltaMonths;
+  const targetYear = year + Math.floor(targetMonthIndex / 12);
+  const normalizedMonthIndex = ((targetMonthIndex % 12) + 12) % 12;
+  const maxDay = new Date(Date.UTC(targetYear, normalizedMonthIndex + 1, 0)).getUTCDate();
+  return formatYmd(targetYear, normalizedMonthIndex + 1, Math.min(day, maxDay));
+}
+
+function addYearsYmd(ymd: string, deltaYears: number): string {
+  const { year, month, day } = parseYmd(ymd);
+  const targetYear = year + deltaYears;
+  const maxDay = new Date(Date.UTC(targetYear, month, 0)).getUTCDate();
+  return formatYmd(targetYear, month, Math.min(day, maxDay));
+}
+
+function getDayOfWeekYmd(ymd: string): number {
+  const { year, month, day } = parseYmd(ymd);
+  return new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+}
+
+function getConsultationBrazilDate(dateStr: string): string {
+  const parsed = new Date(dateStr);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return getBrazilDateString(parsed);
+}
+
 export function AgendaClient({ initialConsultations, patients }: AgendaClientProps) {
   const [view, setView] = useState<ViewType>('day');
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDateStr, setCurrentDateStr] = useState<string>(() => getBrazilDateString());
+  const todayBrtStr = getBrazilDateString();
   const [editingConsultation, setEditingConsultation] = useState<Consultation | null>(null);
   const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null);
   const [menuConsultation, setMenuConsultation] = useState<Consultation | null>(null);
@@ -136,76 +179,59 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
   };
 
   const handlePrevious = () => {
-    const next = new Date(currentDate);
-    if (view === 'day') next.setDate(next.getDate() - 1);
-    else if (view === 'week') next.setDate(next.getDate() - 7);
-    else if (view === 'month') next.setMonth(next.getMonth() - 1);
-    else if (view === 'year') next.setFullYear(next.getFullYear() - 1);
-    setCurrentDate(next);
+    if (view === 'day') setCurrentDateStr((prev) => addDaysYmd(prev, -1));
+    else if (view === 'week') setCurrentDateStr((prev) => addDaysYmd(prev, -7));
+    else if (view === 'month') setCurrentDateStr((prev) => addMonthsYmd(prev, -1));
+    else if (view === 'year') setCurrentDateStr((prev) => addYearsYmd(prev, -1));
   };
 
   const handleNext = () => {
-    const next = new Date(currentDate);
-    if (view === 'day') next.setDate(next.getDate() + 1);
-    else if (view === 'week') next.setDate(next.getDate() + 7);
-    else if (view === 'month') next.setMonth(next.getMonth() + 1);
-    else if (view === 'year') next.setFullYear(next.getFullYear() + 1);
-    setCurrentDate(next);
+    if (view === 'day') setCurrentDateStr((prev) => addDaysYmd(prev, 1));
+    else if (view === 'week') setCurrentDateStr((prev) => addDaysYmd(prev, 7));
+    else if (view === 'month') setCurrentDateStr((prev) => addMonthsYmd(prev, 1));
+    else if (view === 'year') setCurrentDateStr((prev) => addYearsYmd(prev, 1));
   };
 
   const getViewTitle = () => {
     if (view === 'day') {
-      return currentDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' });
+      return formatBrazilDate(currentDateStr, { day: '2-digit', month: 'long' });
     } else if (view === 'week') {
-      const start = new Date(currentDate);
-      start.setDate(currentDate.getDate() - currentDate.getDay());
-      const end = new Date(start);
-      end.setDate(start.getDate() + 6);
-      return `${start.toLocaleDateString('pt-BR', {
+      const dow = getDayOfWeekYmd(currentDateStr);
+      const startStr = addDaysYmd(currentDateStr, -dow);
+      const endStr = addDaysYmd(startStr, 6);
+      return `${formatBrazilDate(startStr, {
         day: '2-digit',
         month: '2-digit',
-      })} - ${end.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`;
+      })} - ${formatBrazilDate(endStr, { day: '2-digit', month: '2-digit' })}`;
     } else if (view === 'month') {
-      return currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+      return formatBrazilDate(currentDateStr, { month: 'long', year: 'numeric' });
     } else {
-      return currentDate.getFullYear().toString();
+      return String(parseYmd(currentDateStr).year);
     }
   };
 
   const filteredConsultations = useMemo(() => {
-    const start = new Date(currentDate);
-    const end = new Date(currentDate);
-
-    if (view === 'day') {
-      start.setHours(0, 0, 0, 0);
-      end.setHours(23, 59, 59, 999);
-    } else if (view === 'week') {
-      const day = start.getDay();
-      start.setDate(start.getDate() - day);
-      start.setHours(0, 0, 0, 0);
-
-      end.setDate(start.getDate() + 6);
-      end.setHours(23, 59, 59, 999);
-    } else if (view === 'month') {
-      start.setDate(1);
-      start.setHours(0, 0, 0, 0);
-
-      end.setMonth(start.getMonth() + 1);
-      end.setDate(0);
-      end.setHours(23, 59, 59, 999);
-    } else if (view === 'year') {
-      start.setMonth(0, 1);
-      start.setHours(0, 0, 0, 0);
-
-      end.setMonth(11, 31);
-      end.setHours(23, 59, 59, 999);
-    }
+    const { year, month } = parseYmd(currentDateStr);
 
     return initialConsultations.filter((consult) => {
-      const consultDate = new Date(consult.date);
-      return consultDate >= start && consultDate <= end;
+      const consultDateStr = getConsultationBrazilDate(consult.date);
+      if (!consultDateStr) return false;
+
+      if (view === 'day') {
+        return consultDateStr === currentDateStr;
+      } else if (view === 'week') {
+        const dow = getDayOfWeekYmd(currentDateStr);
+        const startStr = addDaysYmd(currentDateStr, -dow);
+        const endStr = addDaysYmd(startStr, 6);
+        return consultDateStr >= startStr && consultDateStr <= endStr;
+      } else if (view === 'month') {
+        const monthPrefix = `${year}-${String(month).padStart(2, '0')}`;
+        return consultDateStr.startsWith(monthPrefix);
+      } else {
+        return consultDateStr.startsWith(`${year}-`);
+      }
     });
-  }, [view, currentDate, initialConsultations]);
+  }, [view, currentDateStr, initialConsultations]);
 
   const handleDownloadPDF = async (id: string, docType: 'receita' | 'relatorio') => {
     setDownloadingPdf(`${id}-${docType}`);
@@ -464,116 +490,103 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
 
   const renderWeekView = () => {
     const days = [];
-    const start = new Date(currentDate);
-    start.setDate(currentDate.getDate() - currentDate.getDay());
+    const dow = getDayOfWeekYmd(currentDateStr);
+    const weekStartStr = addDaysYmd(currentDateStr, -dow);
 
     for (let i = 0; i < 7; i++) {
-      const day = new Date(start);
-      day.setDate(start.getDate() + i);
-      const dayConsults = filteredConsultations.filter((c) => {
-        const d = new Date(c.date);
-        return (
-          d.getDate() === day.getDate() &&
-          d.getMonth() === day.getMonth() &&
-          d.getFullYear() === day.getFullYear()
-        );
-      });
+      const dayStr = addDaysYmd(weekStartStr, i);
+      const dayConsults = filteredConsultations.filter(
+        (c) => getConsultationBrazilDate(c.date) === dayStr
+      );
 
-      days.push({ date: day, consultations: dayConsults });
+      days.push({ dateStr: dayStr, consultations: dayConsults });
     }
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-7 gap-4 animate-in fade-in duration-500">
-        {days.map((d, i) => (
-          <Card
-            key={i}
-            onClick={() => {
-              setCurrentDate(d.date);
-              setView('day');
-            }}
-            className={`p-4 flex flex-col items-center gap-3 transition-all cursor-pointer hover:shadow-sm border border-border ${
-              d.date.toDateString() === new Date().toDateString()
-                ? 'border-2 border-primary/30'
-                : ''
-            }`}
-          >
-            <div className="text-center">
-              <span className="text-[10px] font-black text-foreground/40 uppercase tracking-widest">
-                {d.date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}
-              </span>
-              <div
-                className={`text-xl font-black ${
-                  d.date.toDateString() === new Date().toDateString()
-                    ? 'text-primary'
-                    : 'text-foreground'
-                }`}
-              >
-                {d.date.getDate()}
+        {days.map((d, i) => {
+          const isToday = d.dateStr === todayBrtStr;
+          return (
+            <Card
+              key={i}
+              onClick={() => {
+                setCurrentDateStr(d.dateStr);
+                setView('day');
+              }}
+              className={`p-4 flex flex-col items-center gap-3 transition-all cursor-pointer hover:shadow-sm border border-border ${
+                isToday ? 'border-2 border-primary/30' : ''
+              }`}
+            >
+              <div className="text-center">
+                <span className="text-[10px] font-black text-foreground/40 uppercase tracking-widest">
+                  {formatBrazilDate(d.dateStr, { weekday: 'short' }).replace('.', '')}
+                </span>
+                <div className={`text-xl font-black ${isToday ? 'text-primary' : 'text-foreground'}`}>
+                  {parseYmd(d.dateStr).day}
+                </div>
               </div>
-            </div>
 
-            <div className="flex flex-col gap-2 w-full">
-              {d.consultations.length > 0 ? (
-                d.consultations.slice(0, 3).map((c) => {
-                  const isComp = c.status === 'Completed';
-                  return (
-                    <div
-                      key={c.id}
-                      className={`text-[10px] font-black p-2 rounded-lg truncate border ${
-                        isComp
-                          ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
-                          : 'bg-primary/5 text-primary border-primary/10'
-                      }`}
-                    >
-                      {isComp ? '✓ ' : ''}
-                      {new Date(c.date).toLocaleTimeString('pt-BR', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}{' '}
-                      • {c.patients?.name}
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="h-10 border border-dashed border-foreground/10 rounded-xl flex items-center justify-center text-[10px] text-foreground/20 font-bold uppercase tracking-widest">
-                  Livre
-                </div>
-              )}
-              {d.consultations.length > 3 && (
-                <div className="text-[9px] text-center font-black text-foreground/30">
-                  + {d.consultations.length - 3} mais
-                </div>
-              )}
-            </div>
-          </Card>
-        ))}
+              <div className="flex flex-col gap-2 w-full">
+                {d.consultations.length > 0 ? (
+                  d.consultations.slice(0, 3).map((c) => {
+                    const isComp = c.status === 'Completed';
+                    return (
+                      <div
+                        key={c.id}
+                        className={`text-[10px] font-black p-2 rounded-lg truncate border ${
+                          isComp
+                            ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
+                            : 'bg-primary/5 text-primary border-primary/10'
+                        }`}
+                      >
+                        {isComp ? '✓ ' : ''}
+                        {formatBrazilDate(c.date, {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hourCycle: 'h23',
+                        })}{' '}
+                        • {c.patients?.name}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="h-10 border border-dashed border-foreground/10 rounded-xl flex items-center justify-center text-[10px] text-foreground/20 font-bold uppercase tracking-widest">
+                    Livre
+                  </div>
+                )}
+                {d.consultations.length > 3 && (
+                  <div className="text-[9px] text-center font-black text-foreground/30">
+                    + {d.consultations.length - 3} mais
+                  </div>
+                )}
+              </div>
+            </Card>
+          );
+        })}
       </div>
     );
   };
 
   const renderMonthView = () => {
-    const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-    const startDay = startOfMonth.getDay();
-    const daysInMonth = endOfMonth.getDate();
+    const { year, month } = parseYmd(currentDateStr);
+    const firstOfMonthStr = formatYmd(year, month, 1);
+    const startDay = getDayOfWeekYmd(firstOfMonthStr);
+    const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    const lastOfMonthStr = formatYmd(year, month, daysInMonth);
 
     const calendarDays = [];
     for (let i = startDay - 1; i >= 0; i--) {
-      const d = new Date(startOfMonth);
-      d.setDate(d.getDate() - i - 1);
-      calendarDays.push({ date: d, currentMonth: false });
+      calendarDays.push({ dateStr: addDaysYmd(firstOfMonthStr, -i - 1), currentMonth: false });
     }
     for (let i = 1; i <= daysInMonth; i++) {
       calendarDays.push({
-        date: new Date(currentDate.getFullYear(), currentDate.getMonth(), i),
+        dateStr: formatYmd(year, month, i),
         currentMonth: true,
       });
     }
     const remaining = 42 - calendarDays.length;
     for (let i = 1; i <= remaining; i++) {
-      const d = new Date(endOfMonth);
-      d.setDate(d.getDate() + i);
-      calendarDays.push({ date: d, currentMonth: false });
+      calendarDays.push({ dateStr: addDaysYmd(lastOfMonthStr, i), currentMonth: false });
     }
 
     return (
@@ -590,21 +603,16 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
         </div>
         <div className="grid grid-cols-7 gap-2">
           {calendarDays.map((d, i) => {
-            const consults = filteredConsultations.filter((c) => {
-              const dc = new Date(c.date);
-              return (
-                dc.getDate() === d.date.getDate() &&
-                dc.getMonth() === d.date.getMonth() &&
-                dc.getFullYear() === d.date.getFullYear()
-              );
-            });
-            const isToday = d.date.toDateString() === new Date().toDateString();
+            const consults = filteredConsultations.filter(
+              (c) => getConsultationBrazilDate(c.date) === d.dateStr
+            );
+            const isToday = d.dateStr === todayBrtStr;
 
             return (
               <button
                 key={i}
                 onClick={() => {
-                  setCurrentDate(d.date);
+                  setCurrentDateStr(d.dateStr);
                   setView('day');
                 }}
                 className={`aspect-square p-1 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group ${
@@ -624,7 +632,7 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
                       : 'text-foreground/40'
                   }`}
                 >
-                  {d.date.getDate()}
+                  {parseYmd(d.dateStr).day}
                 </span>
                 {consults.length > 0 && (
                   <div className="flex gap-0.5 flex-wrap justify-center max-w-[80%]">
@@ -650,30 +658,33 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
   };
 
   const renderYearView = () => {
-    const months = Array.from(
-      { length: 12 },
-      (_, i) => new Date(currentDate.getFullYear(), i, 1)
-    );
+    const { year } = parseYmd(currentDateStr);
+    const months = Array.from({ length: 12 }, (_, i) => {
+      const monthStr = formatYmd(year, i + 1, 1);
+      return {
+        monthStr,
+        monthPrefix: monthStr.slice(0, 7),
+      };
+    });
 
     return (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6 animate-in fade-in duration-500">
         {months.map((m, i) => {
-          const count = initialConsultations.filter((c) => {
-            const d = new Date(c.date);
-            return d.getMonth() === m.getMonth() && d.getFullYear() === m.getFullYear();
-          }).length;
+          const count = initialConsultations.filter((c) =>
+            getConsultationBrazilDate(c.date).startsWith(m.monthPrefix)
+          ).length;
 
           return (
             <Card
               key={i}
               onClick={() => {
-                setCurrentDate(m);
+                setCurrentDateStr(m.monthStr);
                 setView('month');
               }}
               className="p-6 flex flex-col items-center gap-4 cursor-pointer hover:shadow-sm border border-border group transition-all"
             >
               <div className="text-sm font-black text-primary uppercase tracking-[0.2em]">
-                {m.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}
+                {formatBrazilDate(m.monthStr, { month: 'short' }).replace('.', '')}
               </div>
               <div className="flex flex-col items-center bg-foreground/5 shadow-inner border border-border p-4 rounded-3xl w-full">
                 <span className="text-3xl font-black text-foreground group-hover:scale-110 transition-transform">
@@ -756,19 +767,10 @@ export function AgendaClient({ initialConsultations, patients }: AgendaClientPro
             <Button
               type="button"
               variant="secondary"
-              onClick={() => setCurrentDate(new Date())}
+              onClick={() => setCurrentDateStr(getBrazilDateString())}
               className="text-[10px] font-black uppercase tracking-widest px-4 flex-1 md:flex-none min-w-[120px]"
             >
-              {(() => {
-                const today = new Date();
-                const isToday =
-                  view === 'day' &&
-                  currentDate.getDate() === today.getDate() &&
-                  currentDate.getMonth() === today.getMonth() &&
-                  currentDate.getFullYear() === today.getFullYear();
-
-                return isToday ? 'Hoje' : getViewTitle();
-              })()}
+              {view === 'day' && currentDateStr === todayBrtStr ? 'Hoje' : getViewTitle()}
             </Button>
             <Button
               type="button"

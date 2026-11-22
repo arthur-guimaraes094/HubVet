@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
 import { updateInvoiceStatus } from '@/app/financeiro/actions';
+import { formatBrazilDate } from '@/core/utils/timezone';
 
 type Invoice = {
   id: string;
@@ -89,7 +90,7 @@ export function FinanceDashboard({ initialInvoices }: { initialInvoices: Invoice
               invoices.map((invoice) => (
                 <tr key={invoice.id} className="group">
                   <td className="py-4 text-foreground/80">
-                    {new Date(invoice.createdAt).toLocaleDateString('pt-BR')}
+                    {formatBrazilDate(invoice.createdAt)}
                   </td>
                   <td className="py-4">
                     <div className="font-semibold text-foreground">{invoice.patientName}</div>

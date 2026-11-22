@@ -2,11 +2,32 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { calculateDose } from '../../src/core/use-cases/calculateDose';
-import { formatPatientAge, calculateYearsAndMonths } from '../../src/core/utils/age';
-import { calculateVaccineSchedule } from '../../src/core/use-cases/vaccine-protocols';
+import {
+  formatPatientAge,
+  calculateYearsAndMonths,
+  estimateBirthDateFromAge,
+} from '../../src/core/utils/age';
+import {
+  calculateVaccineSchedule,
+  buildWhatsAppVaccineReminderUrl,
+} from '../../src/core/use-cases/vaccine-protocols';
 import { generatePixPayload, generatePixQrCodeSvg } from '../../src/core/utils/pix';
 import { validateImageUpload, stripImageMetadata } from '../../src/core/utils/upload-validation';
-import { getBrazilDateString, getBrazilDayBoundsUtc } from '../../src/core/utils/timezone';
+import {
+  getBrazilDateString,
+  getBrazilDayBoundsUtc,
+  getBrazilTimeString,
+  formatBrazilDate,
+} from '../../src/core/utils/timezone';
+import {
+  cleanPhoneNumber,
+  buildWhatsAppConsultationSummaryUrl,
+} from '../../src/core/utils/whatsapp';
+import { sanitizePdfText, sanitizeFilenamePart } from '../../src/core/use-cases/generate-pdf';
+import {
+  getCatalogOptionLabels,
+  findCatalogItemByLabel,
+} from '../../src/core/data/vet-supplies-catalog';
 import {
   parseStorageRef,
   isAllowedStorageRef,
@@ -394,4 +415,441 @@ test('isTrustedPushEndpoint - aceita endpoints HTTPS confiáveis e bloqueia SSRF
   );
   assert.equal(isTrustedPushEndpoint('https://evilnotify.windows.com/w/?token=abc'), false);
   assert.equal(isTrustedPushEndpoint('https://fcm.googleapis.com:8443/fcm/send/token-123'), false);
+});
+
+function computeCrc16CcittUtf8(input: string): string {
+  const bytes = new TextEncoder().encode(input);
+  let crc = 0xffff;
+  for (let i = 0; i < bytes.length; i++) {
+    crc ^= bytes[i] << 8;
+    for (let j = 0; j < 8; j++) {
+      crc = (crc & 0x8000) !== 0 ? ((crc << 1) ^ 0x1021) & 0xffff : (crc << 1) & 0xffff;
+    }
+  }
+  return crc.toString(16).toUpperCase().padStart(4, '0');
+}
+
+function parseEmvTlv(payload: string): Array<{ tag: string; byteLength: number; value: string }> {
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder('utf-8', { fatal: true });
+  const bytes = encoder.encode(payload);
+  const fields: Array<{ tag: string; byteLength: number; value: string }> = [];
+  let pos = 0;
+  while (pos < bytes.length) {
+    assert.ok(pos + 4 <= bytes.length, `Cabeçalho TLV truncado no byte ${pos}`);
+    const tag = decoder.decode(bytes.subarray(pos, pos + 2));
+    const lenStr = decoder.decode(bytes.subarray(pos + 2, pos + 4));
+    assert.match(lenStr, /^\d{2}$/, `Tamanho TLV inválido "${lenStr}" para tag ${tag}`);
+    const byteLength = Number(lenStr);
+    const valueStart = pos + 4;
+    const valueEnd = valueStart + byteLength;
+    assert.ok(valueEnd <= bytes.length, `Tag ${tag} excede tamanho do payload`);
+    const value = decoder.decode(bytes.subarray(valueStart, valueEnd));
+    fields.push({ tag, byteLength, value });
+    pos = valueEnd;
+  }
+  return fields;
+}
+
+test('calculateDose - suporta microdoses e rejeita entradas não finitas ou negativas', () => {
+  // Microdoses < 0.1 mL preservam 3 casas decimais
+  assert.equal(
+    calculateDose({ weightKg: 3, doseMgPerKg: 0.05, concentrationMgPerMl: 50 }),
+    0.003
+  );
+  assert.equal(
+    calculateDose({ weightKg: 0.5, doseMgPerKg: 0.1, concentrationMgPerMl: 10 }),
+    0.005
+  );
+  assert.equal(
+    calculateDose({ weightKg: 3, doseMgPerKg: 0.15, concentrationMgPerMl: 10 }),
+    0.045
+  );
+
+  // Doses muito pequenas < 0.001 mL preservam 4 casas decimais
+  assert.equal(
+    calculateDose({ weightKg: 0.2, doseMgPerKg: 0.1, concentrationMgPerMl: 50 }),
+    0.0004
+  );
+
+  // Entradas inválidas (NaN, Infinity, -Infinity, <= 0) retornam 0
+  assert.equal(
+    calculateDose({ weightKg: Number.NaN, doseMgPerKg: 5, concentrationMgPerMl: 50 }),
+    0
+  );
+  assert.equal(
+    calculateDose({ weightKg: 10, doseMgPerKg: Number.POSITIVE_INFINITY, concentrationMgPerMl: 50 }),
+    0
+  );
+  assert.equal(
+    calculateDose({ weightKg: 10, doseMgPerKg: 5, concentrationMgPerMl: Number.NEGATIVE_INFINITY }),
+    0
+  );
+  assert.equal(
+    calculateDose({ weightKg: -1, doseMgPerKg: 5, concentrationMgPerMl: 50 }),
+    0
+  );
+  assert.equal(
+    calculateDose({ weightKg: 10, doseMgPerKg: -1, concentrationMgPerMl: 50 }),
+    0
+  );
+  assert.equal(
+    calculateDose({ weightKg: 10, doseMgPerKg: 5, concentrationMgPerMl: -1 }),
+    0
+  );
+});
+
+test('generatePixPayload - normaliza telefone com zero de tronco, omite tag 54 inválida, sanitiza txId e valida UTF-8 + CRC16', () => {
+  // Telefone com zero de tronco (084) -> +5584986365455
+  const trunkPhonePayload = generatePixPayload({
+    key: '(084) 98636-5455',
+    keyType: 'Telefone',
+    amount: 120.5,
+  });
+  const trunkTags = parseEmvTlv(trunkPhonePayload);
+  const tag26Trunk = parseEmvTlv(trunkTags.find((f) => f.tag === '26')?.value ?? '');
+  assert.equal(tag26Trunk.find((f) => f.tag === '01')?.value, '+5584986365455');
+  assert.equal(trunkTags.find((f) => f.tag === '54')?.value, '120.50');
+  assert.equal(
+    trunkPhonePayload.slice(-4),
+    computeCrc16CcittUtf8(trunkPhonePayload.slice(0, -4))
+  );
+
+  // Valores inválidos ou < 0.01 omitem completamente a tag 54 (nunca emitem 54040.00)
+  for (const invalidAmount of [0, -10, Number.NaN, Number.POSITIVE_INFINITY, 0.004]) {
+    const p = generatePixPayload({
+      key: '12345678900',
+      keyType: 'CPF',
+      amount: invalidAmount,
+    });
+    assert.equal(p.includes('54040.00'), false);
+    const parsed = parseEmvTlv(p);
+    assert.equal(parsed.find((f) => f.tag === '54'), undefined);
+    assert.equal(p.slice(-4), computeCrc16CcittUtf8(p.slice(0, -4)));
+  }
+
+  // Sanitização de txId: remove caracteres especiais, limita a 25 chars e cai para '***' se vazio
+  const sanitizedTxPayload = generatePixPayload({
+    key: '12345678900',
+    txId: 'Hub-Vet #2026/01!',
+  });
+  const tag62Sanitized = parseEmvTlv(
+    parseEmvTlv(sanitizedTxPayload).find((f) => f.tag === '62')?.value ?? ''
+  );
+  assert.equal(tag62Sanitized.find((f) => f.tag === '05')?.value, 'HubVet202601');
+
+  const longTxPayload = generatePixPayload({
+    key: '12345678900',
+    txId: 'A12345678901234567890123456789',
+  });
+  const tag62Long = parseEmvTlv(
+    parseEmvTlv(longTxPayload).find((f) => f.tag === '62')?.value ?? ''
+  );
+  const txValue = tag62Long.find((f) => f.tag === '05')?.value ?? '';
+  assert.equal(txValue.length, 25);
+  assert.equal(txValue, 'A123456789012345678901234');
+
+  for (const emptyTx of ['', '   ', '---!@#']) {
+    const fallbackTxPayload = generatePixPayload({
+      key: '12345678900',
+      txId: emptyTx,
+    });
+    const tag62Fallback = parseEmvTlv(
+      parseEmvTlv(fallbackTxPayload).find((f) => f.tag === '62')?.value ?? ''
+    );
+    assert.equal(tag62Fallback.find((f) => f.tag === '05')?.value, '***');
+  }
+
+  // Comprimentos em bytes UTF-8 (multibyte) e cálculo CRC16-CCITT sobre bytes UTF-8
+  const utf8Payload = generatePixPayload({
+    key: 'Ação Café',
+    name: 'Ação Café Veterinária',
+    city: 'São José',
+    amount: 75,
+    txId: 'CAFÉ#01',
+  });
+  const utf8Tags = parseEmvTlv(utf8Payload);
+  const tag26Utf8 = utf8Tags.find((f) => f.tag === '26');
+  assert.ok(tag26Utf8);
+  const sub26Utf8 = parseEmvTlv(tag26Utf8.value);
+  const subKey = sub26Utf8.find((f) => f.tag === '01');
+  assert.equal(subKey?.value, 'Ação Café');
+  assert.equal(subKey?.byteLength, new TextEncoder().encode('Ação Café').length);
+  assert.equal(subKey?.byteLength, 12);
+  assert.equal(utf8Tags.find((f) => f.tag === '59')?.value, 'Acao Cafe Veterinaria');
+  assert.equal(utf8Tags.find((f) => f.tag === '60')?.value, 'Sao Jose');
+  assert.equal(
+    utf8Tags.find((f) => f.tag === '63')?.value,
+    computeCrc16CcittUtf8(utf8Payload.slice(0, -4))
+  );
+
+  // Chave UTF-8 longa (> 77 bytes) não deve partir caracteres multibyte
+  const longUtf8Payload = generatePixPayload({
+    key: 'ação'.repeat(20),
+  });
+  const longUtf8Tags = parseEmvTlv(longUtf8Payload);
+  const longSubKey = parseEmvTlv(longUtf8Tags.find((f) => f.tag === '26')?.value ?? '').find(
+    (f) => f.tag === '01'
+  );
+  assert.ok(longSubKey);
+  assert.ok(longSubKey.byteLength <= 77);
+  assert.equal(
+    longUtf8Payload.slice(-4),
+    computeCrc16CcittUtf8(longUtf8Payload.slice(0, -4))
+  );
+});
+
+test('calculateVaccineSchedule - trata ano bissexto, dose_1 vs annual, data inválida e intervalo customizado', () => {
+  // 2024-02-29 + 1 ano calendário -> 2025-02-28
+  const leapAnnualV10 = calculateVaccineSchedule({
+    protocolCode: 'V10_VANGUARD',
+    doseStage: 'annual',
+    appliedDate: '2024-02-29',
+  });
+  assert.equal(leapAnnualV10.nextDueDate, '2025-02-28');
+  assert.equal(leapAnnualV10.isAnnualBooster, true);
+
+  const leapRabies = calculateVaccineSchedule({
+    protocolCode: 'ANTIRRABICA',
+    doseStage: 'dose_1',
+    appliedDate: '2024-02-29',
+  });
+  assert.equal(leapRabies.nextDueDate, '2025-02-28');
+
+  // ANTIRRABICA e GRIPE_ORAL: dose_1 vs annual
+  const rabiesDose1 = calculateVaccineSchedule({
+    protocolCode: 'ANTIRRABICA',
+    doseStage: 'dose_1',
+    appliedDate: '2026-05-01',
+  });
+  assert.equal(rabiesDose1.isAnnualBooster, false);
+  assert.equal(rabiesDose1.currentDoseLabel, 'Dose Única');
+  assert.equal(rabiesDose1.nextDueDate, '2027-05-01');
+
+  const rabiesAnnual = calculateVaccineSchedule({
+    protocolCode: 'ANTIRRABICA',
+    doseStage: 'annual',
+    appliedDate: '2026-05-01',
+  });
+  assert.equal(rabiesAnnual.isAnnualBooster, true);
+  assert.equal(rabiesAnnual.currentDoseLabel, 'Reforço Anual');
+  assert.equal(rabiesAnnual.nextDueDate, '2027-05-01');
+
+  const fluDose1 = calculateVaccineSchedule({
+    protocolCode: 'GRIPE_ORAL',
+    doseStage: 'dose_1',
+    appliedDate: '2026-05-01',
+  });
+  assert.equal(fluDose1.isAnnualBooster, false);
+  assert.equal(fluDose1.currentDoseLabel, 'Dose Única');
+  assert.equal(fluDose1.nextDueDate, '2027-05-01');
+
+  const fluAnnual = calculateVaccineSchedule({
+    protocolCode: 'GRIPE_ORAL',
+    doseStage: 'annual',
+    appliedDate: '2026-05-01',
+  });
+  assert.equal(fluAnnual.isAnnualBooster, true);
+  assert.equal(fluAnnual.currentDoseLabel, 'Reforço Anual');
+  assert.equal(fluAnnual.nextDueDate, '2027-05-01');
+
+  // Data inválida cai com segurança para YYYY-MM-DD válido em BRT
+  for (const invalidDate of ['data-invalida', '2025-02-29', '']) {
+    const fallback = calculateVaccineSchedule({
+      protocolCode: 'V10_VANGUARD',
+      doseStage: 'dose_1',
+      appliedDate: invalidDate,
+    });
+    assert.match(fallback.appliedDate, /^\d{4}-\d{2}-\d{2}$/);
+    assert.match(fallback.nextDueDate, /^\d{4}-\d{2}-\d{2}$/);
+    const diffDays =
+      (new Date(`${fallback.nextDueDate}T00:00:00Z`).getTime() -
+        new Date(`${fallback.appliedDate}T00:00:00Z`).getTime()) /
+      86_400_000;
+    assert.equal(diffDays, 21);
+  }
+
+  // customIntervalDays limitado ao intervalo 1..3650
+  const minInterval = calculateVaccineSchedule({
+    protocolCode: 'CUSTOM',
+    customVaccineName: 'Leishmaniose',
+    doseStage: 'dose_1',
+    appliedDate: '2026-05-01',
+    customIntervalDays: 0,
+  });
+  assert.equal(minInterval.nextDueDate, '2026-05-02');
+  assert.equal(minInterval.isAnnualBooster, false);
+
+  const maxInterval = calculateVaccineSchedule({
+    protocolCode: 'CUSTOM',
+    customVaccineName: 'Reforço Longo',
+    doseStage: 'dose_1',
+    appliedDate: '2026-05-01',
+    customIntervalDays: 99999,
+  });
+  assert.equal(maxInterval.nextDueDate, '2036-04-28');
+  assert.equal(maxInterval.isAnnualBooster, true);
+});
+
+test('age - rejeita datas de nascimento futuras e estima nascimento válido em YYYY-MM-DD', () => {
+  const futureYmd = getBrazilDateString(new Date(), 5);
+  assert.equal(calculateYearsAndMonths(futureYmd), null);
+  assert.equal(formatPatientAge(futureYmd), '');
+  assert.equal(calculateYearsAndMonths('2099-01-15'), null);
+  assert.equal(formatPatientAge('2099-01-15'), '');
+  assert.equal(calculateYearsAndMonths('2025-02-29'), null);
+  assert.equal(formatPatientAge('2025-02-29'), '');
+
+  const estimated = estimateBirthDateFromAge(2, 3);
+  assert.match(estimated, /^\d{4}-\d{2}-\d{2}$/);
+  assert.deepEqual(calculateYearsAndMonths(estimated), { years: 2, months: 3 });
+
+  const estimatedZero = estimateBirthDateFromAge(0, 0);
+  assert.match(estimatedZero, /^\d{4}-\d{2}-\d{2}$/);
+  assert.notEqual(calculateYearsAndMonths(estimatedZero), null);
+
+  const estimatedInvalid = estimateBirthDateFromAge(-2, Number.NaN);
+  assert.match(estimatedInvalid, /^\d{4}-\d{2}-\d{2}$/);
+});
+
+test('whatsapp - normaliza DDD 55, tronco 0, telefone vazio, receitas combinadas e valor inválido', () => {
+  assert.equal(cleanPhoneNumber('55999998888'), '5555999998888');
+  assert.equal(cleanPhoneNumber('(55) 9999-8888'), '555599998888');
+  assert.equal(cleanPhoneNumber('(084) 98636-5455'), '5584986365455');
+  assert.equal(cleanPhoneNumber('+55 (084) 98636-5455'), '5584986365455');
+  assert.equal(cleanPhoneNumber(''), '');
+  assert.equal(cleanPhoneNumber(null), '');
+  assert.equal(cleanPhoneNumber('() -'), '');
+
+  // Lembrete vacinal retorna '' quando telefone está vazio
+  assert.equal(
+    buildWhatsAppVaccineReminderUrl({
+      tutorPhone: '',
+      tutorName: 'Ana',
+      patientName: 'Thor',
+      vaccineName: 'V10 Vanguard',
+      nextDoseLabel: '2ª Dose',
+      nextDueDate: '2026-06-01',
+    }),
+    ''
+  );
+  const vaccineUrl = buildWhatsAppVaccineReminderUrl({
+    tutorPhone: '(084) 98636-5455',
+    tutorName: 'Ana',
+    patientName: 'Thor',
+    vaccineName: 'V10 Vanguard',
+    nextDoseLabel: '2ª Dose',
+    nextDueDate: '2026-06-01',
+  });
+  assert.ok(vaccineUrl.startsWith('https://wa.me/5584986365455?text='));
+  assert.ok(decodeURIComponent(vaccineUrl).includes('01/06/2026'));
+
+  // Resumo da consulta renderiza prescriptionText + prescriptions juntos e omite totalValue não finito
+  const summaryUrl = buildWhatsAppConsultationSummaryUrl({
+    phone: '55999998888',
+    tutorName: 'Carlos',
+    patientName: 'Mel',
+    prescriptionText: 'USO ORAL:\n1. Dipirona gotas 1x ao dia',
+    prescriptions: [
+      {
+        id: 'rx-1',
+        medicationName: 'Meloxicam (Maxicam)',
+        concentration: '0.5mg',
+        route: 'Uso Oral',
+        dosage: '1 comprimido',
+        frequency: 'A cada 24 horas',
+        duration: '5 dias',
+        instructions: 'Administrar após alimentação',
+      },
+    ],
+    totalValue: Number.NaN,
+  });
+  assert.ok(summaryUrl.startsWith('https://wa.me/5555999998888?text='));
+  const decodedSummary = new URL(summaryUrl).searchParams.get('text') ?? '';
+  assert.ok(decodedSummary.includes('Dipirona gotas 1x ao dia'));
+  assert.ok(decodedSummary.includes('Meloxicam (Maxicam)'));
+  assert.ok(decodedSummary.includes('(0.5mg)'));
+  assert.ok(decodedSummary.includes('Administrar após alimentação'));
+  assert.equal(decodedSummary.includes('Valor Total'), false);
+  assert.equal(decodedSummary.includes('NaN'), false);
+
+  const emptyPhoneSummary = buildWhatsAppConsultationSummaryUrl({
+    phone: '',
+    tutorName: 'Carlos',
+    patientName: 'Mel',
+    totalValue: Number.POSITIVE_INFINITY,
+  });
+  assert.ok(emptyPhoneSummary.startsWith('https://wa.me/?text='));
+  const decodedEmptySummary = new URL(emptyPhoneSummary).searchParams.get('text') ?? '';
+  assert.equal(decodedEmptySummary.includes('Valor Total'), false);
+});
+
+test('generate-pdf - sanitiza texto para WinAnsi e gera parte segura de nome de arquivo', () => {
+  const input = 'Dose ≥ 5mg/kg e ≤ 10mg/kg → 2x/dia ✓ • Obs — atenção… áçõãé 🐾👨‍⚕️';
+  const sanitized = sanitizePdfText(input);
+  assert.equal(
+    sanitized,
+    'Dose >= 5mg/kg e <= 10mg/kg -> 2x/dia [OK] • Obs — atenção… áçõãé '
+  );
+  assert.equal(sanitized.includes('→'), false);
+  assert.equal(sanitized.includes('≥'), false);
+  assert.equal(sanitized.includes('≤'), false);
+  assert.equal(sanitized.includes('✓'), false);
+  assert.equal(sanitized.includes('\u200D'), false);
+  assert.equal(sanitized.includes('🐾'), false);
+
+  const safePart = sanitizeFilenamePart('Rex Jr. / Cão #1');
+  assert.match(safePart, /^[A-Za-z0-9_-]+$/);
+  assert.equal(safePart, 'Rex_Jr_Cao_1');
+  assert.equal(sanitizeFilenamePart('///🐾'), 'paciente');
+});
+
+test('vet-supplies-catalog - expõe concentrações distintas e resolve item exato pelo rótulo', () => {
+  const labels = getCatalogOptionLabels();
+  const expectedLabels = [
+    'Meloxicam (Maxicam) — 0.5mg',
+    'Meloxicam (Maxicam) — 2.0mg',
+    'Amoxicilina + Clavulanato de Potássio (Agemoxi CL) — 50mg',
+    'Amoxicilina + Clavulanato de Potássio (Agemoxi CL) — 250mg',
+    'Prednisolona (Prediderm) — 5mg',
+    'Prednisolona (Prediderm) — 20mg',
+  ];
+
+  for (const label of expectedLabels) {
+    assert.ok(labels.includes(label), `Rótulo ausente no catálogo: ${label}`);
+  }
+
+  const maxicam05 = findCatalogItemByLabel('Meloxicam (Maxicam) — 0.5mg');
+  assert.equal(maxicam05?.name, 'Meloxicam (Maxicam)');
+  assert.equal(maxicam05?.concentration, '0.5mg');
+
+  const maxicam20 = findCatalogItemByLabel('Meloxicam (Maxicam) — 2.0mg');
+  assert.equal(maxicam20?.name, 'Meloxicam (Maxicam)');
+  assert.equal(maxicam20?.concentration, '2.0mg');
+
+  const agemoxi50 = findCatalogItemByLabel('Amoxicilina + Clavulanato de Potássio (Agemoxi CL) — 50mg');
+  assert.equal(agemoxi50?.concentration, '50mg');
+
+  const agemoxi250 = findCatalogItemByLabel('Amoxicilina + Clavulanato de Potássio (Agemoxi CL) — 250mg');
+  assert.equal(agemoxi250?.concentration, '250mg');
+
+  const pred5 = findCatalogItemByLabel('Prednisolona (Prediderm) — 5mg');
+  assert.equal(pred5?.concentration, '5mg');
+
+  const pred20 = findCatalogItemByLabel('Prednisolona (Prediderm) — 20mg');
+  assert.equal(pred20?.concentration, '20mg');
+
+  assert.equal(findCatalogItemByLabel(''), undefined);
+  assert.equal(findCatalogItemByLabel('Inexistente'), undefined);
+});
+
+test('timezone BRT - formata data calendário sem recuo UTC e extrai HH:mm em Fortaleza', () => {
+  assert.equal(formatBrazilDate('2026-11-21'), '21/11/2026');
+  assert.equal(formatBrazilDate('2026-11-22T01:30:00.000Z'), '21/11/2026');
+  assert.equal(formatBrazilDate('2025-02-29'), '');
+  assert.equal(formatBrazilDate('invalid'), '');
+
+  assert.equal(getBrazilTimeString(new Date('2026-11-22T01:30:00.000Z')), '22:30');
+  assert.equal(getBrazilTimeString(new Date('2026-11-22T03:05:00.000Z')), '00:05');
+  assert.equal(getBrazilTimeString(new Date('invalid')), '');
 });

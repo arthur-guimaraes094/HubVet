@@ -126,6 +126,7 @@ export default async function ProntuarioPage({
         </div>
 
         <ConsultationForm
+          key={`${patientData?.id || 'none'}-${scheduledConsultation?.id || 'new'}`}
           inventory={inventory || []}
           patientId={patientData?.id}
           patientName={patientData?.name}

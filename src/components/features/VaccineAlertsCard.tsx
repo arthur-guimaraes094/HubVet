@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
 import { buildWhatsAppVaccineReminderUrl } from '@/core/use-cases/vaccine-protocols';
+import { getBrazilDateString } from '@/core/utils/timezone';
 
 export interface UpcomingVaccineItem {
   id: string;
@@ -21,7 +22,7 @@ interface VaccineAlertsCardProps {
 export function VaccineAlertsCard({ vaccines }: VaccineAlertsCardProps) {
   if (!vaccines || vaccines.length === 0) return null;
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getBrazilDateString();
 
   return (
     <Card className="w-full flex flex-col gap-3 p-5 bg-card border border-primary/20">

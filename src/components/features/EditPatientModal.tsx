@@ -85,6 +85,34 @@ export function EditPatientModal({ patient, isOpen, onClose }: EditPatientModalP
   const [colorOptions, setColorOptions] = useState<string[]>(COMMON_COAT_COLORS);
 
   useEffect(() => {
+    if (!isOpen) return;
+    let active = true;
+    Promise.resolve().then(() => {
+      if (!active) return;
+      const age = calculateYearsAndMonths(patient.birth_date);
+      setPatientName(patient.name);
+      setPatientSpecies(patient.species);
+      setPatientWeight(patient.weight_kg?.toString() || '');
+      setPatientBreed(patient.breed || '');
+      setPatientColor(patient.color || '');
+      setPhotoPreviewUrl(patient.photo_url || null);
+      setPatientPhotoRef(
+        patient.photo_url ? normalizeStorageRef(patient.photo_url, 'patients') : null
+      );
+      setAgeMode(patient.birth_date && !patient.is_birth_date_estimated ? 'exact' : 'approx');
+      setApproxYears(age ? age.years.toString() : '');
+      setApproxMonths(age ? age.months.toString() : '');
+      setExactBirthDate(patient.birth_date || '');
+      setFertilityStatus(patient.fertility_status || '');
+      setFertilityNotes(patient.fertility_notes || '');
+      setClinicalObservations(patient.clinical_observations || '');
+    });
+    return () => {
+      active = false;
+    };
+  }, [isOpen, patient]);
+
+  useEffect(() => {
     const speciesParam = patientSpecies || 'Canine';
     let active = true;
     fetch(`/api/breeds?species=${encodeURIComponent(speciesParam)}`)

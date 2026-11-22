@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { translateSpecies } from '@/core/utils/translations';
 import { formatPatientAge, formatFertilityStatus } from '@/core/utils/age';
 import { buildGoogleMapsUrl } from '@/core/utils/cep';
+import { formatBrazilDate } from '@/core/utils/timezone';
 import {
   VaccinationSection,
   type PatientVaccinationRecord,
@@ -377,7 +378,7 @@ export default async function PatientHistoryPage({
                           textAnchor="middle"
                           className="text-[12px] font-bold fill-foreground/40"
                         >
-                          {new Date(p.date).toLocaleDateString('pt-BR', {
+                          {formatBrazilDate(p.date, {
                             day: '2-digit',
                             month: '2-digit',
                           })}

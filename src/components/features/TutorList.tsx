@@ -31,6 +31,35 @@ interface Tutor {
   state?: string | null;
 }
 
+function formatCpfInput(raw: string): string {
+  let value = raw.replace(/\D/g, '');
+  if (value.length > 11) value = value.slice(0, 11);
+
+  if (value.length <= 3) return value;
+  if (value.length <= 6) return `${value.slice(0, 3)}.${value.slice(3)}`;
+  if (value.length <= 9) return `${value.slice(0, 3)}.${value.slice(3, 6)}.${value.slice(6)}`;
+  return `${value.slice(0, 3)}.${value.slice(3, 6)}.${value.slice(6, 9)}-${value.slice(9)}`;
+}
+
+function formatPhoneInput(raw: string, stripCountryPrefix = false): string {
+  let value = raw.replace(/\D/g, '');
+  if (stripCountryPrefix && (value.length === 12 || value.length === 13) && value.startsWith('55')) {
+    value = value.slice(2);
+  }
+  if (value.length > 11) value = value.slice(0, 11);
+
+  if (value.length <= 2) return value;
+
+  const ddd = value.slice(0, 2);
+  const part1 = value.slice(2, value.length <= 10 ? 6 : 7);
+  const part2 = value.slice(value.length <= 10 ? 6 : 7);
+
+  if (part2) {
+    return `(${ddd}) ${part1}-${part2}`;
+  }
+  return `(${ddd}) ${part1}`;
+}
+
 export function TutorList() {
   const [tutors, setTutors] = useState<Tutor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,9 +95,9 @@ export function TutorList() {
   const openEditTutor = (tutor: Tutor) => {
     setTutorToEdit(tutor);
     setEditName(tutor.name || '');
-    setEditPhone(tutor.phone || '');
-    setEditCpf(tutor.cpf || '');
-    setEditCep(tutor.cep || '');
+    setEditPhone(tutor.phone ? formatPhoneInput(tutor.phone, true) : '');
+    setEditCpf(tutor.cpf ? formatCpfInput(tutor.cpf) : '');
+    setEditCep(tutor.cep ? formatCep(tutor.cep) : '');
     setEditStreet(tutor.street || '');
     setEditNumber(tutor.number || '');
     setEditComplement(tutor.complement || '');
@@ -84,13 +113,16 @@ export function TutorList() {
     const digits = formatted.replace(/\D/g, '');
     if (digits.length === 8) {
       setLoadingCep(true);
-      const found = await fetchAddressByCep(digits);
-      setLoadingCep(false);
-      if (found) {
-        if (found.street) setEditStreet(found.street);
-        if (found.neighborhood) setEditNeighborhood(found.neighborhood);
-        if (found.city) setEditCity(found.city);
-        if (found.state) setEditState(found.state);
+      try {
+        const found = await fetchAddressByCep(digits);
+        if (found) {
+          if (found.street) setEditStreet(found.street);
+          if (found.neighborhood) setEditNeighborhood(found.neighborhood);
+          if (found.city) setEditCity(found.city);
+          if (found.state) setEditState(found.state);
+        }
+      } finally {
+        setLoadingCep(false);
       }
     }
   };
@@ -181,6 +213,11 @@ export function TutorList() {
       state: editState,
     });
 
+    const resolvedAddress =
+      !editStreet.trim() && editFreeAddress.trim()
+        ? editFreeAddress.trim()
+        : structuredAddr || editFreeAddress.trim();
+
     const data = {
       name: editName,
       phone: editPhone,
@@ -192,7 +229,7 @@ export function TutorList() {
       neighborhood: editNeighborhood,
       city: editCity,
       state: editState,
-      address: structuredAddr || editFreeAddress,
+      address: resolvedAddress,
     };
 
     try {
@@ -591,14 +628,16 @@ export function TutorList() {
               <Input
                 label="Telefone / WhatsApp"
                 value={editPhone}
-                onChange={(e) => setEditPhone(e.target.value)}
+                onChange={(e) => setEditPhone(formatPhoneInput(e.target.value))}
                 placeholder="(84) 99999-9999"
+                maxLength={15}
               />
               <Input
                 label="CPF"
                 value={editCpf}
-                onChange={(e) => setEditCpf(e.target.value)}
+                onChange={(e) => setEditCpf(formatCpfInput(e.target.value))}
                 placeholder="000.000.000-00"
+                maxLength={14}
               />
             </div>
 
@@ -675,7 +714,7 @@ export function TutorList() {
                 />
               </div>
 
-              {!editStreet && (
+              {!editStreet.trim() && (
                 <Input
                   label="Endereço Livre / Observação de Localização"
                   placeholder="Rua, número, bairro..."

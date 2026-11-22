@@ -1,16 +1,34 @@
 "use client";
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import type { PrescriptionItem } from '@/core/use-cases/generate-pdf';
-import { VET_SUPPLIES_CATALOG } from '@/core/data/vet-supplies-catalog';
+import {
+  VET_SUPPLIES_CATALOG,
+  findCatalogItemByLabel,
+  type VetSupplyCatalogItem,
+} from '@/core/data/vet-supplies-catalog';
 import {
   DEFAULT_PRESCRIPTION_TEMPLATES,
   type PrescriptionTemplate,
 } from '@/core/data/prescription-templates';
+
+function isValidCustomTemplate(item: unknown): item is PrescriptionTemplate {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
+  const candidate = item as Record<string, unknown>;
+  return (
+    typeof candidate.id === 'string' &&
+    candidate.id.trim().length > 0 &&
+    typeof candidate.title === 'string' &&
+    candidate.title.trim().length > 0 &&
+    typeof candidate.content === 'string' &&
+    typeof candidate.category === 'string' &&
+    typeof candidate.description === 'string'
+  );
+}
 
 interface ConsultationPrescriptionSectionProps {
   prescriptionText: string;
@@ -48,17 +66,27 @@ export function ConsultationPrescriptionSection({
   const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
   const [templateTitleInput, setTemplateTitleInput] = useState('');
 
-  const [customTemplates, setCustomTemplates] = useState<PrescriptionTemplate[]>(() => {
-    if (typeof window !== 'undefined') {
+  const [customTemplates, setCustomTemplates] = useState<PrescriptionTemplate[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    Promise.resolve().then(() => {
+      if (!active || typeof window === 'undefined') return;
       try {
         const saved = localStorage.getItem('hubvet_custom_prescription_templates');
-        if (saved) return JSON.parse(saved);
+        if (!saved) return;
+        const parsed: unknown = JSON.parse(saved);
+        if (!Array.isArray(parsed)) return;
+        const valid = parsed.filter(isValidCustomTemplate);
+        if (active) setCustomTemplates(valid);
       } catch (e) {
         console.warn(e);
       }
-    }
-    return [];
-  });
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const allTemplates = useMemo(
     () => [...customTemplates, ...DEFAULT_PRESCRIPTION_TEMPLATES],
@@ -132,7 +160,11 @@ export function ConsultationPrescriptionSection({
     const updated = [newTemplate, ...customTemplates];
     setCustomTemplates(updated);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('hubvet_custom_prescription_templates', JSON.stringify(updated));
+      try {
+        localStorage.setItem('hubvet_custom_prescription_templates', JSON.stringify(updated));
+      } catch (e) {
+        console.warn(e);
+      }
     }
     setShowSaveTemplateModal(false);
     setTemplateTitleInput('');
@@ -143,17 +175,21 @@ export function ConsultationPrescriptionSection({
     const updated = customTemplates.filter((t) => t.id !== id);
     setCustomTemplates(updated);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('hubvet_custom_prescription_templates', JSON.stringify(updated));
+      try {
+        localStorage.setItem('hubvet_custom_prescription_templates', JSON.stringify(updated));
+      } catch (e) {
+        console.warn(e);
+      }
     }
     onNotifySuccess('Modelo removido.');
   };
 
   const handleAppendCatalogItemToText = (
-    valOrItem: string | (typeof VET_SUPPLIES_CATALOG)[0]
+    valOrItem: string | VetSupplyCatalogItem
   ) => {
     const match =
       typeof valOrItem === 'string'
-        ? VET_SUPPLIES_CATALOG.find((c) => c.name.toLowerCase() === valOrItem.toLowerCase())
+        ? findCatalogItemByLabel(valOrItem)
         : valOrItem;
 
     if (!match) return;
@@ -179,15 +215,15 @@ export function ConsultationPrescriptionSection({
   };
 
   const handleSelectRxCatalogItem = (val: string) => {
-    setRxMedication(val);
-    const match = VET_SUPPLIES_CATALOG.find(
-      (c) => c.name.toLowerCase() === val.toLowerCase()
-    );
+    const match = findCatalogItemByLabel(val);
     if (match) {
-      if (match.concentration) setRxConcentration(match.concentration);
+      setRxMedication(match.name);
+      setRxConcentration(match.concentration || '');
       if (match.defaultRoute) setRxRoute(match.defaultRoute);
       if (match.defaultFrequency) setRxFrequency(match.defaultFrequency);
       if (match.defaultDuration) setRxDuration(match.defaultDuration);
+    } else {
+      setRxMedication(val);
     }
   };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -10,7 +10,7 @@ import {
   gerarPDFRelatorioAtendimento,
   PrescriptionItem,
 } from '@/core/use-cases/generate-pdf';
-import { VET_SUPPLIES_CATALOG } from '@/core/data/vet-supplies-catalog';
+import { getCatalogOptionLabels } from '@/core/data/vet-supplies-catalog';
 import { generatePixPayload, generatePixQrCodeDataUrl } from '@/core/utils/pix';
 import { buildGoogleMapsUrl } from '@/core/utils/cep';
 import { formatPatientAge, formatFertilityStatus } from '@/core/utils/age';
@@ -94,42 +94,12 @@ export function ConsultationForm({
   const router = useRouter();
   const { success, error } = useToast();
 
-  // Rascunho inicial do localStorage
-  const draftKey = patientId ? `hubvet_draft_consultation_${patientId}` : null;
-  const initialDraft = useMemo(() => {
-    if (!draftKey || typeof window === 'undefined') return null;
-    try {
-      const raw = localStorage.getItem(draftKey);
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
-  }, [draftKey]);
+  // Chave de rascunho escopada por paciente e consulta
+  const draftKey = patientId
+    ? `hubvet_draft_consultation_${patientId}_${consultationId || 'new'}`
+    : null;
 
-  const [hasRestoredDraft, setHasRestoredDraft] = useState(() => Boolean(initialDraft));
-  const [weight, setWeight] = useState<string>(() => {
-    if (lastWeight) return String(lastWeight);
-    if (initialDraft?.weight) return initialDraft.weight;
-    return '';
-  });
-  const [notes, setNotes] = useState<string>(() => {
-    if (initialNotes) return initialNotes;
-    if (initialDraft?.notes) return initialDraft.notes;
-    return '';
-  });
-  const [selectedItems, setSelectedItems] = useState<{ id: string; quantity: number }[]>(() => {
-    if (initialDraft?.selectedItems && Array.isArray(initialDraft.selectedItems)) {
-      return initialDraft.selectedItems;
-    }
-    return [];
-  });
-  const [loading, setLoading] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [images, setImages] = useState<UploadedConsultationImage[]>([]);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [consultationType, setConsultationType] = useState<'Home' | 'Hospital'>(initialType);
-
-  // Endereço e Custo de Deslocamento (Consultas a Domicílio)
+  // Valores-base vindos do servidor (garante SSR === primeira renderização no cliente)
   const safeInitialFee =
     initialTravelFee && initialTravelFee > 0 && initialTravelFee <= 500
       ? initialTravelFee
@@ -139,45 +109,267 @@ export function ConsultationForm({
       ? initialTravelDistanceKm
       : null;
 
-  const [address, setAddress] = useState<string>(() => {
-    if (tutorAddress) return tutorAddress;
-    if (initialDraft?.address) return initialDraft.address;
-    return '';
-  });
-  const [travelDistanceKm, setTravelDistanceKm] = useState<number | null>(safeInitialDistance);
-  const [travelFee, setTravelFee] = useState<string>(
-    safeInitialFee ? String(safeInitialFee) : ''
-  );
-  const [includeTravelFee, setIncludeTravelFee] = useState<boolean>(Boolean(safeInitialFee));
+  const baseWeight = lastWeight ? String(lastWeight) : '';
+  const baseNotes = initialNotes || '';
+  const basePrescriptionText = initialPrescriptionText || '';
+  const baseAddress = tutorAddress || '';
+  const baseType: 'Home' | 'Hospital' = initialType;
+  const baseTravelFee = safeInitialFee ? String(safeInitialFee) : '';
+  const baseTravelDistanceKm = safeInitialDistance;
+  const baseIncludeTravelFee = Boolean(safeInitialFee);
+
+  const [hasRestoredDraft, setHasRestoredDraft] = useState(false);
+  const [weight, setWeight] = useState<string>(baseWeight);
+  const [notes, setNotes] = useState<string>(baseNotes);
+  const [selectedItems, setSelectedItems] = useState<{ id: string; quantity: number }[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [images, setImages] = useState<UploadedConsultationImage[]>([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [consultationType, setConsultationType] = useState<'Home' | 'Hospital'>(baseType);
+
+  // Endereço e Custo de Deslocamento (Consultas a Domicílio)
+  const [address, setAddress] = useState<string>(baseAddress);
+  const [travelDistanceKm, setTravelDistanceKm] = useState<number | null>(baseTravelDistanceKm);
+  const [travelFee, setTravelFee] = useState<string>(baseTravelFee);
+  const [includeTravelFee, setIncludeTravelFee] = useState<boolean>(baseIncludeTravelFee);
   const [calculatingTravel, setCalculatingTravel] = useState(false);
 
   // Módulo de Receitas e Vacinação
-  const [prescriptionText, setPrescriptionText] = useState<string>(() => {
-    if (initialPrescriptionText) return initialPrescriptionText;
-    if (initialDraft?.prescriptionText) return initialDraft.prescriptionText;
-    return '';
-  });
+  const [prescriptionText, setPrescriptionText] = useState<string>(basePrescriptionText);
   const [prescriptions, setPrescriptions] = useState<PrescriptionItem[]>([]);
   const [vaccinations, setVaccinations] = useState<ConsultationVaccinationDraft[]>([]);
+  const [showSuccess, setShowSuccess] = useState(false);
 
-  const catalogNames = useMemo(
-    () => Array.from(new Set(VET_SUPPLIES_CATALOG.map((c) => c.name))),
-    []
-  );
-
-  // Salvar rascunho com debounce no localStorage
+  const inventoryRef = useRef(inventory);
   useEffect(() => {
-    if (!draftKey || typeof window === 'undefined') return;
-    if (!notes && !weight && !prescriptionText && selectedItems.length === 0) return;
+    inventoryRef.current = inventory;
+  }, [inventory]);
+  const draftLoadedRef = useRef(false);
+  const finalizedRef = useRef(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const timer = setTimeout(() => {
+  const catalogNames = useMemo(() => getCatalogOptionLabels(), []);
+
+  // Carrega e valida o rascunho apenas após a montagem no cliente
+  useEffect(() => {
+    draftLoadedRef.current = false;
+    finalizedRef.current = false;
+
+    if (!draftKey || typeof window === 'undefined') {
+      draftLoadedRef.current = true;
+      return;
+    }
+
+    let active = true;
+    Promise.resolve().then(() => {
+      if (!active) return;
+      try {
+        const raw = localStorage.getItem(draftKey);
+        if (!raw) return;
+
+        const parsed: unknown = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return;
+        const draft = parsed as Record<string, unknown>;
+
+        let restoredDiff = false;
+
+        if (typeof draft.weight === 'string') {
+          setWeight(draft.weight);
+          if (draft.weight !== baseWeight) restoredDiff = true;
+        }
+        if (typeof draft.notes === 'string') {
+          setNotes(draft.notes);
+          if (draft.notes !== baseNotes) restoredDiff = true;
+        }
+        if (typeof draft.prescriptionText === 'string') {
+          setPrescriptionText(draft.prescriptionText);
+          if (draft.prescriptionText !== basePrescriptionText) restoredDiff = true;
+        }
+        if (Array.isArray(draft.prescriptions)) {
+          const validPrescriptions = draft.prescriptions.filter(
+            (rx): rx is PrescriptionItem => {
+              if (!rx || typeof rx !== 'object' || Array.isArray(rx)) return false;
+              const r = rx as Record<string, unknown>;
+              return (
+                typeof r.id === 'string' &&
+                r.id.trim().length > 0 &&
+                typeof r.medicationName === 'string' &&
+                r.medicationName.trim().length > 0 &&
+                typeof r.route === 'string' &&
+                r.route.trim().length > 0 &&
+                typeof r.dosage === 'string' &&
+                typeof r.frequency === 'string' &&
+                typeof r.duration === 'string' &&
+                (r.concentration === undefined || typeof r.concentration === 'string') &&
+                (r.instructions === undefined || typeof r.instructions === 'string')
+              );
+            }
+          );
+          if (validPrescriptions.length > 0) {
+            setPrescriptions(validPrescriptions);
+            restoredDiff = true;
+          }
+        }
+        if (Array.isArray(draft.vaccinations)) {
+          const validProtocols = new Set([
+            'V10_VANGUARD',
+            'ANTIRRABICA',
+            'V5_FELINA',
+            'GRIPE_ORAL',
+            'CUSTOM',
+          ]);
+          const validStages = new Set(['dose_1', 'dose_2', 'dose_3', 'annual']);
+          const validVaccinations = draft.vaccinations.filter(
+            (vac): vac is ConsultationVaccinationDraft => {
+              if (!vac || typeof vac !== 'object' || Array.isArray(vac)) return false;
+              const v = vac as Record<string, unknown>;
+              return (
+                typeof v.id === 'string' &&
+                v.id.trim().length > 0 &&
+                typeof v.protocolCode === 'string' &&
+                validProtocols.has(v.protocolCode) &&
+                typeof v.doseStage === 'string' &&
+                validStages.has(v.doseStage) &&
+                (v.customVaccineName === undefined || typeof v.customVaccineName === 'string') &&
+                (v.notes === undefined || typeof v.notes === 'string') &&
+                (v.customIntervalDays === undefined ||
+                  (typeof v.customIntervalDays === 'number' &&
+                    Number.isInteger(v.customIntervalDays) &&
+                    v.customIntervalDays >= 1 &&
+                    v.customIntervalDays <= 3650))
+              );
+            }
+          );
+          if (validVaccinations.length > 0) {
+            setVaccinations(validVaccinations);
+            restoredDiff = true;
+          }
+        }
+        if (Array.isArray(draft.selectedItems)) {
+          const validIds = new Set((inventoryRef.current || []).map((i) => i.id));
+          const deduped = new Map<string, number>();
+          for (const rawItem of draft.selectedItems) {
+            if (!rawItem || typeof rawItem !== 'object' || Array.isArray(rawItem)) continue;
+            const entry = rawItem as Record<string, unknown>;
+            if (
+              typeof entry.id === 'string' &&
+              validIds.has(entry.id) &&
+              typeof entry.quantity === 'number' &&
+              Number.isInteger(entry.quantity) &&
+              entry.quantity >= 1
+            ) {
+              deduped.set(entry.id, Math.min(1000, entry.quantity));
+            }
+          }
+          if (deduped.size > 0) {
+            setSelectedItems(
+              Array.from(deduped.entries()).map(([id, quantity]) => ({ id, quantity }))
+            );
+            restoredDiff = true;
+          }
+        }
+        if (typeof draft.address === 'string') {
+          setAddress(draft.address);
+          if (draft.address !== baseAddress) restoredDiff = true;
+        }
+        if (draft.consultationType === 'Home' || draft.consultationType === 'Hospital') {
+          setConsultationType(draft.consultationType);
+          if (draft.consultationType !== baseType) restoredDiff = true;
+        }
+        if (typeof draft.travelFee === 'string') {
+          setTravelFee(draft.travelFee);
+          if (draft.travelFee !== baseTravelFee) restoredDiff = true;
+        }
+        if (
+          draft.travelDistanceKm === null ||
+          (typeof draft.travelDistanceKm === 'number' &&
+            Number.isFinite(draft.travelDistanceKm) &&
+            draft.travelDistanceKm >= 0 &&
+            draft.travelDistanceKm <= 500)
+        ) {
+          setTravelDistanceKm(draft.travelDistanceKm as number | null);
+          if (draft.travelDistanceKm !== baseTravelDistanceKm) restoredDiff = true;
+        }
+        if (typeof draft.includeTravelFee === 'boolean') {
+          setIncludeTravelFee(draft.includeTravelFee);
+          if (draft.includeTravelFee !== baseIncludeTravelFee) restoredDiff = true;
+        }
+
+        if (restoredDiff) {
+          setHasRestoredDraft(true);
+        }
+      } catch (e) {
+        console.warn('Erro ao restaurar rascunho:', e);
+      } finally {
+        if (active) {
+          draftLoadedRef.current = true;
+        }
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [
+    draftKey,
+    baseWeight,
+    baseNotes,
+    basePrescriptionText,
+    baseAddress,
+    baseType,
+    baseTravelFee,
+    baseTravelDistanceKm,
+    baseIncludeTravelFee,
+  ]);
+
+  const isDirtyFromServer =
+    notes !== baseNotes ||
+    weight !== baseWeight ||
+    prescriptionText !== basePrescriptionText ||
+    prescriptions.length > 0 ||
+    vaccinations.length > 0 ||
+    selectedItems.length > 0 ||
+    address !== baseAddress ||
+    consultationType !== baseType ||
+    travelFee !== baseTravelFee ||
+    travelDistanceKm !== baseTravelDistanceKm ||
+    includeTravelFee !== baseIncludeTravelFee;
+
+  // Salvar rascunho com debounce no localStorage apenas quando houver alterações reais
+  useEffect(() => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+
+    if (
+      !draftKey ||
+      typeof window === 'undefined' ||
+      !draftLoadedRef.current ||
+      finalizedRef.current ||
+      showSuccess ||
+      !isDirtyFromServer
+    ) {
+      return;
+    }
+
+    saveTimerRef.current = setTimeout(() => {
+      saveTimerRef.current = null;
+      if (finalizedRef.current) return;
       try {
         const payload = {
           notes,
           weight,
           prescriptionText,
+          prescriptions,
+          vaccinations,
           selectedItems,
           address,
+          consultationType,
+          travelFee,
+          travelDistanceKm,
+          includeTravelFee,
           updatedAt: new Date().toISOString(),
         };
         localStorage.setItem(draftKey, JSON.stringify(payload));
@@ -186,17 +378,48 @@ export function ConsultationForm({
       }
     }, 700);
 
-    return () => clearTimeout(timer);
-  }, [draftKey, notes, weight, prescriptionText, selectedItems, address]);
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+    };
+  }, [
+    draftKey,
+    showSuccess,
+    isDirtyFromServer,
+    notes,
+    weight,
+    prescriptionText,
+    prescriptions,
+    vaccinations,
+    selectedItems,
+    address,
+    consultationType,
+    travelFee,
+    travelDistanceKm,
+    includeTravelFee,
+  ]);
 
   const handleDiscardDraft = () => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
     if (draftKey && typeof window !== 'undefined') {
       localStorage.removeItem(draftKey);
     }
-    setNotes(initialNotes || '');
-    setWeight(lastWeight ? String(lastWeight) : '');
-    setPrescriptionText(initialPrescriptionText || '');
+    setNotes(baseNotes);
+    setWeight(baseWeight);
+    setPrescriptionText(basePrescriptionText);
+    setPrescriptions([]);
+    setVaccinations([]);
     setSelectedItems([]);
+    setAddress(baseAddress);
+    setConsultationType(baseType);
+    setTravelDistanceKm(baseTravelDistanceKm);
+    setTravelFee(baseTravelFee);
+    setIncludeTravelFee(baseIncludeTravelFee);
     setHasRestoredDraft(false);
     success('Rascunho descartado.');
   };
@@ -253,18 +476,25 @@ export function ConsultationForm({
     });
   };
 
-  const itemsTotalValue = selectedItems.reduce((acc, item) => {
+  const itemsTotalCents = selectedItems.reduce((acc, item) => {
     const inventoryItem = inventory?.find((i) => i.id === item.id);
-    return acc + (inventoryItem ? inventoryItem.salePrice * item.quantity : 0);
+    if (!inventoryItem) return acc;
+    const unitCents = Math.round(Number(inventoryItem.salePrice || 0) * 100);
+    return acc + unitCents * item.quantity;
   }, 0);
 
   const rawParsedTravelFee =
     consultationType === 'Home' && includeTravelFee && travelFee
       ? parseFloat(travelFee.replace(',', '.')) || 0
       : 0;
-  const parsedTravelFee = Math.min(500, Math.max(0, rawParsedTravelFee));
+  const clampedTravelFee = Number.isFinite(rawParsedTravelFee)
+    ? Math.min(500, Math.max(0, rawParsedTravelFee))
+    : 0;
+  const travelFeeCents = Math.round(clampedTravelFee * 100);
+  const totalCents = Math.max(0, itemsTotalCents + travelFeeCents);
 
-  const totalValue = itemsTotalValue + parsedTravelFee;
+  const parsedTravelFee = Number((travelFeeCents / 100).toFixed(2));
+  const totalValue = Number((totalCents / 100).toFixed(2));
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const inputEl = e.currentTarget;
@@ -314,8 +544,6 @@ export function ConsultationForm({
   const removeImage = (index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index));
   };
-
-  const [showSuccess, setShowSuccess] = useState(false);
 
   const buildPdfPayload = () => {
     const fullItems = selectedItems
@@ -404,6 +632,11 @@ export function ConsultationForm({
       });
 
       if (result.success) {
+        if (saveTimerRef.current) {
+          clearTimeout(saveTimerRef.current);
+          saveTimerRef.current = null;
+        }
+        finalizedRef.current = true;
         if (draftKey && typeof window !== 'undefined') {
           localStorage.removeItem(draftKey);
         }
@@ -412,6 +645,9 @@ export function ConsultationForm({
         error(result.error);
         setSubmitError(result.error);
       }
+    } catch {
+      error('Erro inesperado ao finalizar atendimento.');
+      setSubmitError('Erro inesperado ao finalizar atendimento.');
     } finally {
       setLoading(false);
     }
@@ -420,14 +656,8 @@ export function ConsultationForm({
   // PIX e QR Code para tela de sucesso
   const [pixQrCodeUrl, setPixQrCodeUrl] = useState<string>('');
 
-  const effectivePixKey =
-    pixKey ||
-    (typeof window !== 'undefined' ? localStorage.getItem('hubvet_pix_key') || '' : '');
-  const effectivePixType =
-    pixKeyType ||
-    (typeof window !== 'undefined'
-      ? localStorage.getItem('hubvet_pix_key_type') || 'CPF'
-      : 'CPF');
+  const effectivePixKey = pixKey || '';
+  const effectivePixType = pixKeyType || 'CPF';
 
   const pixPayload = useMemo(() => {
     if (!effectivePixKey || totalValue <= 0) return '';
@@ -467,6 +697,7 @@ export function ConsultationForm({
         vetName={vetName}
         notes={notes}
         prescriptionText={prescriptionText}
+        prescriptions={prescriptions}
         totalValue={totalValue}
         prescriptionsCount={prescriptions.length}
         effectivePixKey={effectivePixKey}
@@ -794,16 +1025,16 @@ export function ConsultationForm({
         <div className="flex items-baseline gap-1 relative z-10">
           <span className="text-lg font-black text-success/60">R$</span>
           <span className="text-5xl font-extrabold text-success tracking-tighter flex items-baseline">
-            {totalValue > 0 ? Math.floor(totalValue) : '0'}
+            {Math.floor(totalCents / 100)}
             <span className="text-3xl opacity-60">
-              ,{totalValue > 0 ? (totalValue % 1).toFixed(2).substring(2) : '00'}
+              ,{String(totalCents % 100).padStart(2, '0')}
             </span>
           </span>
         </div>
-        {parsedTravelFee > 0 && (
+        {travelFeeCents > 0 && (
           <span className="text-xs font-bold text-success/80 relative z-10">
-            Insumos/Serviços: R$ {itemsTotalValue.toFixed(2)} + Deslocamento: R${' '}
-            {parsedTravelFee.toFixed(2)}
+            Insumos/Serviços: R$ {(itemsTotalCents / 100).toFixed(2)} + Deslocamento: R${' '}
+            {(travelFeeCents / 100).toFixed(2)}
           </span>
         )}
       </div>
